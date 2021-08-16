@@ -36,8 +36,7 @@ const VOLUME_MIDPOINT = VOLUME_DIMENSION/2;
 //const VOLUME_SCALE = VOLUME_DIMENSION/256;
 const VOLUME_SCALE = 2;
 // hopefully can fit everything in
-const TEXTURE_WIDTH = VOLUME_DIMENSION*8;
-const TEXTURE_HEIGHT = VOLUME_DIMENSION;
+const TEXTURE_DIMENSION = VOLUME_DIMENSION*2;
 const VOLUME_MIDPOINT_VECTOR: Vector3 = [VOLUME_MIDPOINT, VOLUME_MIDPOINT, VOLUME_MIDPOINT];
 const NEGATIVE_VOLUME_MIDPOINT_VECTOR = vectorNDivide(VOLUME_MIDPOINT_VECTOR, -1);
 const VOLUME_MIDPOINT_MATRIX = matrix4Translate(...VOLUME_MIDPOINT_VECTOR);
@@ -64,10 +63,11 @@ const CARDINAL_PROJECTIONS: Matrix4[] = [
   // bottom
   matrix4Rotate(-Math.PI/2, 1, 0, 0),
 ];
-const CARDINAL_VECTORS: Vector3[] = CARDINAL_PROJECTIONS.map(
+const INVERSE_CARDINAL_PROJECTIONS = CARDINAL_PROJECTIONS.map(matrix4Invert);
+const CARDINAL_NORMALS: Vector3[] = CARDINAL_PROJECTIONS.map(
     rotation => vector3TransformMatrix4(rotation, 0, 0, 1).map(Math.round) as Vector3,
 );
-console.log('normals', CARDINAL_VECTORS);
+console.log('normals', CARDINAL_NORMALS);
 
 type ValueRange = 'positive-integer' | 'integer' | 'positive-float' | 'angle';
 
@@ -403,7 +403,7 @@ const renderShape = (volume: Volume, shape: Shape, transformFactories: Transform
 
 const fixNormals = (volume: Volume, shape: Shape, transformFactory: TransformFactory, invert?: boolean) => {
   volumeMap(volume, (voxel, position) => {
-    const exposed = CARDINAL_VECTORS.some(d => {
+    const exposed = CARDINAL_NORMALS.some(d => {
       const [x, y, z] = vectorNSubtract(position, d);
       return x >= 0
           && x < VOLUME_DIMENSION
@@ -455,27 +455,26 @@ const calculateVolumeBounds = (volume: Volume): Rect3 => {
   return [min, max];
 }
 
-// bounds index 1
-// bounds index 2
-// bounds index depth
-// transformation
-// rotation
-
 const volumeToCanvas = (volume: Volume, [omin, omax]: Rect3) => {
   const canvas = document.createElement('canvas');
-  canvas.width = TEXTURE_WIDTH;
-  canvas.height = TEXTURE_HEIGHT;
+  canvas.width = TEXTURE_DIMENSION;
+  canvas.height = TEXTURE_DIMENSION;
   const context = canvas.getContext('2d');
 
-  const imageBounds = CARDINAL_PROJECTIONS.map((rotation, i) => {
+  let rowHeight = 0;
+  let x = 0;
+  let y = 0;
+
+  const imageBounds = CARDINAL_PROJECTIONS.map((rotation) => {
+    const inverse = matrix4Invert(rotation);
     const transform = matrix4MultiplyStack([
       VOLUME_MIDPOINT_MATRIX,
       rotation,
       NEGATIVE_VOLUME_MIDPOINT_MATRIX,
     ]);
-    const inverse = matrix4Invert(rotation);
-    const extents1 = vector3TransformMatrix4(transform, ...omin);
-    const extents2 = vector3TransformMatrix4(transform, ...omax);
+    const inverseTransform = matrix4Invert(transform);
+    const extents1 = vector3TransformMatrix4(inverseTransform, ...omin);
+    const extents2 = vector3TransformMatrix4(inverseTransform, ...omax);
     const min = extents1.map((v, i) => Math.min(v, extents2[i])) as Vector3;
     const [minx, miny, minz] = min.map(Math.round);
     const max = extents1.map((v, i) => Math.max(v, extents2[i])) as Vector3;
@@ -496,7 +495,7 @@ const volumeToCanvas = (volume: Volume, [omin, omax]: Rect3) => {
 
             data[index++] = ((normal[0]+1)*127)|0;
             data[index++] = ((normal[1]+1)*127)|0;
-            data[index++] = Math.min(z-minz, 255);
+            data[index++] = Math.min(maxz - z, 255);
             data[index++] = 255 - material;
             continue o;
           }
@@ -507,14 +506,19 @@ const volumeToCanvas = (volume: Volume, [omin, omax]: Rect3) => {
         data[index++] = 0;
       }
     }
-    const x = i * VOLUME_DIMENSION;
-    context.putImageData(imageData, x, 0);
-    const sx1 = x/TEXTURE_WIDTH;
-    const sy1 = 0;
-    const sx2 = (x + width)/TEXTURE_WIDTH;
-    const sy2 = height/TEXTURE_HEIGHT;
-    // NOTE: coordinates are flipped vertically
-    return [sx1, sy2, sx2, sy2, sx2, sy1, sx1, sy1];
+    if (x + width > TEXTURE_DIMENSION) {
+      y += rowHeight;
+      x = 0;
+      rowHeight = 0;
+    }
+    context.putImageData(imageData, x, y);
+    const sx1 = x/TEXTURE_DIMENSION;
+    const sy1 = y/TEXTURE_DIMENSION;
+    const sx2 = (x + width)/TEXTURE_DIMENSION;
+    const sy2 = (y + height)/TEXTURE_DIMENSION;
+    rowHeight = Math.max(height, rowHeight);
+    x += width;
+    return [sx1, sy1, sx2, sy2];
   });
   return [canvas, imageBounds] as const;
 };

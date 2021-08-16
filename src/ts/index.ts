@@ -5,6 +5,7 @@
 
 const { volume } = processCommands(
     [
+      /*
       // shoulders
       [
         TYPE_SHAPE_CAPSULE,
@@ -32,7 +33,7 @@ const { volume } = processCommands(
         TYPE_TRANSLATE_Y, 
         {
           type: 'literal',
-          value: -4,
+          value: 4,
           range: 'integer'
         },
       ],
@@ -71,7 +72,7 @@ const { volume } = processCommands(
         TYPE_TRANSLATE_Y, 
         {
           type: 'literal',
-          value: 1,
+          value: -1,
           range: 'integer'
         },
       ],
@@ -111,6 +112,51 @@ const { volume } = processCommands(
       ],  
       [
         TYPE_CONTEXT_END_UNION,
+      ],
+      */
+      [
+        TYPE_SHAPE_BOX,
+        {
+          type: 'literal',
+          range: 'positive-integer',
+          value: 10,
+        },
+        {
+          type: 'literal',
+          range: 'positive-integer',
+          value: 10,
+        },
+        {
+          type: 'literal',
+          range: 'positive-integer',
+          value: 10,
+        },
+      ],
+      [
+        TYPE_TRANSLATE_Y, 
+        {
+          type: 'literal',
+          value: 7,
+          range: 'integer'
+        },
+      ],
+      [
+        TYPE_SHAPE_BOX,
+        {
+          type: 'literal',
+          range: 'positive-integer',
+          value: 4,
+        },
+        {
+          type: 'literal',
+          range: 'positive-integer',
+          value: 4,
+        },
+        {
+          type: 'literal',
+          range: 'positive-integer',
+          value: 4,
+        },
       ],
     ],
     [],
@@ -174,37 +220,51 @@ const A_VERTEX_POSITION = FLAG_LONG_SHADER_NAMES ? 'aVertexPosition' : 'a';
 const A_SURFACE_TEXTURE_COORD_INDEX = 1;
 const A_SURFACE_TEXTURE_COORD = FLAG_LONG_SHADER_NAMES ? 'aSurfaceTextureCoord' : 'b';
 
-const A_VERTEX_NORMAL_INDEX = 2;
-const A_VERTEX_NORMAL = FLAG_LONG_SHADER_NAMES ? 'aVertexNormal': 'c';
+const A_SURFACE_TEXTURE_BOUNDS_INDEX = 2;
+const A_SURFACE_TEXTURE_BOUNDS = FLAG_LONG_SHADER_NAMES ? 'aSurfaceTextureBounds' : 'c';
+
+const A_SURFACE_ROTATION_INDEX = 3;
+const A_SURFACE_ROTATION = FLAG_LONG_SHADER_NAMES ? 'aSurfaceRotation': 'd';
 
 const ATTRIBUTE_NAMES = FLAG_LONG_SHADER_NAMES
     ? [
       A_VERTEX_POSITION,
       A_SURFACE_TEXTURE_COORD,
-      A_VERTEX_NORMAL,
+      A_SURFACE_TEXTURE_BOUNDS,
+      A_SURFACE_ROTATION,
     ]
-    : 'abc'.split('');
+    : 'abcd'.split('');
 
 const U_MODEL_VIEW_MATRIX_INDEX = 0;
 const U_MODEL_VIEW_MATRIX = FLAG_LONG_SHADER_NAMES ? 'uModelViewMatrix' : 'A';
 
-const U_PROJECTION_MATRIX_INDEX = 1;
-const U_PROJECTION_MATRIX = FLAG_LONG_SHADER_NAMES ? 'uProjectionMatrix' : 'B';
+const U_MODEL_ROTATION_MATRIX_INDEX = 1;
+const U_MODEL_ROTATION_MATRIX = FLAG_LONG_SHADER_NAMES ? 'uModelRotationMatrix' : 'B';
 
-const U_SURFACE_TEXTURE_SAMPLER_INDEX = 2;
-const U_SURFACE_TEXTURE_SAMPLER = FLAG_LONG_SHADER_NAMES ? 'uSurfaceTextureSampler' : 'C';
+const U_PROJECTION_MATRIX_INDEX = 2;
+const U_PROJECTION_MATRIX = FLAG_LONG_SHADER_NAMES ? 'uProjectionMatrix' : 'C';
+
+const U_CAMERA_POSITIION_INDEX = 3;
+const U_CAMERA_POSITION = FLAG_LONG_SHADER_NAMES ? 'uCameraPosition' : 'D';
+
+const U_SURFACE_TEXTURE_SAMPLER_INDEX = 4;
+const U_SURFACE_TEXTURE_SAMPLER = FLAG_LONG_SHADER_NAMES ? 'uSurfaceTextureSampler' : 'E';
 
 const UNIFORM_NAMES = FLAG_LONG_SHADER_NAMES
     ? [
       U_MODEL_VIEW_MATRIX,
+      U_MODEL_ROTATION_MATRIX,
       U_PROJECTION_MATRIX,
+      U_CAMERA_POSITION,
       U_SURFACE_TEXTURE_SAMPLER,
     ]
-    : 'ABC'.split('');
+    : 'ABCDE'.split('');
 
 const V_SURFACE_TEXTURE_COORD = FLAG_LONG_SHADER_NAMES ? 'vSurfaceTextureCoord' : 'Z';
-const V_VERTEX_NORMAL = FLAG_LONG_SHADER_NAMES ? 'vVertexNormal' : 'Y';
-const V_VERTEX_NORMAL_MATRIX = FLAG_LONG_SHADER_NAMES ? 'vVertexNormalMatrix' : 'X';
+const V_SURFACE_TEXTURE_BOUNDS = FLAG_LONG_SHADER_NAMES ? 'vSurfaceTextureBounds' : 'Y';
+const V_VERTEX_NORMAL = FLAG_LONG_SHADER_NAMES ? 'vVertexNormal' : 'X';
+const V_SURFACE_ROTATION = FLAG_LONG_SHADER_NAMES ? 'vSurfaceRotation' : 'W';
+const V_WORLD_POSITION = FLAG_LONG_SHADER_NAMES ? 'vWorldPosition' : 'V';
 
 const PRECISION = `lowp`;
 
@@ -214,27 +274,24 @@ const L_VERTEX_NORMAL = FLAG_LONG_SHADER_NAMES ? 'lVertexNormal' : 'z';
 const VERTEX_SHADER = `
 attribute vec4 ${A_VERTEX_POSITION};
 attribute vec2 ${A_SURFACE_TEXTURE_COORD};
-attribute vec3 ${A_VERTEX_NORMAL};
+attribute vec4 ${A_SURFACE_TEXTURE_BOUNDS};
+attribute mat4 ${A_SURFACE_ROTATION};
 
 uniform mat4 ${U_MODEL_VIEW_MATRIX};
+uniform mat4 ${U_MODEL_ROTATION_MATRIX};
 uniform mat4 ${U_PROJECTION_MATRIX};
 
 varying ${PRECISION} vec2 ${V_SURFACE_TEXTURE_COORD};
-varying ${PRECISION} mat3 ${V_VERTEX_NORMAL_MATRIX};
+varying ${PRECISION} vec4 ${V_SURFACE_TEXTURE_BOUNDS};
+varying ${PRECISION} mat3 ${V_SURFACE_ROTATION};
+varying ${PRECISION} vec4 ${V_WORLD_POSITION};
 
 void main() {
-  gl_Position = ${U_PROJECTION_MATRIX} * ${U_MODEL_VIEW_MATRIX} * ${A_VERTEX_POSITION};
+  ${V_WORLD_POSITION} = ${U_MODEL_VIEW_MATRIX} * ${A_VERTEX_POSITION};
+  gl_Position = ${U_PROJECTION_MATRIX} * ${V_WORLD_POSITION};
   ${V_SURFACE_TEXTURE_COORD} = ${A_SURFACE_TEXTURE_COORD};
-  vec4 ${L_VERTEX_NORMAL} = ${U_MODEL_VIEW_MATRIX}*vec4(${A_VERTEX_NORMAL},0.) - ${U_MODEL_VIEW_MATRIX}*vec4(0.);
-  ${PRECISION} vec3 axis = cross(${L_VERTEX_NORMAL}.xyz, vec3(0., 0., 1.));
-  ${PRECISION} float c = dot(${L_VERTEX_NORMAL}.xyz, vec3(0., 0., 1.));
-  ${PRECISION} float angle = acos(c);
-  ${PRECISION} float s = sin(angle);
-  ${PRECISION} float oc = 1. - c;
-  ${V_VERTEX_NORMAL_MATRIX} = mat3(
-    oc * axis.x * axis.x + c,          oc * axis.x * axis.y - axis.z * s, oc * axis.z * axis.x + axis.y * s,
-    oc * axis.x * axis.y + axis.z * s, oc * axis.y * axis.y + c,          oc * axis.y * axis.z - axis.x * s,
-    oc * axis.z * axis.x - axis.y * s, oc * axis.y * axis.z + axis.x * s, oc * axis.z * axis.z + c         );
+  ${V_SURFACE_TEXTURE_BOUNDS} = ${A_SURFACE_TEXTURE_BOUNDS};
+  ${V_SURFACE_ROTATION} = mat3(${A_SURFACE_ROTATION}*${U_MODEL_ROTATION_MATRIX});
 }
 `;
 
@@ -243,20 +300,33 @@ void main() {
 const L_SURFACE = FLAG_LONG_SHADER_NAMES ? 'lSurface' : 'z';
 const L_LIGHTING = FLAG_LONG_SHADER_NAMES ? 'lLighting' : 'y';
 const L_SURFACE_NORMAL = FLAG_LONG_SHADER_NAMES ? 'lSurfaceNormal' : 'x';
+const L_CAMERA_DIRECTION = FLAG_LONG_SHADER_NAMES ? 'lCameraDirection' : 'w';
 
 const FRAGMENT_SHADER = `
 uniform sampler2D ${U_SURFACE_TEXTURE_SAMPLER};
+uniform ${PRECISION} vec3 ${U_CAMERA_POSITION};
 
 varying ${PRECISION} vec2 ${V_SURFACE_TEXTURE_COORD};
-varying ${PRECISION} mat3 ${V_VERTEX_NORMAL_MATRIX};
-
+varying ${PRECISION} vec4 ${V_SURFACE_TEXTURE_BOUNDS};
+varying ${PRECISION} mat3 ${V_SURFACE_ROTATION};
+varying ${PRECISION} vec4 ${V_WORLD_POSITION};
 
 void main() {
-  ${PRECISION} vec4 ${L_SURFACE} = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD});
-  ${PRECISION} vec3 ${L_SURFACE_NORMAL} = vec3(${L_SURFACE}.x, ${L_SURFACE}.y, 0.5)*2.-1.;
-  ${L_SURFACE_NORMAL} = ${V_VERTEX_NORMAL_MATRIX} * vec3(${L_SURFACE_NORMAL}.xy, sqrt(1. - pow(length(${L_SURFACE_NORMAL}), 2.)));
-  ${PRECISION} float ${L_LIGHTING} = 0.5 + 0.5 * max(dot(${L_SURFACE_NORMAL}.xyz, normalize(vec3(1., 0., 1.))),0.);
-  gl_FragColor = vec4(vec3(${L_SURFACE}.a*${L_LIGHTING}), ${L_SURFACE}.a);
+  ${PRECISION} vec3 ${L_CAMERA_DIRECTION} = ${V_SURFACE_ROTATION} * normalize(${V_WORLD_POSITION}.xyz - ${U_CAMERA_POSITION});
+  ${PRECISION} float depth = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD}).b;
+  //${PRECISION} float depth = 0.;
+  ${PRECISION} vec2 surfacePosition = ${V_SURFACE_TEXTURE_COORD} - ${L_CAMERA_DIRECTION}.xy * depth/${L_CAMERA_DIRECTION}.z;
+  if (all(lessThan(${V_SURFACE_TEXTURE_BOUNDS}.xy, surfacePosition)) && all(lessThan(surfacePosition, ${V_SURFACE_TEXTURE_BOUNDS}.zw))) {
+    //${PRECISION} vec4 ${L_SURFACE} = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD});
+    ${PRECISION} vec4 ${L_SURFACE} = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, surfacePosition);
+    ${PRECISION} vec3 ${L_SURFACE_NORMAL} = vec3(${L_SURFACE}.x, ${L_SURFACE}.y, 0.5)*2.-1.;
+    ${L_SURFACE_NORMAL} = vec3(${L_SURFACE_NORMAL}.xy, sqrt(1. - pow(length(${L_SURFACE_NORMAL}), 2.)));
+    //${L_SURFACE_NORMAL} = ${V_SURFACE_ROTATION} * vec3(0., 0., 1.);
+    ${PRECISION} float ${L_LIGHTING} = 0.5 + 0.5 * max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(vec3(0., 0., 1.))), -0.);
+    gl_FragColor = vec4(vec3(${L_SURFACE}.a*${L_LIGHTING}), ${L_SURFACE}.a > 0. ? 1. : 0.);
+  } else {
+    gl_FragColor = vec4(0.);
+  }
 }
 `;
 
@@ -272,7 +342,7 @@ gl.enable(CONST_GL_CULL_FACE);
 gl.cullFace(CONST_GL_BACK);
 gl.enable(gl.BLEND);
 gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-gl.clearColor(0, 0, 0, 1);
+gl.clearColor(1, 1, 1, 1);
 gl.clearDepth(1);
 gl.enable(CONST_GL_DEPTH_TEST); 
 gl.depthFunc(CONST_GL_LESS);
@@ -343,7 +413,9 @@ gl.texImage2D(
 gl.generateMipmap(CONST_GL_TEXTURE_2D);
 
 // surface texture coordinates
-const textureCoordinates = textureCanvasBounds.flat(); // TODO probably will need rotating or something
+const textureCoordinates = textureCanvasBounds
+    .map(([x1, y1, x2, y2]) => [x1, y1, x2, y1, x2, y2, x1, y2])
+    .flat();
 const textureCoordinatesBuffer = gl.createBuffer();
 gl.bindBuffer(CONST_GL_ARRAY_BUFFER, textureCoordinatesBuffer);
 gl.bufferData(
@@ -352,16 +424,28 @@ gl.bufferData(
     CONST_GL_STATIC_DRAW,
 );
 
-// normals
-const normals: number[] = CARDINAL_VECTORS.map(
-    v => new Array<Vector3>(4).fill(v),
-).flat(2);
-
-const normalBuffer = gl.createBuffer();
-gl.bindBuffer(CONST_GL_ARRAY_BUFFER, normalBuffer);
+// surface texture bounds
+const textureBounds = textureCanvasBounds
+    .map<number[][]>(v => new Array(4).fill(v))
+    .flat(2);
+const textureBoundsBuffer = gl.createBuffer();
+gl.bindBuffer(CONST_GL_ARRAY_BUFFER, textureBoundsBuffer);
 gl.bufferData(
     CONST_GL_ARRAY_BUFFER,
-    new Float32Array(normals),
+    new Float32Array(textureBounds),
+    CONST_GL_STATIC_DRAW,
+);
+
+// surface rotations
+const surfaceRotations: number[] = INVERSE_CARDINAL_PROJECTIONS.map(
+    v => new Array<Matrix4>(4).fill(v),
+).flat(2);
+
+const surfaceRotationBuffer = gl.createBuffer();
+gl.bindBuffer(CONST_GL_ARRAY_BUFFER, surfaceRotationBuffer);
+gl.bufferData(
+    CONST_GL_ARRAY_BUFFER,
+    new Float32Array(surfaceRotations),
     CONST_GL_STATIC_DRAW,
 );
 
@@ -370,6 +454,7 @@ let rot = 0;
 const aspect = 1;
 const zNear = .1;
 const perspectiveMatrix = matrix4InfinitePerspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, zNear);
+const cameraPosition: Vector3 = [0, 0, 0];
 
 const f = () => {
 
@@ -379,9 +464,11 @@ const f = () => {
 
   const projectionMatrix = matrix4Multiply(
       perspectiveMatrix,
-      matrix4Translate(0, 0, 0)
+      matrix4Translate(...cameraPosition),
   );
-  const modelMatrix = matrix4MultiplyStack([matrix4Translate(0, 0, -50), matrix4Rotate(rot, 0, 0, 1), matrix4Rotate(0, 1, 0, 0)]);
+  const modelRotationMatrix = matrix4MultiplyStack([matrix4Rotate(rot, 0, 1, 0), matrix4Rotate(rot/2, 1, 0, 0)]);
+  //const modelRotationMatrix = matrix4Identity();
+  const modelViewMatrix = matrix4MultiplyStack([matrix4Translate(0, 0, -50), modelRotationMatrix]);
 
   const attributes = ATTRIBUTE_NAMES.map(name => gl.getAttribLocation(shaderProgram, name));
   const uniforms = UNIFORM_NAMES.map(name => gl.getUniformLocation(shaderProgram, name)); 
@@ -413,32 +500,56 @@ const f = () => {
   );
   gl.enableVertexAttribArray(attributes[A_SURFACE_TEXTURE_COORD_INDEX]);
 
+  // surface texture bounds
+  gl.bindBuffer(CONST_GL_ARRAY_BUFFER, textureBoundsBuffer);
+  gl.vertexAttribPointer(
+      attributes[A_SURFACE_TEXTURE_BOUNDS_INDEX],
+      4, // numComponents
+      CONST_GL_FLOAT, // type
+      false, // normalise
+      0, // stride
+      0, // offset
+  );
+  gl.enableVertexAttribArray(attributes[A_SURFACE_TEXTURE_BOUNDS_INDEX]);
+
   // surface texture
   gl.activeTexture(CONST_GL_TEXTURE0);
   gl.bindTexture(CONST_GL_TEXTURE_2D, surfaceTexture)
   gl.uniform1i(uniforms[U_SURFACE_TEXTURE_SAMPLER_INDEX], 0);
 
-  // normals
-  gl.bindBuffer(CONST_GL_ARRAY_BUFFER, normalBuffer);
-  gl.vertexAttribPointer(
-      attributes[A_VERTEX_NORMAL_INDEX],
-      3,
-      CONST_GL_FLOAT,
-      false,
-      0,
-      0,
-  );
-  gl.enableVertexAttribArray(attributes[A_VERTEX_NORMAL_INDEX]);
+  // surface rotation
+  gl.bindBuffer(CONST_GL_ARRAY_BUFFER, surfaceRotationBuffer);
+  for (let i=0; i<4; i++) {
+    gl.enableVertexAttribArray(attributes[A_SURFACE_ROTATION_INDEX]+i);
+    gl.vertexAttribPointer(
+        attributes[A_SURFACE_ROTATION_INDEX]+i,
+        4,
+        CONST_GL_FLOAT,
+        false,
+        64,
+        i*16,
+    );
+  }
 
+  // uniforms
+  gl.uniformMatrix4fv(
+      uniforms[U_MODEL_VIEW_MATRIX_INDEX],
+      false,
+      modelViewMatrix,
+  );
+  gl.uniformMatrix4fv(
+      uniforms[U_MODEL_ROTATION_MATRIX_INDEX],
+      false,
+      matrix4Invert(modelRotationMatrix),
+  );
   gl.uniformMatrix4fv(
       uniforms[U_PROJECTION_MATRIX_INDEX],
       false,
       projectionMatrix,
   );
-  gl.uniformMatrix4fv(
-      uniforms[U_MODEL_VIEW_MATRIX_INDEX],
-      false,
-      modelMatrix,
+  gl.uniform3fv(
+      uniforms[U_CAMERA_POSITIION_INDEX],
+      cameraPosition,
   );
 
   gl.drawElements(
