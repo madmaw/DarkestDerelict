@@ -36,11 +36,13 @@ const VOLUME_MIDPOINT = VOLUME_DIMENSION/2;
 //const VOLUME_SCALE = VOLUME_DIMENSION/256;
 const VOLUME_SCALE = 2;
 // hopefully can fit everything in
-const TEXTURE_DIMENSION = VOLUME_DIMENSION*2;
+const TEXTURE_DIMENSION = VOLUME_DIMENSION*4;
 const VOLUME_MIDPOINT_VECTOR: Vector3 = [VOLUME_MIDPOINT, VOLUME_MIDPOINT, VOLUME_MIDPOINT];
 const NEGATIVE_VOLUME_MIDPOINT_VECTOR = vectorNDivide(VOLUME_MIDPOINT_VECTOR, -1);
 const VOLUME_MIDPOINT_MATRIX = matrix4Translate(...VOLUME_MIDPOINT_VECTOR);
 const NEGATIVE_VOLUME_MIDPOINT_MATRIX = matrix4Translate(...NEGATIVE_VOLUME_MIDPOINT_VECTOR);
+
+const TEXTURE_PADDING = 8;
 
 type Rect3 = [Vector3, Vector3];
 
@@ -67,7 +69,6 @@ const INVERSE_CARDINAL_PROJECTIONS = CARDINAL_PROJECTIONS.map(matrix4Invert);
 const CARDINAL_NORMALS: Vector3[] = CARDINAL_PROJECTIONS.map(
     rotation => vector3TransformMatrix4(rotation, 0, 0, 1).map(Math.round) as Vector3,
 );
-console.log('normals', CARDINAL_NORMALS);
 
 type ValueRange = 'positive-integer' | 'integer' | 'positive-float' | 'angle';
 
@@ -136,9 +137,12 @@ type VolumetricDrawCommand = [
   '#', // TYPE_MATERIAL_ID
 ];
 
+// material index and normal (x, y, z )
 type Voxel = readonly [number] | readonly [number, number, number, number];
+// rgb + shininess
+type Texel = readonly [number, number, number, number];
 
-type Volume = (Voxel | 0 | undefined)[][][];
+type Volume<T> = (T | Falseish)[][][];
 
 type TransformFactory = (v: Vector3) => Matrix4;
 
@@ -199,7 +203,7 @@ const processCommandString = (commandString: string) => {
   const commands = commandString.split('');
 
   const contexts: {
-    volume: Volume,
+    volume: Volume<Voxel>,
     factories: TransformFactory[],
     materialIndex: number,
   }[] = [{
@@ -360,7 +364,7 @@ const processCommandString = (commandString: string) => {
 // always return a normal if force is true
 type Shape = (test: Vector3, force?: Booleanish) => Vector3 | Falseish;
 
-const createEmptyVolume = (): Volume => (
+const createEmptyVolume = <T>(): Volume<T> => (
     new Array(VOLUME_DIMENSION).fill(0).map(_ =>
         new Array(VOLUME_DIMENSION).fill(0).map(_ =>
             new Array(VOLUME_DIMENSION).fill(0)
@@ -368,7 +372,7 @@ const createEmptyVolume = (): Volume => (
     )
 );
 
-const volumeMap = (volume: Volume, f: (voxel: Voxel | 0 | undefined, position: Vector3) => Voxel | 0 | undefined): Volume => {
+const volumeMap = <T>(volume: Volume<T>, f: (t: T | Falseish, position: Vector3) => T | Falseish): Volume<T> => {
   volume.forEach((ax, x) => {
     return ax.forEach((ay, y) =>
         ay.forEach((v, z) =>
@@ -379,7 +383,7 @@ const volumeMap = (volume: Volume, f: (voxel: Voxel | 0 | undefined, position: V
   return volume;
 };
 
-const renderShape = (volume: Volume, shape: Shape, transformFactories: TransformFactory[], materialIndex: number) => {
+const renderShape = (volume: Volume<Voxel>, shape: Shape, transformFactories: TransformFactory[], materialIndex: number) => {
   const transformFactory = p => matrix4MultiplyStack(transformFactories.map(f => f(p)));
   fixNormals(
       volumeMap(
@@ -401,8 +405,8 @@ const renderShape = (volume: Volume, shape: Shape, transformFactories: Transform
   );
 };
 
-const fixNormals = (volume: Volume, shape: Shape, transformFactory: TransformFactory, invert?: boolean) => {
-  volumeMap(volume, (voxel, position) => {
+const fixNormals = (volume: Volume<Voxel>, shape: Shape, transformFactory: TransformFactory, invert?: boolean) => {
+  volumeMap(volume, (voxel, position): Voxel | Falseish => {
     const exposed = CARDINAL_NORMALS.some(d => {
       const [x, y, z] = vectorNSubtract(position, d);
       return x >= 0
@@ -442,31 +446,29 @@ const fixNormals = (volume: Volume, shape: Shape, transformFactory: TransformFac
   });
 };
 
-const calculateVolumeBounds = (volume: Volume): Rect3 => {
+const calculateVolumeBounds = <T>(volume: Volume<T>): Rect3 => {
   let max: Vector3 = [0, 0, 0];
   let min: Vector3 = [VOLUME_DIMENSION, VOLUME_DIMENSION, VOLUME_DIMENSION];
-  volumeMap(volume, (voxel, position) => {
-    if (voxel) {
+  volumeMap(volume, (t, position) => {
+    if (t) {
       max = max.map((v, i) => Math.max(position[i], v)) as Vector3;
       min = min.map((v, i) => Math.min(position[i], v)) as Vector3;
     }
-    return voxel;
+    return t;
   });
   return [min, max];
 }
 
-const volumeToCanvas = (volume: Volume, [omin, omax]: Rect3) => {
+const volumeToTexture = (volume: Volume<Voxel>, [omin, omax]: Rect3, rendersTextures: Volume<Texel>[][]) => {
   const data = new Uint8Array(TEXTURE_DIMENSION*TEXTURE_DIMENSION*4);
-  // const canvas = document.createElement('canvas');
-  // canvas.width = TEXTURE_DIMENSION;
-  // canvas.height = TEXTURE_DIMENSION;
-  // const context = canvas.getContext('2d');
 
   let rowHeight = 0;
-  let x = 0;
-  let y = 0;
+  let x = TEXTURE_PADDING;
+  let y = TEXTURE_PADDING;
 
-  const imageBounds = CARDINAL_PROJECTIONS.map((rotation) => {
+  const process = (
+      f: (index: number, voxel: Voxel, x: number, y: number, minz: number, maxz: number, inverse: Matrix4) => void,
+  ) => CARDINAL_PROJECTIONS.map((rotation) => {
     const inverse = matrix4Invert(rotation);
     const transform = matrix4MultiplyStack([
       VOLUME_MIDPOINT_MATRIX,
@@ -480,43 +482,32 @@ const volumeToCanvas = (volume: Volume, [omin, omax]: Rect3) => {
     const [minx, miny, minz] = min.map(Math.round);
     const max = extents1.map((v, i) => Math.max(v, extents2[i])) as Vector3;
     const [maxx, maxy, maxz] = max.map(Math.round);
-    const width = maxx - minx + 1;
-    const height = maxy - miny + 1;
-    // const imageData = context.createImageData(width, height);
-    // const data = imageData.data;
+    const width = maxx - minx + 1 + TEXTURE_PADDING*2;
+    const height = maxy - miny + 1 + TEXTURE_PADDING*2;
     if (x + width > TEXTURE_DIMENSION) {
       y += rowHeight;
       x = 0;
       rowHeight = 0;
     }
-    //let index = 0;
     for (let vy=miny; vy<=maxy; vy++) {
       for (let vx=minx; vx<=maxx; vx++) {
         let firstZ = 0;
         let firstVoxel: Voxel | undefined
         let lastZ = 0;
         for (let vz=maxz; vz>=minz; vz--) {
-          const v = vector3TransformMatrix4(transform, vx, vy, vz);
-          const voxel = volume[v[0] | 0][v[1] | 0][v[2] | 0];
+          const v = vector3TransformMatrix4(transform, vx, vy, vz).map(Math.round);
+          const voxel = volume[v[0]][v[1]][v[2]];
           if (voxel) {
             if (!firstVoxel) {
               firstVoxel = voxel;
               firstZ = vz;
             }
             lastZ = vz;
-          } else if (firstVoxel) {
-            break;
           }
         }
-        let index = (y+vy-miny) * TEXTURE_DIMENSION * 4 + (x+vx-minx) * 4;
+        let index = (y+vy+TEXTURE_PADDING-miny) * TEXTURE_DIMENSION * 4 + (x+vx+TEXTURE_PADDING-minx) * 4;
         if (firstVoxel) {
-          const material = firstVoxel[0];
-          const normal = vector3TransformMatrix4(inverse, ...(firstVoxel.slice(1) as Vector3));
-          data[index++] = ((normal[0]+1)*127)|0;
-          data[index++] = ((normal[1]+1)*127)|0;
-          data[index++] = Math.min(maxz - firstZ, 255);
-          data[index++] = Math.min(maxz - lastZ+1, 255);
-          //data[index++] = 255 - material;
+          f(index, firstVoxel, x, y, maxz - firstZ, maxz - lastZ, inverse);
         } else {
           data[index++] = 0;
           data[index++] = 0;
@@ -525,7 +516,7 @@ const volumeToCanvas = (volume: Volume, [omin, omax]: Rect3) => {
         }
       }
     }
-    // context.putImageData(imageData, x, y);
+    
     const sx1 = x/TEXTURE_DIMENSION;
     const sy1 = y/TEXTURE_DIMENSION;
     const sx2 = (x + width)/TEXTURE_DIMENSION;
@@ -534,5 +525,21 @@ const volumeToCanvas = (volume: Volume, [omin, omax]: Rect3) => {
     x += width;
     return [sx1, sy1, sx2, sy2];
   });
-  return [data, imageBounds] as const;
+  const imageBounds = process((index, voxel, x, y, minz, maxz, inverse) => {
+    const normal = vector3TransformMatrix4(inverse, ...(voxel.slice(1) as Vector3));
+    data[index++] = ((normal[0]+1)*127)|0;
+    data[index++] = ((normal[1]+1)*127)|0;
+    data[index++] = Math.min(minz + TEXTURE_PADDING, 255);
+    data[index++] = Math.min(maxz + 1 + TEXTURE_PADDING, 255);
+  });
+  const textureBounds = rendersTextures.map(renderTextures => process((index, voxel, x, y, z) => {
+    const materialIndex = voxel[0];
+    const renderTexture = renderTextures[materialIndex%renderTextures.length];
+    const col = renderTexture[x%renderTexture.length];
+    const row = col[y%col.length];
+    const texel = row[z%row.length] as Texel;
+    data.set(texel, index);
+  }));
+
+  return [data, imageBounds, textureBounds] as const;
 };
