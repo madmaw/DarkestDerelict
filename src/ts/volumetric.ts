@@ -456,10 +456,11 @@ const calculateVolumeBounds = (volume: Volume): Rect3 => {
 }
 
 const volumeToCanvas = (volume: Volume, [omin, omax]: Rect3) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = TEXTURE_DIMENSION;
-  canvas.height = TEXTURE_DIMENSION;
-  const context = canvas.getContext('2d');
+  const data = new Uint8Array(TEXTURE_DIMENSION*TEXTURE_DIMENSION*4);
+  // const canvas = document.createElement('canvas');
+  // canvas.width = TEXTURE_DIMENSION;
+  // canvas.height = TEXTURE_DIMENSION;
+  // const context = canvas.getContext('2d');
 
   let rowHeight = 0;
   let x = 0;
@@ -481,37 +482,50 @@ const volumeToCanvas = (volume: Volume, [omin, omax]: Rect3) => {
     const [maxx, maxy, maxz] = max.map(Math.round);
     const width = maxx - minx + 1;
     const height = maxy - miny + 1;
-    const imageData = context.createImageData(width, height);
-    const data = imageData.data;
-    let index = 0;
-    for (let y=miny; y<=maxy; y++) {
-      o: for (let x=minx; x<=maxx; x++) {
-        for (let z=maxz; z>=minz; z--) {
-          const v = vector3TransformMatrix4(transform, x, y, z);
-          const voxel = volume[v[0] | 0][v[1] | 0][v[2] | 0];
-          if (voxel) {
-            const material = voxel[0];
-            const normal = vector3TransformMatrix4(inverse, ...(voxel.slice(1) as Vector3));
-
-            data[index++] = ((normal[0]+1)*127)|0;
-            data[index++] = ((normal[1]+1)*127)|0;
-            data[index++] = Math.min(maxz - z, 255);
-            data[index++] = 255 - material;
-            continue o;
-          }
-        }
-        data[index++] = 0;
-        data[index++] = 0;
-        data[index++] = 0;
-        data[index++] = 0;
-      }
-    }
+    // const imageData = context.createImageData(width, height);
+    // const data = imageData.data;
     if (x + width > TEXTURE_DIMENSION) {
       y += rowHeight;
       x = 0;
       rowHeight = 0;
     }
-    context.putImageData(imageData, x, y);
+    //let index = 0;
+    for (let vy=miny; vy<=maxy; vy++) {
+      for (let vx=minx; vx<=maxx; vx++) {
+        let firstZ = 0;
+        let firstVoxel: Voxel | undefined
+        let lastZ = 0;
+        for (let vz=maxz; vz>=minz; vz--) {
+          const v = vector3TransformMatrix4(transform, vx, vy, vz);
+          const voxel = volume[v[0] | 0][v[1] | 0][v[2] | 0];
+          if (voxel) {
+            if (!firstVoxel) {
+              firstVoxel = voxel;
+              firstZ = vz;
+            }
+            lastZ = vz;
+          } else if (firstVoxel) {
+            break;
+          }
+        }
+        let index = (y+vy-miny) * TEXTURE_DIMENSION * 4 + (x+vx-minx) * 4;
+        if (firstVoxel) {
+          const material = firstVoxel[0];
+          const normal = vector3TransformMatrix4(inverse, ...(firstVoxel.slice(1) as Vector3));
+          data[index++] = ((normal[0]+1)*127)|0;
+          data[index++] = ((normal[1]+1)*127)|0;
+          data[index++] = Math.min(maxz - firstZ, 255);
+          data[index++] = Math.min(maxz - lastZ+1, 255);
+          //data[index++] = 255 - material;
+        } else {
+          data[index++] = 0;
+          data[index++] = 0;
+          data[index++] = 0;
+          data[index++] = 0;  
+        }
+      }
+    }
+    // context.putImageData(imageData, x, y);
     const sx1 = x/TEXTURE_DIMENSION;
     const sy1 = y/TEXTURE_DIMENSION;
     const sx2 = (x + width)/TEXTURE_DIMENSION;
@@ -520,5 +534,5 @@ const volumeToCanvas = (volume: Volume, [omin, omax]: Rect3) => {
     x += width;
     return [sx1, sy1, sx2, sy2];
   });
-  return [canvas, imageBounds] as const;
+  return [data, imageBounds] as const;
 };
