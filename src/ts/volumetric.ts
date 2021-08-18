@@ -42,7 +42,7 @@ const NEGATIVE_VOLUME_MIDPOINT_VECTOR = vectorNDivide(VOLUME_MIDPOINT_VECTOR, -1
 const VOLUME_MIDPOINT_MATRIX = matrix4Translate(...VOLUME_MIDPOINT_VECTOR);
 const NEGATIVE_VOLUME_MIDPOINT_MATRIX = matrix4Translate(...NEGATIVE_VOLUME_MIDPOINT_VECTOR);
 
-const TEXTURE_PADDING = 8;
+const TEXTURE_PADDING = 0;
 
 type Rect3 = [Vector3, Vector3];
 
@@ -384,7 +384,7 @@ const volumeMap = <T>(volume: Volume<T>, f: (t: T | Falseish, position: Vector3)
 };
 
 const renderShape = (volume: Volume<Voxel>, shape: Shape, transformFactories: TransformFactory[], materialIndex: number) => {
-  const transformFactory = p => matrix4MultiplyStack(transformFactories.map(f => f(p)));
+  const transformFactory = p => matrix4Multiply(...transformFactories.map(f => f(p)));
   fixNormals(
       volumeMap(
           volume,
@@ -470,11 +470,11 @@ const volumeToTexture = (volume: Volume<Voxel>, [omin, omax]: Rect3, rendersText
       f: (index: number, voxel: Voxel, x: number, y: number, minz: number, maxz: number, inverse: Matrix4) => void,
   ) => CARDINAL_PROJECTIONS.map((rotation) => {
     const inverse = matrix4Invert(rotation);
-    const transform = matrix4MultiplyStack([
+    const transform = matrix4Multiply(
       VOLUME_MIDPOINT_MATRIX,
       rotation,
       NEGATIVE_VOLUME_MIDPOINT_MATRIX,
-    ]);
+    );
     const inverseTransform = matrix4Invert(transform);
     const extents1 = vector3TransformMatrix4(inverseTransform, ...omin);
     const extents2 = vector3TransformMatrix4(inverseTransform, ...omax);

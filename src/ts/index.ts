@@ -120,7 +120,7 @@ const { volume } = processCommands(
       [
         TYPE_CONTEXT_END_UNION,
       ],
-      // right upper arm
+      // left upper arm
       [
         TYPE_CONTEXT_START,
       ],
@@ -136,115 +136,7 @@ const { volume } = processCommands(
         TYPE_ROTATE_Z, 
         {
           type: 'literal',
-          value: Math.PI/6,
-          range: 'angle'
-        },
-      ],
-      [
-        TYPE_ROTATE_X, 
-        {
-          type: 'literal',
-          value: -4*Math.PI/9,
-          range: 'angle'
-        },
-      ],
-      [
-        TYPE_TRANSLATE_Z, 
-        {
-          type: 'literal',
-          value: -2,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_SHAPE_CAPSULE,
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-      ],
-      // right fore arm
-      [
-        TYPE_TRANSLATE_Z, 
-        {
-          type: 'literal',
-          value: -4,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_ROTATE_Y, 
-        {
-          type: 'literal',
-          value: Math.PI/3,
-          range: 'angle'
-        },
-      ],
-      [
-        TYPE_TRANSLATE_Z, 
-        {
-          type: 'literal',
-          value: -2,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_SHAPE_CAPSULE,
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 3,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 2,
-        },
-      ],
-      [
-        TYPE_CONTEXT_END_UNION,
-      ],
-      // left upper arm
-      [
-        TYPE_CONTEXT_START,
-      ],
-      [
-        TYPE_TRANSLATE_X, 
-        {
-          type: 'literal',
-          value: 5,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_ROTATE_X, 
-        {
-          type: 'literal',
-          value: Math.PI/6,
-          range: 'angle'
-        },
-      ],
-      [
-        TYPE_ROTATE_Z, 
-        {
-          type: 'literal',
-          value: -5*Math.PI/9,
+          value: -Math.PI/2,
           range: 'angle'
         },
       ],
@@ -284,10 +176,10 @@ const { volume } = processCommands(
         },
       ],
       [
-        TYPE_ROTATE_Y, 
+        TYPE_ROTATE_Z, 
         {
           type: 'literal',
-          value: Math.PI/9,
+          value: -Math.PI/2,
           range: 'angle'
         },
       ],
@@ -319,7 +211,99 @@ const { volume } = processCommands(
       ],
       [
         TYPE_CONTEXT_END_UNION,
-      ],            
+      ],
+      // right upper arm
+      [
+        TYPE_CONTEXT_START,
+      ],
+      [
+        TYPE_TRANSLATE_Z, 
+        {
+          type: 'literal',
+          value: 5,
+          range: 'integer'
+        },
+      ],
+      [
+        TYPE_ROTATE_Z, 
+        {
+          type: 'literal',
+          value: -Math.PI/2,
+          range: 'angle'
+        },
+      ],
+      [
+        TYPE_TRANSLATE_X, 
+        {
+          type: 'literal',
+          value: -2,
+          range: 'integer'
+        },
+      ],
+      [
+        TYPE_SHAPE_CAPSULE,
+        {
+          type: 'literal',
+          range: 'positive-integer',
+          value: 4,
+        },
+        {
+          type: 'literal',
+          range: 'positive-integer',
+          value: 4,
+        },
+        {
+          type: 'literal',
+          range: 'positive-integer',
+          value: 4,
+        },
+      ],
+      // right fore arm
+      [
+        TYPE_TRANSLATE_X, 
+        {
+          type: 'literal',
+          value: -4,
+          range: 'integer'
+        },
+      ],
+      [
+        TYPE_ROTATE_Z, 
+        {
+          type: 'literal',
+          value: -Math.PI/3,
+          range: 'angle'
+        },
+      ],
+      [
+        TYPE_TRANSLATE_X, 
+        {
+          type: 'literal',
+          value: -2,
+          range: 'integer'
+        },
+      ],
+      [
+        TYPE_SHAPE_CAPSULE,
+        {
+          type: 'literal',
+          range: 'positive-integer',
+          value: 4,
+        },
+        {
+          type: 'literal',
+          range: 'positive-integer',
+          value: 3,
+        },
+        {
+          type: 'literal',
+          range: 'positive-integer',
+          value: 2,
+        },
+      ],
+      [
+        TYPE_CONTEXT_END_UNION,
+      ],      
      /*
       [
         TYPE_ROTATE_X,
@@ -568,7 +552,7 @@ const L_VERTEX_NORMAL = FLAG_LONG_SHADER_NAMES ? 'lVertexNormal' : 'z';
 
 // VERTEX
 const VERTEX_SHADER = `
-attribute vec4 ${A_VERTEX_POSITION};
+attribute vec3 ${A_VERTEX_POSITION};
 attribute vec4 ${A_SURFACE_TEXTURE_COORD};
 attribute vec4 ${A_SURFACE_TEXTURE_BOUNDS};
 attribute mat4 ${A_SURFACE_ROTATION};
@@ -584,8 +568,8 @@ varying ${PRECISION} mat3 ${V_SURFACE_ROTATION};
 varying ${PRECISION} vec4 ${V_WORLD_POSITION};
 
 void main() {
-  ${V_WORLD_POSITION} = ${U_MODEL_VIEW_MATRIX} * ${A_VERTEX_POSITION};
-  gl_Position = ${U_PROJECTION_MATRIX} * (${V_WORLD_POSITION}-vec4(${U_CAMERA_POSITION}, 0.));
+  ${V_WORLD_POSITION} = ${U_MODEL_VIEW_MATRIX} * vec4(${A_VERTEX_POSITION}, 1.);
+  gl_Position = ${U_PROJECTION_MATRIX} * vec4(${V_WORLD_POSITION}.xyz-${U_CAMERA_POSITION}, 1.);
   ${V_SURFACE_TEXTURE_COORD} = ${A_SURFACE_TEXTURE_COORD};
   ${V_SURFACE_TEXTURE_BOUNDS} = ${A_SURFACE_TEXTURE_BOUNDS};
   ${V_SURFACE_ROTATION} = mat3(${A_SURFACE_ROTATION}*${U_MODEL_ROTATION_MATRIX});
@@ -606,30 +590,32 @@ const C_STEP_DEPTH = `${MAX_DEPTH/CONST_NUM_STEPS}`;
 const C_DEPTH_SCALE = `${256/VOLUME_DIMENSION*MAX_DEPTH}.`;
 
 const FRAGMENT_SHADER = `
-uniform sampler2D ${U_SURFACE_TEXTURE_SAMPLER};
-uniform ${PRECISION} vec3 ${U_CAMERA_POSITION};
+precision ${PRECISION}  float;
 
-varying ${PRECISION} vec4 ${V_SURFACE_TEXTURE_COORD};
-varying ${PRECISION} vec4 ${V_SURFACE_TEXTURE_BOUNDS};
-varying ${PRECISION} mat3 ${V_SURFACE_ROTATION};
-varying ${PRECISION} vec4 ${V_WORLD_POSITION};
+uniform sampler2D ${U_SURFACE_TEXTURE_SAMPLER};
+uniform vec3 ${U_CAMERA_POSITION};
+
+varying vec4 ${V_SURFACE_TEXTURE_COORD};
+varying vec4 ${V_SURFACE_TEXTURE_BOUNDS};
+varying mat3 ${V_SURFACE_ROTATION};
+varying vec4 ${V_WORLD_POSITION};
 
 void main() {
-  ${PRECISION} vec3 ${L_CAMERA_DIRECTION} = ${V_SURFACE_ROTATION} * normalize(${V_WORLD_POSITION}.xyz - ${U_CAMERA_POSITION});
-  ${PRECISION} vec2 surfacePosition = ${V_SURFACE_TEXTURE_COORD}.xy;
-  ${PRECISION} vec4 ${L_SURFACE} = vec4(0.);
+  vec3 ${L_CAMERA_DIRECTION} = ${V_SURFACE_ROTATION} * normalize(${V_WORLD_POSITION}.xyz - ${U_CAMERA_POSITION});
+  vec2 surfacePosition = ${V_SURFACE_TEXTURE_COORD}.xy;
+  vec4 ${L_SURFACE} = vec4(0.);
   
-  for (${PRECISION} float depth=0.; depth<${MAX_DEPTH}; depth+=${C_STEP_DEPTH}) {
-    ${PRECISION} vec2 previousSurfacePosition = surfacePosition;
+  for (float depth=0.; depth<${MAX_DEPTH}; depth+=${C_STEP_DEPTH}) {
+    vec2 previousSurfacePosition = surfacePosition;
     surfacePosition = ${V_SURFACE_TEXTURE_COORD}.xy-depth*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
     if (all(lessThan(${V_SURFACE_TEXTURE_BOUNDS}.xy, surfacePosition)) && all(lessThan(surfacePosition, ${V_SURFACE_TEXTURE_BOUNDS}.zw))) {
       ${L_SURFACE} = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, surfacePosition);
       if (${L_SURFACE}.b*${C_DEPTH_SCALE}<=depth && ${L_SURFACE}.a>0. && ${L_SURFACE}.a*${C_DEPTH_SCALE} > depth) {
-        ${PRECISION} vec4 previousSurface = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, previousSurfacePosition);
+        vec4 previousSurface = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, previousSurfacePosition);
         if (previousSurface.a>0.) {
-          ${PRECISION} float y0 = ${C_STEP_DEPTH};
-          ${PRECISION} float y1 = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, surfacePosition).b*${C_DEPTH_SCALE}-depth;
-          ${PRECISION} float y2 = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, previousSurfacePosition).b*${C_DEPTH_SCALE}-depth;
+          float y0 = ${C_STEP_DEPTH};
+          float y1 = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, surfacePosition).b*${C_DEPTH_SCALE}-depth;
+          float y2 = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, previousSurfacePosition).b*${C_DEPTH_SCALE}-depth;
           surfacePosition = mix(surfacePosition, previousSurfacePosition, 1./(1.-y1/(y0-y2)));
         }
         ${L_SURFACE} = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, surfacePosition);
@@ -642,11 +628,11 @@ void main() {
   }
   /*${L_SURFACE} = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD}.xy);*/
   if (${L_SURFACE}.a>0.) {
-    ${PRECISION} vec4 color = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, surfacePosition - ${V_SURFACE_TEXTURE_BOUNDS}.xy + ${V_SURFACE_TEXTURE_COORD}.zw);
-    ${PRECISION} vec3 ${L_SURFACE_NORMAL} = vec3(${L_SURFACE}.x, ${L_SURFACE}.y, 0.5)*2.-1.;
+    vec4 color = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, surfacePosition - ${V_SURFACE_TEXTURE_BOUNDS}.xy + ${V_SURFACE_TEXTURE_COORD}.zw);
+    vec3 ${L_SURFACE_NORMAL} = vec3(${L_SURFACE}.x, ${L_SURFACE}.y, 0.5)*2.-1.;
     ${L_SURFACE_NORMAL} = vec3(${L_SURFACE_NORMAL}.xy, sqrt(1. - pow(length(${L_SURFACE_NORMAL}), 2.)));
     /*${L_SURFACE_NORMAL} = ${V_SURFACE_ROTATION} * vec3(0., 0., 1.);*/
-    ${PRECISION} float ${L_LIGHTING} = 0.5 + 0.5 * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(vec3(1., 1., 1.))), -0.),color.a*4.);
+    float ${L_LIGHTING} = 0.5 + 0.5 * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(vec3(1., 1., 1.))), -0.),color.a*4.);
     gl_FragColor = vec4(color.rgb*(${L_LIGHTING}), 1.);
     /*gl_FragColor = vec4(vec3(${L_SURFACE}.b*128.*${L_LIGHTING}), 1.);*/
   } else {
@@ -665,8 +651,8 @@ gl.linkProgram(shaderProgram);
 gl.useProgram(shaderProgram);
 gl.enable(CONST_GL_CULL_FACE);
 gl.cullFace(CONST_GL_BACK);
-gl.enable(CONST_GL_BLEND);
-gl.blendFunc(CONST_GL_SRC_ALPHA, CONST_GL_ONE_MINUS_SRC_ALPHA);
+// gl.enable(CONST_GL_BLEND);
+// gl.blendFunc(CONST_GL_SRC_ALPHA, CONST_GL_ONE_MINUS_SRC_ALPHA);
 gl.clearColor(.8, .9, 1, 1);
 gl.clearDepth(1);
 gl.enable(CONST_GL_DEPTH_TEST); 
@@ -684,10 +670,10 @@ const vertices = CARDINAL_PROJECTIONS.map((rotation, i) => {
   const min = omin.map(v => v - TEXTURE_PADDING) as Vector3;
   const max = omax.map(v => v + TEXTURE_PADDING) as Vector3;
   const inverse = matrix4Invert(rotation);
-  const transform = matrix4MultiplyStack([
-    inverse,
-    matrix4Translate(-VOLUME_MIDPOINT, -omin[1], -VOLUME_MIDPOINT),
-  ]);
+  const transform = matrix4Multiply(
+      inverse,
+      matrix4Translate(-VOLUME_MIDPOINT, -omin[1], -VOLUME_MIDPOINT),
+  );
   const extents1 = vector3TransformMatrix4(transform, ...min);
   const extents2 = vector3TransformMatrix4(transform, ...max);
   const [minx, miny] = extents1.map((v, i) => Math.min(v, extents2[i])) as Vector3;
@@ -786,28 +772,42 @@ gl.bufferData(
     CONST_GL_STATIC_DRAW,
 );
 
+const attributes = ATTRIBUTE_NAMES.map(name => gl.getAttribLocation(shaderProgram, name));
+const uniforms = UNIFORM_NAMES.map(name => gl.getUniformLocation(shaderProgram, name)); 
+
 let rotation = 0;
 let targetRotation = rotation;
-let position: Vector3 = [0, 0, -30];
+let position: Vector3 = [0, 0, 0];
+let cameraPosition: Vector3 = [-50, 20, 0];
 let targetPosition = [...position];
 
 onkeydown = (e: KeyboardEvent) => {
   const actionMultiplier = e.shiftKey ? 0.125 : 1;
   let positionMultiplier = 1;
   switch (e.keyCode) {
-    case 39:
-      targetRotation -= Math.PI/2 * actionMultiplier;
-      break;
-    case 37:
+    case 39: // right
       targetRotation += Math.PI/2 * actionMultiplier;
+      console.log(targetRotation);
       break;
-    case 38:
+    case 37: // left
+      targetRotation -= Math.PI/2 * actionMultiplier;
+      console.log(targetRotation);
+      break;
+    case 40: // down
       positionMultiplier = -1;
-    case 40:
+    case 38: // up
       const sin = Math.sin(rotation) * 10 * actionMultiplier;
       const cos = Math.cos(rotation) * 10 * actionMultiplier;
       targetPosition[0] += cos * positionMultiplier;
       targetPosition[2] += sin * positionMultiplier;
+      console.log(rotation, targetPosition);
+      break;
+    case 32: // space
+      if (targetPosition[1] == 0) {
+        targetPosition[1] = 20;
+      } else {
+        targetPosition[1] = 0;
+      }
       break;
   } 
 }
@@ -816,7 +816,6 @@ const aspect = 1;
 const zNear = .1;
 const perspectiveMatrix = matrix4InfinitePerspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, zNear);
 //const perspectiveMatrix = matrix4Perspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, zNear, 1000);
-const cameraPosition: Vector3 = [0, 0, 0];
 const scale = 1/VOLUME_SCALE
 
 let previous = 0;
@@ -837,19 +836,16 @@ const f = (now: number) => {
 
   const projectionMatrix = matrix4Multiply(
       perspectiveMatrix,
-      matrix4Translate(...cameraPosition),
+      matrix4Rotate(- Math.PI/2, 0, 1, 0),
   );
   const modelRotationMatrix = matrix4Rotate(rotation, 0, 1, 0);
   //const modelRotationMatrix = matrix4Identity();
   //const modelRotationMatrix = matrix4Rotate(Math.PI/2, 0, 1, 0);
-  const modelViewMatrix = matrix4MultiplyStack([
-    matrix4Translate(...position),
-    modelRotationMatrix,
-    matrix4Scale(1/VOLUME_SCALE, 1/VOLUME_SCALE, 1/VOLUME_SCALE),
-  ]);
-
-  const attributes = ATTRIBUTE_NAMES.map(name => gl.getAttribLocation(shaderProgram, name));
-  const uniforms = UNIFORM_NAMES.map(name => gl.getUniformLocation(shaderProgram, name)); 
+  const modelViewMatrix = matrix4Multiply(
+      matrix4Translate(...position),
+      modelRotationMatrix,
+      matrix4Scale(scale, scale, scale),
+  );
 
   // vertexes
   gl.bindBuffer(CONST_GL_ARRAY_BUFFER, positionBuffer);
