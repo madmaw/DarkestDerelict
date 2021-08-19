@@ -1,4 +1,4 @@
-const OFFSET = 60;
+const OFFSET = 58; // character after '9'
 // positive floats can be 0 -> 2 in value
 const FLOAT_DIVISOR = 32;
 

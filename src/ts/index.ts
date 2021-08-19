@@ -2,428 +2,47 @@
 ///<reference path="./constants.ts"/>
 ///<reference path="./volumetric.ts"/>
 ///<reference path="./gl.ts"/>
+///<reference path="./volumes/wall.ts"/>
+///<reference path="./volumes/marine.ts"/>
+///<reference path="./sprite.ts"/>
 
-const { volume } = processCommands(
-    [
-      // shoulders
-      [
-        TYPE_ROTATE_Y, 
-        {
-          type: 'literal',
-          value: Math.PI/2,
-          range: 'angle'
-        },
-      ],
-      [
-        TYPE_SHAPE_CAPSULE,
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 9,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 5,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 5,
-        },
-      ],  
-      // head   
-      [
-        TYPE_CONTEXT_START,
-      ],
-      [
-        TYPE_TRANSLATE_Y, 
-        {
-          type: 'literal',
-          value: 4,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_TRANSLATE_X, 
-        {
-          type: 'literal',
-          value: 1,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_SCALE_Y, 
-        {
-          type: 'literal',
-          value: 1.2,
-          range: 'positive-float'
-        },
-      ],
-      [
-        TYPE_SHAPE_SPHERE,
-        {
-          type: 'literal',
-          value: 6,
-          range: 'positive-integer',
-        },
-      ],
-      [
-        TYPE_CONTEXT_END_UNION,
-      ],
-      // torso
-      [
-        TYPE_CONTEXT_START,
-      ],
-      [
-        TYPE_TRANSLATE_Y, 
-        {
-          type: 'literal',
-          value: -5,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_SCALE_X, 
-        {
-          type: 'literal',
-          value: 0.8,
-          range: 'positive-float'
-        },
-      ],
-      [
-        TYPE_ROTATE_Z, 
-        {
-          type: 'literal',
-          value: -Math.PI/2,
-          range: 'angle'
-        },
-      ],
-      [
-        TYPE_SHAPE_CAPSULE,
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 7,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 11,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 7,
-        },
-      ],  
-      [
-        TYPE_CONTEXT_END_UNION,
-      ],
-      // left upper arm
-      [
-        TYPE_CONTEXT_START,
-      ],
-      [
-        TYPE_TRANSLATE_Z, 
-        {
-          type: 'literal',
-          value: -5,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_ROTATE_Z, 
-        {
-          type: 'literal',
-          value: -Math.PI/2,
-          range: 'angle'
-        },
-      ],
-      [
-        TYPE_TRANSLATE_X, 
-        {
-          type: 'literal',
-          value: -2,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_SHAPE_CAPSULE,
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-      ],
-      // left fore arm
-      [
-        TYPE_TRANSLATE_X, 
-        {
-          type: 'literal',
-          value: -4,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_ROTATE_Z, 
-        {
-          type: 'literal',
-          value: -Math.PI/2,
-          range: 'angle'
-        },
-      ],
-      [
-        TYPE_TRANSLATE_X, 
-        {
-          type: 'literal',
-          value: -2,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_SHAPE_CAPSULE,
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 3,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 2,
-        },
-      ],
-      [
-        TYPE_CONTEXT_END_UNION,
-      ],
-      // right upper arm
-      [
-        TYPE_CONTEXT_START,
-      ],
-      [
-        TYPE_TRANSLATE_Z, 
-        {
-          type: 'literal',
-          value: 5,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_ROTATE_Z, 
-        {
-          type: 'literal',
-          value: -Math.PI/2,
-          range: 'angle'
-        },
-      ],
-      [
-        TYPE_TRANSLATE_X, 
-        {
-          type: 'literal',
-          value: -2,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_SHAPE_CAPSULE,
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-      ],
-      // right fore arm
-      [
-        TYPE_TRANSLATE_X, 
-        {
-          type: 'literal',
-          value: -4,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_ROTATE_Z, 
-        {
-          type: 'literal',
-          value: -Math.PI/3,
-          range: 'angle'
-        },
-      ],
-      [
-        TYPE_TRANSLATE_X, 
-        {
-          type: 'literal',
-          value: -2,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_SHAPE_CAPSULE,
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 3,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 2,
-        },
-      ],
-      [
-        TYPE_CONTEXT_END_UNION,
-      ],      
-     /*
-      [
-        TYPE_ROTATE_X,
-        {
-          type: 'literal',
-          range: 'angle',
-          value: Math.PI/4,
-        }
-      ],
-      [
-        TYPE_SHAPE_BOX,
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 16,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 16,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 8,
-        },
-      ],
-      [
-        TYPE_TRANSLATE_Z, 
-        {
-          type: 'literal',
-          value: -8,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_TRANSLATE_Y, 
-        {
-          type: 'literal',
-          value: -4,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_SHAPE_BOX,
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 16,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 8,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 8,
-        },
-      ],
-      */
-      /*
-      [
-        TYPE_SHAPE_BOX,
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 10,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 10,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 10,
-        },
-      ],      
-      [
-        TYPE_TRANSLATE_Z, 
-        {
-          type: 'literal',
-          value: 7,
-          range: 'integer'
-        },
-      ],
-      [
-        TYPE_SHAPE_BOX,
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-        {
-          type: 'literal',
-          range: 'positive-integer',
-          value: 4,
-        },
-      ],
-      */
-    ],
-    [],
+// const { volume } = processVolumetricDrawCommands(
+//     'marine',
+//     VOLUMETRIC_COMMANDS_MARINE,
+// );
+
+const COMMANDS = [
+  ['marine', VOLUMETRIC_COMMANDS_MARINE, ANIMATIONS_MARINE],
+  ['wall', VOLUMETRIC_COMMANDS_WALL],
+] as const;
+
+// const volumes = COMMANDS.map(([name, commands, animations]) => animations
+//     ? processAnimationCommands(name, commands, animations)
+//     : processVolumetricDrawCommands(name, commands)
+// );
+
+const volumes = processAnimationCommands(
+    'marine',
+    VOLUMETRIC_COMMANDS_MARINE,
+    ANIMATIONS_MARINE,
 );
 
-const bounds = calculateVolumeBounds(volume);
+const bounds = volumes.flat().reduce<Rect3>(([min, max], volume) => {
+  const [vmin, vmax] = calculateVolumeBounds(volume);
+  return [
+    min.map((v, i) => Math.min(v, vmin[i])) as Vector3,
+    max.map((v, i) => Math.max(v, vmax[i])) as Vector3,
+  ];
+}, [[VOLUME_DIMENSION, VOLUME_DIMENSION, VOLUME_DIMENSION], [0, 0, 0]]);
 
-const TEXTURE_RED_SHINY = [[[[128, 92, 92, 255]]]];
-const TEXTURE_GREEN = [[[[92, 128, 92, 128]]]];
-const TEXTURE_BLUE_DULL = [[[[0, 0, 128, 0]]]];
-const TEXTURE_WHITE_SHINY = [[[[255, 255, 255, 255]]]];
+const volume = volumes[0][0];
 
-const TEXTURE_SPECKLED = [[
+const TEXTURE_RED_SHINY: Texel[][][] = [[[[128, 92, 92, 255]]]];
+const TEXTURE_GREEN: Texel[][][] = [[[[92, 128, 92, 128]]]];
+const TEXTURE_BLUE_DULL: Texel[][][] = [[[[0, 0, 128, 0]]]];
+const TEXTURE_WHITE_SHINY: Texel[][][] = [[[[255, 255, 255, 255]]]];
+
+const TEXTURE_SPECKLED: Texel[][][] = [[
   [[0, 0, 0, 128], [255, 255, 255, 128]],
   [[255, 255, 255, 128], [0, 0, 0, 128]],
 ]];
@@ -433,25 +52,27 @@ const renderTextures = [
     TEXTURE_WHITE_SHINY,
     TEXTURE_WHITE_SHINY,
     TEXTURE_GREEN,
-    TEXTURE_WHITE_SHINY,
-    TEXTURE_RED_SHINY,
   ],
   [
     TEXTURE_SPECKLED,
   ],
 ];
 
-const [textureData, depthTextureBounds, renderTextureBounds] = volumeToTexture(volume, bounds, renderTextures);
+const [depthTextureData, depthTextureBounds] = volumeToDepthTexture(volume, bounds);
+const [renderTextureData] = volumeToRenderTexture(volume, bounds, renderTextures[0]);
 
 if (FLAG_DEBUG_TEXTURES) {
-  const debugCanvas = document.createElement('canvas');
-  debugCanvas.width = TEXTURE_DIMENSION;
-  debugCanvas.height = TEXTURE_DIMENSION;
-  const debugContext = debugCanvas.getContext('2d');
-  const debugData = debugContext.createImageData(TEXTURE_DIMENSION, TEXTURE_DIMENSION);
-  debugData.data.set(textureData, 0);
-  debugContext.putImageData(debugData, 0, 0);
-  d.appendChild(debugCanvas);
+  const textures = [depthTextureData, renderTextureData];
+  textures.forEach(texture => {
+    const debugCanvas = document.createElement('canvas');
+    debugCanvas.width = TEXTURE_DIMENSION;
+    debugCanvas.height = TEXTURE_DIMENSION;
+    const debugContext = debugCanvas.getContext('2d');
+    const debugData = debugContext.createImageData(TEXTURE_DIMENSION, TEXTURE_DIMENSION);
+    debugData.data.set(texture, 0);
+    debugContext.putImageData(debugData, 0, 0);
+    d.appendChild(debugCanvas);  
+  })
 }
 
 const canvas = c;
@@ -527,8 +148,11 @@ const U_PROJECTION_MATRIX = FLAG_LONG_SHADER_NAMES ? 'uProjectionMatrix' : 'C';
 const U_CAMERA_POSITIION_INDEX = 3;
 const U_CAMERA_POSITION = FLAG_LONG_SHADER_NAMES ? 'uCameraPosition' : 'D';
 
-const U_SURFACE_TEXTURE_SAMPLER_INDEX = 4;
-const U_SURFACE_TEXTURE_SAMPLER = FLAG_LONG_SHADER_NAMES ? 'uSurfaceTextureSampler' : 'E';
+const U_DEPTH_TEXTURE_SAMPLER_INDEX = 4;
+const U_DEPTH_TEXTURE_SAMPLER = FLAG_LONG_SHADER_NAMES ? 'uDepthTextureSampler' : 'E';
+
+const U_RENDER_TEXTURE_SAMPLER_INDEX = 5;
+const U_RENDER_TEXTURE_SAMPLER = FLAG_LONG_SHADER_NAMES ? 'uRenderTextureSampler' : 'F';
 
 const UNIFORM_NAMES = FLAG_LONG_SHADER_NAMES
     ? [
@@ -536,9 +160,10 @@ const UNIFORM_NAMES = FLAG_LONG_SHADER_NAMES
       U_MODEL_ROTATION_MATRIX,
       U_PROJECTION_MATRIX,
       U_CAMERA_POSITION,
-      U_SURFACE_TEXTURE_SAMPLER,
+      U_DEPTH_TEXTURE_SAMPLER,
+      U_RENDER_TEXTURE_SAMPLER,
     ]
-    : 'ABCDE'.split('');
+    : 'ABCDEF'.split('');
 
 const V_SURFACE_TEXTURE_COORD = FLAG_LONG_SHADER_NAMES ? 'vSurfaceTextureCoord' : 'Z';
 const V_SURFACE_TEXTURE_BOUNDS = FLAG_LONG_SHADER_NAMES ? 'vSurfaceTextureBounds' : 'Y';
@@ -553,7 +178,7 @@ const L_VERTEX_NORMAL = FLAG_LONG_SHADER_NAMES ? 'lVertexNormal' : 'z';
 // VERTEX
 const VERTEX_SHADER = `
 attribute vec3 ${A_VERTEX_POSITION};
-attribute vec4 ${A_SURFACE_TEXTURE_COORD};
+attribute vec2 ${A_SURFACE_TEXTURE_COORD};
 attribute vec4 ${A_SURFACE_TEXTURE_BOUNDS};
 attribute mat4 ${A_SURFACE_ROTATION};
 
@@ -562,7 +187,7 @@ uniform mat4 ${U_MODEL_ROTATION_MATRIX};
 uniform mat4 ${U_PROJECTION_MATRIX};
 uniform ${PRECISION} vec3 ${U_CAMERA_POSITION};
 
-varying ${PRECISION} vec4 ${V_SURFACE_TEXTURE_COORD};
+varying ${PRECISION} vec2 ${V_SURFACE_TEXTURE_COORD};
 varying ${PRECISION} vec4 ${V_SURFACE_TEXTURE_BOUNDS};
 varying ${PRECISION} mat3 ${V_SURFACE_ROTATION};
 varying ${PRECISION} vec4 ${V_WORLD_POSITION};
@@ -578,7 +203,7 @@ void main() {
 
 
 // FRAGMENT
-const L_SURFACE = FLAG_LONG_SHADER_NAMES ? 'lSurface' : 'z';
+const L_DEPTH_TEXTURE = FLAG_LONG_SHADER_NAMES ? 'lDepthTexture' : 'z';
 const L_LIGHTING = FLAG_LONG_SHADER_NAMES ? 'lLighting' : 'y';
 const L_SURFACE_NORMAL = FLAG_LONG_SHADER_NAMES ? 'lSurfaceNormal' : 'x';
 const L_CAMERA_DIRECTION = FLAG_LONG_SHADER_NAMES ? 'lCameraDirection' : 'w';
@@ -592,49 +217,53 @@ const C_DEPTH_SCALE = `${256/VOLUME_DIMENSION*MAX_DEPTH}.`;
 const FRAGMENT_SHADER = `
 precision ${PRECISION}  float;
 
-uniform sampler2D ${U_SURFACE_TEXTURE_SAMPLER};
+uniform sampler2D ${U_DEPTH_TEXTURE_SAMPLER};
+uniform sampler2D ${U_RENDER_TEXTURE_SAMPLER};
 uniform vec3 ${U_CAMERA_POSITION};
 
-varying vec4 ${V_SURFACE_TEXTURE_COORD};
+varying vec2 ${V_SURFACE_TEXTURE_COORD};
 varying vec4 ${V_SURFACE_TEXTURE_BOUNDS};
 varying mat3 ${V_SURFACE_ROTATION};
 varying vec4 ${V_WORLD_POSITION};
 
 void main() {
   vec3 ${L_CAMERA_DIRECTION} = ${V_SURFACE_ROTATION} * normalize(${V_WORLD_POSITION}.xyz - ${U_CAMERA_POSITION});
-  vec2 surfacePosition = ${V_SURFACE_TEXTURE_COORD}.xy;
-  vec4 ${L_SURFACE} = vec4(0.);
+  vec2 surfacePosition = ${V_SURFACE_TEXTURE_COORD};
+  vec4 ${L_DEPTH_TEXTURE} = vec4(0.);
   
   for (float depth=0.; depth<${MAX_DEPTH}; depth+=${C_STEP_DEPTH}) {
     vec2 previousSurfacePosition = surfacePosition;
-    surfacePosition = ${V_SURFACE_TEXTURE_COORD}.xy-depth*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
+    surfacePosition = ${V_SURFACE_TEXTURE_COORD}-depth*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
     if (all(lessThan(${V_SURFACE_TEXTURE_BOUNDS}.xy, surfacePosition)) && all(lessThan(surfacePosition, ${V_SURFACE_TEXTURE_BOUNDS}.zw))) {
-      ${L_SURFACE} = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, surfacePosition);
-      if (${L_SURFACE}.b*${C_DEPTH_SCALE}<=depth && ${L_SURFACE}.a>0. && ${L_SURFACE}.a*${C_DEPTH_SCALE} > depth) {
-        vec4 previousSurface = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, previousSurfacePosition);
+      ${L_DEPTH_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, surfacePosition);
+      if (${L_DEPTH_TEXTURE}.b*${C_DEPTH_SCALE}<=depth && ${L_DEPTH_TEXTURE}.a>0. && ${L_DEPTH_TEXTURE}.a*${C_DEPTH_SCALE} > depth) {
+        vec4 previousSurface = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, previousSurfacePosition);
         if (previousSurface.a>0.) {
           float y0 = ${C_STEP_DEPTH};
-          float y1 = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, surfacePosition).b*${C_DEPTH_SCALE}-depth;
-          float y2 = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, previousSurfacePosition).b*${C_DEPTH_SCALE}-depth;
+          float y1 = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, surfacePosition).b*${C_DEPTH_SCALE}-depth;
+          float y2 = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, previousSurfacePosition).b*${C_DEPTH_SCALE}-depth;
           surfacePosition = mix(surfacePosition, previousSurfacePosition, 1./(1.-y1/(y0-y2)));
         }
-        ${L_SURFACE} = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, surfacePosition);
+        ${L_DEPTH_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, surfacePosition);
         break;
       }
     } else {
       break;
     }
-    ${L_SURFACE} = vec4(0.);
+    ${L_DEPTH_TEXTURE} = vec4(0.);
   }
-  /*${L_SURFACE} = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD}.xy);*/
-  if (${L_SURFACE}.a>0.) {
-    vec4 color = texture2D(${U_SURFACE_TEXTURE_SAMPLER}, surfacePosition - ${V_SURFACE_TEXTURE_BOUNDS}.xy + ${V_SURFACE_TEXTURE_COORD}.zw);
-    vec3 ${L_SURFACE_NORMAL} = vec3(${L_SURFACE}.x, ${L_SURFACE}.y, 0.5)*2.-1.;
+  /*
+  ${L_DEPTH_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD});
+  surfacePosition = ${V_SURFACE_TEXTURE_COORD};
+  */
+  if (${L_DEPTH_TEXTURE}.a>0.) {
+    vec4 color = texture2D(${U_RENDER_TEXTURE_SAMPLER}, surfacePosition);
+    vec3 ${L_SURFACE_NORMAL} = vec3(${L_DEPTH_TEXTURE}.x, ${L_DEPTH_TEXTURE}.y, 0.5)*2.-1.;
     ${L_SURFACE_NORMAL} = vec3(${L_SURFACE_NORMAL}.xy, sqrt(1. - pow(length(${L_SURFACE_NORMAL}), 2.)));
     /*${L_SURFACE_NORMAL} = ${V_SURFACE_ROTATION} * vec3(0., 0., 1.);*/
-    float ${L_LIGHTING} = 0.5 + 0.5 * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(vec3(1., 1., 1.))), -0.),color.a*4.);
+    float ${L_LIGHTING} = 0.5 + 0.5 * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(vec3(-1., 1., 1.))), -0.),color.a*4.);
     gl_FragColor = vec4(color.rgb*(${L_LIGHTING}), 1.);
-    /*gl_FragColor = vec4(vec3(${L_SURFACE}.b*128.*${L_LIGHTING}), 1.);*/
+    /*gl_FragColor = vec4(vec3(${L_DEPTH_TEXTURE}.b*128.*${L_LIGHTING}), 1.);*/
   } else {
     gl_FragColor = vec4(0.);
   }
@@ -651,8 +280,8 @@ gl.linkProgram(shaderProgram);
 gl.useProgram(shaderProgram);
 gl.enable(CONST_GL_CULL_FACE);
 gl.cullFace(CONST_GL_BACK);
-// gl.enable(CONST_GL_BLEND);
-// gl.blendFunc(CONST_GL_SRC_ALPHA, CONST_GL_ONE_MINUS_SRC_ALPHA);
+gl.enable(CONST_GL_BLEND);
+gl.blendFunc(CONST_GL_SRC_ALPHA, CONST_GL_ONE_MINUS_SRC_ALPHA);
 gl.clearColor(.8, .9, 1, 1);
 gl.clearDepth(1);
 gl.enable(CONST_GL_DEPTH_TEST); 
@@ -710,9 +339,9 @@ gl.bufferData(
     CONST_GL_STATIC_DRAW,
 );
 
-// surface texture
-const surfaceTexture = gl.createTexture();
-gl.bindTexture(CONST_GL_TEXTURE_2D, surfaceTexture);
+// depth texture
+const depthTexture = gl.createTexture();
+gl.bindTexture(CONST_GL_TEXTURE_2D, depthTexture);
 gl.texImage2D(
     CONST_GL_TEXTURE_2D,
     0,
@@ -722,20 +351,35 @@ gl.texImage2D(
     0,
     CONST_GL_RGBA,
     CONST_GL_UNSIGNED_BYTE,
-    textureData,
+    depthTextureData,
 );
 gl.generateMipmap(CONST_GL_TEXTURE_2D);
 
-// surface texture coordinates
+// render texture
+const renderTexture = gl.createTexture();
+gl.bindTexture(CONST_GL_TEXTURE_2D, renderTexture);
+gl.texImage2D(
+    CONST_GL_TEXTURE_2D,
+    0,
+    CONST_GL_RGBA,
+    TEXTURE_DIMENSION,
+    TEXTURE_DIMENSION,
+    0,
+    CONST_GL_RGBA,
+    CONST_GL_UNSIGNED_BYTE,
+    renderTextureData,
+);
+gl.generateMipmap(CONST_GL_TEXTURE_2D);
+
+// texture coordinates
 
 const textureCoordinates = depthTextureBounds
     .map(([x1, y1, x2, y2], i) => {
-      const [rx, ry] = renderTextureBounds[0][i];
       return [
-        x1, y1, rx, ry,
-        x2, y1, rx, ry,
-        x2, y2, rx, ry,
-        x1, y2, rx, ry,
+        x1, y1,
+        x2, y1,
+        x2, y2,
+        x1, y2,
       ];
     })
     .flat();
@@ -747,7 +391,7 @@ gl.bufferData(
     CONST_GL_STATIC_DRAW,
 );
 
-// surface texture bounds
+// texture bounds
 const textureBounds = depthTextureBounds
     .map<number[][]>(v => new Array(4).fill(v))
     .flat(2);
@@ -787,11 +431,9 @@ onkeydown = (e: KeyboardEvent) => {
   switch (e.keyCode) {
     case 39: // right
       targetRotation += Math.PI/2 * actionMultiplier;
-      console.log(targetRotation);
       break;
     case 37: // left
       targetRotation -= Math.PI/2 * actionMultiplier;
-      console.log(targetRotation);
       break;
     case 40: // down
       positionMultiplier = -1;
@@ -800,7 +442,6 @@ onkeydown = (e: KeyboardEvent) => {
       const cos = Math.cos(rotation) * 10 * actionMultiplier;
       targetPosition[0] += cos * positionMultiplier;
       targetPosition[2] += sin * positionMultiplier;
-      console.log(rotation, targetPosition);
       break;
     case 32: // space
       if (targetPosition[1] == 0) {
@@ -862,11 +503,11 @@ const f = (now: number) => {
   // indexes
   gl.bindBuffer(CONST_GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
 
-  // surface texture coordinates
+  // texture coordinates
   gl.bindBuffer(CONST_GL_ARRAY_BUFFER, textureCoordinatesBuffer);
   gl.vertexAttribPointer(
       attributes[A_SURFACE_TEXTURE_COORD_INDEX],
-      4, // numComponents
+      2, // numComponents
       CONST_GL_FLOAT, // type
       false, // normalise
       0, // stride
@@ -874,7 +515,7 @@ const f = (now: number) => {
   );
   gl.enableVertexAttribArray(attributes[A_SURFACE_TEXTURE_COORD_INDEX]);
 
-  // surface texture bounds
+  // texture bounds
   gl.bindBuffer(CONST_GL_ARRAY_BUFFER, textureBoundsBuffer);
   gl.vertexAttribPointer(
       attributes[A_SURFACE_TEXTURE_BOUNDS_INDEX],
@@ -886,13 +527,18 @@ const f = (now: number) => {
   );
   gl.enableVertexAttribArray(attributes[A_SURFACE_TEXTURE_BOUNDS_INDEX]);
 
-  // surface texture
+  // depth texture
+  gl.uniform1i(uniforms[U_DEPTH_TEXTURE_SAMPLER_INDEX], 0);
   gl.activeTexture(CONST_GL_TEXTURE0);
   gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MAG_FILTER, CONST_GL_NEAREST);
   gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MIN_FILTER, CONST_GL_NEAREST);
-  gl.bindTexture(CONST_GL_TEXTURE_2D, surfaceTexture)
-  gl.uniform1i(uniforms[U_SURFACE_TEXTURE_SAMPLER_INDEX], 0);
+  gl.bindTexture(CONST_GL_TEXTURE_2D, depthTexture)
 
+  // render texture
+  gl.uniform1i(uniforms[U_RENDER_TEXTURE_SAMPLER_INDEX], 1);
+  gl.activeTexture(CONST_GL_TEXTURE1);
+  gl.bindTexture(CONST_GL_TEXTURE_2D, renderTexture)
+  
   // surface rotation
   gl.bindBuffer(CONST_GL_ARRAY_BUFFER, surfaceRotationBuffer);
   for (let i=0; i<4; i++) {
