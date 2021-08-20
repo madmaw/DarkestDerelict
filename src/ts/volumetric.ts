@@ -35,8 +35,8 @@ const VOLUME_DIMENSION = 32;
 const VOLUME_MIDPOINT = VOLUME_DIMENSION/2;
 //const VOLUME_SCALE = VOLUME_DIMENSION/256;
 const VOLUME_SCALE = 1;
-// hopefully can fit everything in
-const TEXTURE_DIMENSION = VOLUME_DIMENSION*2;
+// should be at least (VOLUME_DIMENSION+TEXTURE_PADDING*2) * 6 in area and a power-of-two
+const TEXTURE_DIMENSION = 256 * VOLUME_SCALE;
 const VOLUME_MIDPOINT_VECTOR: Vector3 = [VOLUME_MIDPOINT, VOLUME_MIDPOINT, VOLUME_MIDPOINT];
 const NEGATIVE_VOLUME_MIDPOINT_VECTOR = vectorNDivide(VOLUME_MIDPOINT_VECTOR, -1);
 const VOLUME_MIDPOINT_MATRIX = matrix4Translate(...VOLUME_MIDPOINT_VECTOR);
@@ -188,7 +188,7 @@ const processVolumetricDrawCommandString = (commandString: string, p: string[]) 
         const r = positiveIntegerFromBase64(commands.shift())/2;
         renderShape(
             volume,
-            (test: Vector3, force?: Booleanish) => (force || vectorNLength(test) < r) && vectorNNormalize(test),
+            (test: Vector3, force?: Booleanish) => (force || vectorNLength(test) <= r) && vectorNNormalize(test),
             allFactories,
             materialIndex,
         );
@@ -431,14 +431,14 @@ const volumeToDepthTexture = (volume: Volume<Voxel>, bounds: Rect3) => {
   });
 }
 
-const volumeToRenderTexture = (volume: Volume<Voxel>, bounds: Rect3, renderTextures: Texel[][][][]) => {
+const volumeToRenderTexture = (volume: Volume<Voxel>, bounds: Rect3, renderTextures: readonly Volume<Texel>[]) => {
   return volumeToTexture(volume, bounds, (voxel, x, y, z) => {
     const materialIndex = voxel[0];
     const renderTexture = renderTextures[materialIndex%renderTextures.length];
     const col = renderTexture[x%renderTexture.length];
     const row = col[y%col.length];
     const texel = row[z%row.length];
-    return texel;
+    return texel as Texel;
   });
 }
 

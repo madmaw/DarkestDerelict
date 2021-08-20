@@ -1,0 +1,1 @@
+const delay = (v?: number) => new Promise(r => setTimeout(r, v));
