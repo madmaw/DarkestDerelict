@@ -12,7 +12,7 @@ type SpriteAnimationStep = {
 
 type SpriteAnimationSequence = SpriteAnimationStep[];
 
-const processSpriteCommands = (name: string, volumeCommands: VolumetricDrawCommand[], sequences: SpriteAnimationSequence[]) => {
+const processSpriteCommands = (name: string, volumeCommands: readonly VolumetricDrawCommand[], sequences: readonly SpriteAnimationSequence[]) => {
 
   const volumeTemplate = convertVolumetricDrawCommands(volumeCommands);
 

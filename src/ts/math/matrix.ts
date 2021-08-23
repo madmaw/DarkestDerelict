@@ -75,7 +75,7 @@ const matrix4Multiply = (...matrices: Matrix4[]): Matrix4 => {
         }
         return out as any;
       },
-      matrices[0],
+      matrices[0] || matrix4Identity(),
   );
 }
 
@@ -146,9 +146,9 @@ const matrix4Rotate = (rad: number, x: number, y: number, z: number): Matrix4 =>
   c_ = mathCos(rad);
   t_ = 1 - c_;
   return [
-    x * x * t_ + c_, y * x * t_ - z * s_, z * x * t_ + y * s_, 0,
+    x * x * t_ + c_, y * x * t_ - z * s_, z * x * t_ - y * s_, 0,
     x * y * t_ + z * s_, y * y * t_ + c_, z * y * t_ - x * s_, 0,
-    x * z * t_ - y * s_, y * z * t_ + x * s_, z * z * t_ + c_, 0,
+    x * z * t_ + y * s_, y * z * t_ + x * s_, z * z * t_ + c_, 0,
     0, 0, 0, 1
   ];
 }

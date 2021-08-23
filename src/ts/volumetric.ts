@@ -6,6 +6,7 @@
 const TYPE_SHAPE_SPHERE = 'S';
 const TYPE_SHAPE_BOX = 'B';
 const TYPE_SHAPE_CAPSULE = 'C';
+const TYPE_SHAPE_CYLINDER = 'D';
 
 // translate
 const TYPE_TRANSLATE_X = 'x';
@@ -27,30 +28,31 @@ const TYPE_CONTEXT_START = '.';
 const TYPE_CONTEXT_END_UNION = '+';
 const TYPE_CONTEXT_END_SUBTRACTION = '-';
 const TYPE_CONTEXT_END_INTERSECTION = '&';
+const TYPE_CONTEXT_END_REMATERIAL = '%';
+
+// load/save
+const TYPE_SAVE_CONTEXT = '!';
+const TYPE_RESTORE_CONTEXT = '^';
 
 // material
 const TYPE_MATERIAL_ID = '#';
+const TYPE_MATERIAL_OUT_OF_BOUNDS = '?';
 
-const VOLUME_DIMENSION = 32;
-const VOLUME_MIDPOINT = VOLUME_DIMENSION/2;
+const VOLUME_DIMENSION = parseInt(window.location.hash?.substr(1) || '16');
+const VOLUME_MIDPOINT = (VOLUME_DIMENSION)/2;
+const OFFSET_VOLUME_MIDPOINT = (VOLUME_DIMENSION-.98)/2;
+
 //const VOLUME_SCALE = VOLUME_DIMENSION/256;
-const VOLUME_SCALE = 1;
+const VOLUME_SCALE = VOLUME_DIMENSION/32;
 // should be at least (VOLUME_DIMENSION+TEXTURE_PADDING*2) * 6 in area and a power-of-two
 const TEXTURE_DIMENSION = 256 * VOLUME_SCALE;
-const VOLUME_MIDPOINT_VECTOR: Vector3 = [VOLUME_MIDPOINT, VOLUME_MIDPOINT, VOLUME_MIDPOINT];
+const VOLUME_MIDPOINT_VECTOR: Vector3 = [OFFSET_VOLUME_MIDPOINT, OFFSET_VOLUME_MIDPOINT, OFFSET_VOLUME_MIDPOINT];
 const NEGATIVE_VOLUME_MIDPOINT_VECTOR = vectorNDivide(VOLUME_MIDPOINT_VECTOR, -1);
 const VOLUME_MIDPOINT_MATRIX = matrix4Translate(...VOLUME_MIDPOINT_VECTOR);
 const NEGATIVE_VOLUME_MIDPOINT_MATRIX = matrix4Translate(...NEGATIVE_VOLUME_MIDPOINT_VECTOR);
 
-const TEXTURE_PADDING = 0;
-
 type Rect3 = [Vector3, Vector3];
 
-// const CARDINAL_VECTORS = new Array(6).fill(0).map((_, i) => {
-//   const v = [0, 0, 0];
-//   v[i%3] = (i/3 | 0)*2 - 1;
-//   return v;
-// })
 const CARDINAL_PROJECTIONS: Matrix4[] = [
   // front
   matrix4Identity(),
@@ -84,6 +86,12 @@ type VolumetricDrawCommand = [
   Value<'positive-integer'>, // diameterRight: 
   Value<'positive-integer'>, // diameterLeft:
 ] | [
+  'D', // TYPE_SHAPE_CYLINDER
+  Value<'positive-integer'>, // width: 
+  Value<'positive-integer'>, // diameterRight: 
+  Value<'positive-integer'>, // diameterLeft:
+  Value<'positive-integer'>, // steps:
+] | [
   'x', // TYPE_TRANSLATE_X,
   Value<'integer'>, // amount: 
 ] | [
@@ -113,13 +121,21 @@ type VolumetricDrawCommand = [
 ] | [
   '.', // TYPE_CONTEXT_START
 ] | [
-  '+', // TYPE_CONTEXT_UNION_END
+  '+', // TYPE_CONTEXT_END_UNION
 ] | [
-  '-', // TYPE_CONTEXT_SUBTRACTION_END
+  '-', // TYPE_CONTEXT_END_SUBTRACTION
 ] | [
-  '&', // TYPE_CONTEXT_INTERSECTION_END
+  '&', // TYPE_CONTEXT_END_INTERSECTION
+] | [
+  '!', // TYPE_CONTEXT_END_SAVE
+] | [
+  '%', // TYPE_CONTEXT_END_REMATERIAL
+] | [
+  '^', //TYPE_LOAD_SAVED_VOLUME
 ] | [
   '#', // TYPE_MATERIAL_ID
+] | [
+  '?', // TYPE_MATERIAL_OUT_OF_BOUNDS
 ];
 
 // material index and normal (x, y, z )
@@ -161,73 +177,90 @@ const processVolumetricDrawCommands = (name: string, commands: readonly Volumetr
   return processVolumetricDrawCommandString(commandString, []);
 }
 
-const processVolumetricDrawCommandString = (commandString: string, p: string[]) => {
+const processVolumetricDrawCommandString = (
+    commandString: string,
+    p: string[],
+    transform: Matrix4 = matrix4Multiply(VOLUME_MIDPOINT_MATRIX, matrix4Scale(VOLUME_SCALE, VOLUME_SCALE, VOLUME_SCALE)), 
+) => {
   const commands = commandString.split('').map(s => p[s]?p[s]:s);
 
   const contexts: {
     volume: Volume<Voxel>,
-    factories: TransformFactory[],
-    materialIndex: number, 
+    transforms: Matrix4[],
+    materialIndex: number,
+    commands: string[],
   }[] = [{
-    volume: createEmptyVolume(),
-    factories: [
-      identityTransformFactory(VOLUME_MIDPOINT_MATRIX),
-      identityTransformFactory(matrix4Scale(VOLUME_SCALE, VOLUME_SCALE, VOLUME_SCALE)),
+    volume: createEmptyVolume(VOLUME_DIMENSION),
+    transforms: [
+      transform,
     ],
     materialIndex: 0,
+    commands: [],
   }];
+
+  let savedCommands: string[] | undefined;
   let contextIndex = 0;
+
+  const nextContext = () => {
+    const context = contexts.shift();
+    contexts[0].commands.push(...context.commands);
+  };
 
   while (commands.length) {
     const context = contexts[0];
-    const { volume, factories, materialIndex } = context;
-    const allFactories = contexts.map(c => c.factories).reverse().flat();
-    const command = commands.shift();
+    const nextCommand = () => {
+      const command = commands.shift();
+      context.commands.push(command);
+      return command;
+    };
+    const { volume, transforms, materialIndex } = context;
+    const transform = matrix4Multiply(...contexts.map(c => c.transforms).reverse().flat());
+    const command = nextCommand();
     switch (command) {
       case TYPE_SHAPE_SPHERE:
-        const r = positiveIntegerFromBase64(commands.shift())/2;
+        const r = positiveIntegerFromBase64(nextCommand())/2;
         renderShape(
             volume,
             (test: Vector3, force?: Booleanish) => (force || vectorNLength(test) <= r) && vectorNNormalize(test),
-            allFactories,
+            transform,
             materialIndex,
         );
         break;
       case TYPE_SHAPE_BOX:
-        const w = positiveIntegerFromBase64(commands.shift())/2;
-        const h = positiveIntegerFromBase64(commands.shift())/2;
-        const d = positiveIntegerFromBase64(commands.shift())/2;
-        renderShape(
-            volume,
-            (test: Vector3, force?: Booleanish) => {
-              const [x, y, z] = test;
-              if (force || Math.abs(x) <= w && Math.abs(y) <= h && Math.abs(z) <= d) {
-                const p = [x/w, y/h, z/d];
-                const index = p.reduce(
-                    (maxIndex, v, i, a) => Math.abs(a[maxIndex]) < Math.abs(v)
-                        ? i
-                        : maxIndex,
-                    0,
-                );
-                const v = p.map(v => Math.abs(v) >= Math.abs(p[index]) - ERROR_MARGIN && v,
-                );
-                return vectorNNormalize(v) as Vector3;
-              } 
-            },
-            allFactories,
-            materialIndex,
-        );
+        {
+          const w = positiveIntegerFromBase64(nextCommand())/2;
+          const h = positiveIntegerFromBase64(nextCommand())/2;
+          const d = positiveIntegerFromBase64(nextCommand())/2;
+          const dims = [w, h, d];
+          renderShape(
+              volume,
+              (test: Vector3, force?: Booleanish) => {
+                if (force || test.every((v, i) => Math.abs(v) < dims[i])) {
+                  const p = test.map((v, i) => v/dims[i]) as Vector3;
+                  const maxIndex = p.reduce(
+                      (maxIndex, v, i) => Math.abs(p[maxIndex]) < Math.abs(v)
+                          ? i
+                          : maxIndex,
+                      0,
+                  );
+                  const v = test.map((v, i) => i == maxIndex || Math.abs(v) > dims[i] ? v : 0);
+                  return vectorNNormalize(v) as Vector3;
+                } 
+              },
+              transform,
+              materialIndex,
+          );
+        }
         break;
       case TYPE_SHAPE_CAPSULE:
         {
-          const width = positiveIntegerFromBase64(commands.shift());
+          const width = positiveIntegerFromBase64(nextCommand());
           const widthDiv2 = width/2;
-          const rightRadius = positiveIntegerFromBase64(commands.shift())/2;
-          const leftRadius = positiveIntegerFromBase64(commands.shift())/2;
-
-          // const angle = Math.atan2(widthDiv2, rightRadius - leftRadius);
+          const rightRadius = positiveIntegerFromBase64(nextCommand())/2;
+          const leftRadius = positiveIntegerFromBase64(nextCommand())/2;
 
           const angle = Math.PI/2 + Math.asin((rightRadius - leftRadius)/width);
+          //const angle = Math.atan2(rightRadius - leftRadius, width);
           const sin = Math.sin(angle);
           const cos = Math.cos(angle);
           const leftX = cos * leftRadius - widthDiv2;
@@ -256,56 +289,148 @@ const processVolumetricDrawCommandString = (commandString: string, p: string[]) 
                 const nz = Math.cos(a) * sin;
                 return (force || r*r > y*y + z*z) && [cos, ny, nz];
               },
-              allFactories,
+              transform,
               materialIndex,
           )
         }
         break;
+      case TYPE_SHAPE_CYLINDER:
+        {
+          const width = positiveIntegerFromBase64(nextCommand());
+          const widthDiv2 = width/2;
+          const leftRadius = positiveIntegerFromBase64(nextCommand())/2;
+          const rightRadius = positiveIntegerFromBase64(nextCommand())/2;
+          //const angle = Math.PI/2 + Math.asin((rightRadius - leftRadius)/width);
+          const angle = Math.atan2(rightRadius - leftRadius, width);
+          const sin = Math.sin(angle + Math.PI/2);
+          const cos = Math.cos(angle + Math.PI/2);
+          const steps = positiveIntegerFromBase64(nextCommand());
+          const stepAngle = Math.PI*2/steps;
+          const cosStepAngleDiv2 = Math.cos(stepAngle/2)
+
+          renderShape(
+              volume,
+              (test: Vector3, force?: Booleanish): Vector3 => {
+                const [x, y, z] = test;
+                let a = Math.atan2(y, z);
+                if (a < 0) { 
+                  a += Math.PI*2;
+                }
+                const sector = a / stepAngle | 0;
+                const sectorAngle = sector * stepAngle + stepAngle/2;
+                const rOuter = leftRadius + ((x + widthDiv2) / width) * (rightRadius - leftRadius);
+                const rInner = leftRadius - 1/(VOLUME_SCALE) + ((x + widthDiv2) / width) * (rightRadius - leftRadius);
+                const [rz] = vector2Rotate(-sectorAngle, [z, y]);
+                const inPoly = cosStepAngleDiv2*rOuter>rz;
+                const inPolySurface = cosStepAngleDiv2*rInner<rz
+                
+                if (Math.abs(x) <= widthDiv2 && inPoly || force) {
+                  return inPolySurface
+                      ? [cos, Math.sin(sectorAngle)*sin, Math.cos(sectorAngle)*sin] as Vector3
+                      : vectorNNormalize([x, 0, 0]);
+                }
+              },
+              transform,
+              materialIndex,
+          );
+        }
+        break;
       case TYPE_TRANSLATE_X:
-        factories.push(identityTransformFactory(matrix4Translate(integerFromBase64(commands.shift()), 0, 0)));
+        transforms.push(matrix4Translate(integerFromBase64(nextCommand()), 0, 0));
         break;
       case TYPE_TRANSLATE_Y:
-        factories.push(identityTransformFactory(matrix4Translate(0, integerFromBase64(commands.shift()), 0)));
+        transforms.push(matrix4Translate(0, integerFromBase64(nextCommand()), 0));
         break;
       case TYPE_TRANSLATE_Z:
-        factories.push(identityTransformFactory(matrix4Translate(0, 0, integerFromBase64(commands.shift()))));
+        transforms.push(matrix4Translate(0, 0, integerFromBase64(nextCommand())));
         break;
       case TYPE_SCALE_X:
-        factories.push(identityTransformFactory(matrix4Scale(positiveFloatFromBase64(commands.shift()), 1, 1)));
+        transforms.push(matrix4Scale(positiveFloatFromBase64(nextCommand()), 1, 1));
         break;
       case TYPE_SCALE_Y:
-        factories.push(identityTransformFactory(matrix4Scale(1, positiveFloatFromBase64(commands.shift()), 1)));
+        transforms.push(matrix4Scale(1, positiveFloatFromBase64(nextCommand()), 1));
         break;
       case TYPE_SCALE_Z:
-        factories.push(identityTransformFactory(matrix4Scale(1, 1, positiveFloatFromBase64(commands.shift()))));
+        transforms.push(matrix4Scale(1, 1, positiveFloatFromBase64(nextCommand())));
         break;
       case TYPE_ROTATE_X:
-        factories.push(identityTransformFactory(matrix4Rotate(angleFromBase64(commands.shift()), 1, 0, 0)));
+        transforms.push(matrix4Rotate(angleFromBase64(nextCommand()), 1, 0, 0));
         break;
       case TYPE_ROTATE_Y:
-        factories.push(identityTransformFactory(matrix4Rotate(angleFromBase64(commands.shift()), 0, 1, 0)));
+        transforms.push(matrix4Rotate(angleFromBase64(nextCommand()), 0, 1, 0));
         break;
       case TYPE_ROTATE_Z:
-        factories.push(identityTransformFactory(matrix4Rotate(angleFromBase64(commands.shift()), 0, 0, 1)));
+        transforms.push(matrix4Rotate(angleFromBase64(nextCommand()), 0, 0, 1));
         break;
       case TYPE_CONTEXT_START:
         contextIndex++;
         contexts.unshift({
-          volume: createEmptyVolume(),
-          factories: [],
+          volume: createEmptyVolume(VOLUME_DIMENSION),
+          transforms: [],
           materialIndex: contextIndex,
+          commands: [],
         });
         break;
       case TYPE_CONTEXT_END_UNION:
-        contexts.shift();
+        nextContext();
+        fixNormals(
+            volumeMap(
+                contexts[0].volume,
+                (v, [x, y, z]) => v || volume[x][y][z],
+            ),
+        );
+        break;
+      case TYPE_CONTEXT_END_SUBTRACTION:
+        nextContext();
+        fixNormals(
+            volumeMap(
+                contexts[0].volume,
+                (v, [x, y, z]) => !volume[x][y][z] && v,
+            ),
+            ([x, y, z]: Vector3) => {
+              const a = [[-1, 0, 0], [1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, -1], [0, 0, 1]]
+                  .map(([dx, dy, dz]) => volume[x+dx | 0][y+dy | 0][z+dz | 0])
+                  .filter(v => v && v.length>1);
+              const n = a
+                  .reduce((acc, n, _, a) => acc.map((v, i) =>  v - n[i+1]/a.length), [0, 0, 0]) as Vector3;
+              //console.log(a, n);
+              return n;
+            },
+            matrix4Identity(),
+        );
+        break;
+      case TYPE_CONTEXT_END_REMATERIAL:
+        nextContext();
         volumeMap(
             contexts[0].volume,
-            (v, [x, y, z]) => v || volume[x][y][z],
+            (v, [x, y, z]) => {
+              const s = volume[x][y][z];
+              return v && s
+                  ? [s[0], ...v.slice(1)] as any as Voxel
+                  : v;
+            },
+        );
+        break;
+      case TYPE_SAVE_CONTEXT:
+        // don't want the save command to be saved!
+        savedCommands = context.commands.slice(0, -1);
+        break;  
+      case TYPE_RESTORE_CONTEXT:
+        const savedVolume = processVolumetricDrawCommandString(savedCommands.join(''), p, transform).volume;
+        fixNormals(
+            volumeMap(
+                volume,
+                (v, [x, y, z]) => v || savedVolume[x][y][z],
+            ),
         );
         break;
       case TYPE_MATERIAL_ID:
-        context.materialIndex = positiveIntegerFromBase64(commands.shift());
+        context.materialIndex = positiveIntegerFromBase64(nextCommand());
         break;
+      case TYPE_MATERIAL_OUT_OF_BOUNDS:
+        context.materialIndex = -context.materialIndex;
+        break;
+  
     }
   }
 
@@ -324,10 +449,10 @@ const processVolumetricDrawCommandString = (commandString: string, p: string[]) 
 // always return a normal if force is true
 type Shape = (test: Vector3, force?: Booleanish) => Vector3 | Falseish;
 
-const createEmptyVolume = <T>(): Volume<T> => (
-    new Array(VOLUME_DIMENSION).fill(0).map(_ =>
-        new Array(VOLUME_DIMENSION).fill(0).map(_ =>
-            new Array(VOLUME_DIMENSION).fill(0)
+const createEmptyVolume = <T>(d: number): Volume<T> => (
+    new Array(d).fill(0).map(_ =>
+        new Array(d).fill(0).map(_ =>
+            new Array(d).fill(0)
         )
     )
 );
@@ -343,8 +468,8 @@ const volumeMap = <T>(volume: Volume<T>, f: (t: T | Falseish, position: Vector3)
   return volume;
 };
 
-const renderShape = (volume: Volume<Voxel>, shape: Shape, transformFactories: TransformFactory[], materialIndex: number) => {
-  const transformFactory = p => matrix4Multiply(...transformFactories.map(f => f(p)));
+const renderShape = (volume: Volume<Voxel>, shape: Shape, transform: Matrix4, materialIndex: number) => {
+  const sourceTransform = matrix4Invert(transform);
   fixNormals(
       volumeMap(
           volume,
@@ -352,20 +477,21 @@ const renderShape = (volume: Volume<Voxel>, shape: Shape, transformFactories: Tr
             if (voxel) {
               return voxel;
             }
-            const transform = transformFactory(position);
-            const sourceTransform = matrix4Invert(transform);
-            const sourcePosition = vector3TransformMatrix4(sourceTransform, ...position);
+            const voxelCenter = position;
+            const sourcePosition = vector3TransformMatrix4(sourceTransform, ...voxelCenter);
             if (shape(sourcePosition)) {
               return [materialIndex];
             } 
           }
       ),
       shape,
-      transformFactory,
+      transform,
   );
 };
 
-const fixNormals = (volume: Volume<Voxel>, shape: Shape, transformFactory: TransformFactory, invert?: boolean) => {
+const fixNormals = (volume: Volume<Voxel>, shape?: Shape, transform?: Matrix4, invert?: boolean) => {
+  const sourceTransform = transform && matrix4Invert(transform);
+
   volumeMap(volume, (voxel, position): Voxel | Falseish => {
     const exposed = CARDINAL_NORMALS.some(d => {
       const [x, y, z] = vectorNSubtract(position, d);
@@ -379,10 +505,9 @@ const fixNormals = (volume: Volume<Voxel>, shape: Shape, transformFactory: Trans
     }); 
 
     if (exposed) {
-      if (voxel && voxel.length == 1) {
-        const transform = transformFactory(position);
-        const sourceTransform = matrix4Invert(transform);
-        const sourcePosition = vector3TransformMatrix4(sourceTransform, ...position);
+      if (voxel && voxel.length == 1 && shape) {
+        const voxelCenter = position as Vector3;
+        const sourcePosition = vector3TransformMatrix4(sourceTransform, ...voxelCenter);
         const sourceNormal = shape(sourcePosition, TRUE) as Vector3;
         const origin = vector3TransformMatrix4(transform, 0, 0, 0);
         const normal = vectorNNormalize(
@@ -410,7 +535,7 @@ const calculateVolumeBounds = <T>(volume: Volume<T>): Rect3 => {
   let max: Vector3 = [0, 0, 0];
   let min: Vector3 = [VOLUME_DIMENSION, VOLUME_DIMENSION, VOLUME_DIMENSION];
   volumeMap(volume, (t, position) => {
-    if (t) {
+    if (t && t[0]>=0) {
       max = max.map((v, i) => Math.max(position[i], v)) as Vector3;
       min = min.map((v, i) => Math.min(position[i], v)) as Vector3;
     }
@@ -419,21 +544,25 @@ const calculateVolumeBounds = <T>(volume: Volume<T>): Rect3 => {
   return [min, max];
 }
 
-const volumeToDepthTexture = (volume: Volume<Voxel>, bounds: Rect3) => {
-  return volumeToTexture(volume, bounds, (voxel, x, y, minz, maxz, inverse) => {
-    const normal = vector3TransformMatrix4(inverse, ...(voxel.slice(1) as Vector3));
+const volumeToDepthTexture = (volume: Volume<Voxel>, bounds: Rect3, padding: number) => {
+  return volumeToTexture(volume, bounds, padding, (voxel, x, y, transformedBounds, minz, maxz, inverse) => {
+    // if the normal is on the edge, assume that we actually just want the surface normal
+    const isOnEdge = !minz && [x, y].some((v, i) => transformedBounds.some(bound => bound[i] == v));
+    const normal = isOnEdge
+        ? [0, 0, 1]
+        : vector3TransformMatrix4(inverse, ...voxel.slice(1) as Vector3);
     return [
       ((normal[0]+1)*127)|0,
       ((normal[1]+1)*127)|0,
-      Math.min(minz + TEXTURE_PADDING, 255),
-      Math.min(maxz + 1 + TEXTURE_PADDING, 255),
+      Math.min(minz + padding, 255),
+      Math.min(maxz + 1 + padding, 255),
     ];
   });
 }
 
-const volumeToRenderTexture = (volume: Volume<Voxel>, bounds: Rect3, renderTextures: readonly Volume<Texel>[]) => {
-  return volumeToTexture(volume, bounds, (voxel, x, y, z) => {
-    const materialIndex = voxel[0];
+const volumeToRenderTexture = (volume: Volume<Voxel>, bounds: Rect3, padding: number, renderTextures: readonly Volume<Texel>[]) => {
+  return volumeToTexture(volume, bounds, padding, (voxel, x, y, _, z) => {
+    const materialIndex = Math.abs(voxel[0]);
     const renderTexture = renderTextures[materialIndex%renderTextures.length];
     const col = renderTexture[x%renderTexture.length];
     const row = col[y%col.length];
@@ -445,13 +574,14 @@ const volumeToRenderTexture = (volume: Volume<Voxel>, bounds: Rect3, renderTextu
 const volumeToTexture = (
     volume: Volume<Voxel>,
     [omin, omax]: Rect3,
-    f: (voxel: Voxel, x: number, y: number, minz: number, maxz: number, inverse: Matrix4) => readonly number[],
+    padding: number,
+    f: (voxel: Voxel, x: number, y: number, transformedBounds: Rect3, minz: number, maxz: number, inverse: Matrix4) => readonly number[],
 ) => {
   const data = new Uint8Array(TEXTURE_DIMENSION*TEXTURE_DIMENSION*4);
 
   let rowHeight = 0;
-  let x = TEXTURE_PADDING;
-  let y = TEXTURE_PADDING;
+  let x = padding;
+  let y = padding;
 
   const bounds = CARDINAL_PROJECTIONS.map((rotation) => {
     const inverse = matrix4Invert(rotation);
@@ -463,12 +593,13 @@ const volumeToTexture = (
     const inverseTransform = matrix4Invert(transform);
     const extents1 = vector3TransformMatrix4(inverseTransform, ...omin);
     const extents2 = vector3TransformMatrix4(inverseTransform, ...omax);
-    const min = extents1.map((v, i) => Math.min(v, extents2[i])) as Vector3;
-    const [minx, miny, minz] = min.map(Math.round);
-    const max = extents1.map((v, i) => Math.max(v, extents2[i])) as Vector3;
-    const [maxx, maxy, maxz] = max.map(Math.round);
-    const width = maxx - minx + 1 + TEXTURE_PADDING*2;
-    const height = maxy - miny + 1 + TEXTURE_PADDING*2;
+    const min = extents1.map((v, i) => Math.round(Math.min(v, extents2[i]))) as Vector3;
+    const [minx, miny, minz] = min;
+    const max = extents1.map((v, i) => Math.round(Math.max(v, extents2[i]))) as Vector3;
+    const [maxx, maxy, maxz] = max;
+    const transformedBounds: Rect3 = [min, max];
+    const width = maxx - minx + 1 + padding*2;
+    const height = maxy - miny + 1 + padding*2;
     if (FLAG_CHECK_VOLUME_BOUNDS && (minx<0 || miny < 0 || minz < 0 || maxx >= VOLUME_DIMENSION || maxy >= VOLUME_DIMENSION || maxz >= VOLUME_DIMENSION)) {
       console.log(`[${minx},${miny},${minz}][${maxx},${maxy},${maxz}] out of bounds`);
     }
@@ -482,7 +613,8 @@ const volumeToTexture = (
         let firstZ = 0;
         let firstVoxel: Voxel | undefined
         let lastZ = 0;
-        for (let vz=maxz; vz>=minz; vz--) {
+        for (let vz=VOLUME_DIMENSION; vz>0; ) {
+          vz--;
           const v = vector3TransformMatrix4(transform, vx, vy, vz).map(Math.round);
           const voxel = volume[v[0]][v[1]][v[2]];
           if (voxel) {
@@ -493,9 +625,9 @@ const volumeToTexture = (
             lastZ = vz;
           }
         }
-        let index = (y+vy+TEXTURE_PADDING-miny) * TEXTURE_DIMENSION * 4 + (x+vx+TEXTURE_PADDING-minx) * 4;
+        let index = (y+vy+padding-miny) * TEXTURE_DIMENSION * 4 + (x+vx+padding-minx) * 4;
         if (firstVoxel) {
-          const bytes = f(firstVoxel, x, y, maxz - firstZ, maxz - lastZ, inverse);
+          const bytes = f(firstVoxel, vx, vy, transformedBounds, maxz - firstZ, maxz - lastZ, inverse);
           data.set(bytes, index);
         } else {
           data.set([0, 0, 0, 0], index);

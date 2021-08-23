@@ -107,9 +107,6 @@ module.exports = function (grunt) {
                   from: "'use strict';",
                   to:""
               }, {
-                  from: "\n",
-                  to: ""
-              }, {
                   from: "void 0",
                   to: "null"
               }, {

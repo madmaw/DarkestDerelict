@@ -1,3 +1,10 @@
+type EntityTypeWall = 0;
+type EntityTypeMarine = 1;
+type EntityType = EntityTypeWall | EntityTypeMarine;
+
+const ENTITY_TYPE_WALL: EntityTypeWall = 0;
+const ENTITY_TYPE_MARINE: EntityTypeMarine = 1;
+
 type TextureFrame = {
   depthTexture: WebGLTexture,
   renderTexture: WebGLTexture,
@@ -21,7 +28,6 @@ type EntityAnimation = {
 }
 
 type Entity = {
+  type: EntityType,
   renderables: EntityRenderables,
-  position: Vector3,
-  animationQueue: EventQueue<EntityAnimation, void>,
 }

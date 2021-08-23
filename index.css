@@ -7,10 +7,10 @@ body {
   margin: 0;
 }
 
-#c, #d {
+#c {
   position: absolute;
   left: 0;
   top: 0;
-  width: 320;
-  height: 320;
+  width: min(50vh, 100vw);
+  height: min(40vh, 80vw);
 }

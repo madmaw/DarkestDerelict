@@ -1,7 +1,7 @@
 const WALL_DIMENSION = 24;
-const WALL_BOLT_INSET = 3;
-const WALL_BOLT_DIAMETER = 3;
-const WALL_BOLT_OFFSET = 18;
+const WALL_INSET = 2;
+const WALL_INSET_DIAMETER_INNER = 22;
+const WALL_INSET_DIAMETER_OUTER = 24;
 
 const VOLUMETRIC_COMMANDS_WALL: VolumetricDrawCommand[] = [
   [
@@ -22,240 +22,103 @@ const VOLUMETRIC_COMMANDS_WALL: VolumetricDrawCommand[] = [
       value: WALL_DIMENSION,
     },
   ],
-  // +ve x
   [
-    TYPE_TRANSLATE_X,
-    {
-      type: "literal",
-      range: 'integer',
-      value: WALL_DIMENSION/2,
-    }
-  ],
-  [
-    TYPE_TRANSLATE_Y,
-    {
-      type: "literal",
-      range: 'integer',
-      value: WALL_BOLT_OFFSET/2,
-    }
-  ],
-  [
-    TYPE_TRANSLATE_Z,
-    {
-      type: "literal",
-      range: 'integer',
-      value: WALL_BOLT_OFFSET/2,
-    }
-  ],
-  [
-    TYPE_SHAPE_SPHERE,
-    {
-      type: 'literal',
-      range: 'positive-integer',
-      value: WALL_BOLT_DIAMETER,
-    }
-  ],
-  [
-    TYPE_TRANSLATE_Y,
-    {
-      type: "literal",
-      range: 'integer',
-      value: -WALL_BOLT_OFFSET,
-    }
-  ],
-  [
-    TYPE_SHAPE_SPHERE,
-    {
-      type: 'literal',
-      range: 'positive-integer',
-      value: WALL_BOLT_DIAMETER,
-    }
-  ],
-  [
-    TYPE_TRANSLATE_Z,
-    {
-      type: "literal",
-      range: 'integer',
-      value: -WALL_BOLT_OFFSET,
-    }
-  ],
-  [
-    TYPE_SHAPE_SPHERE,
-    {
-      type: 'literal',
-      range: 'positive-integer',
-      value: WALL_BOLT_DIAMETER,
-    }
-  ],
-  [
-    TYPE_TRANSLATE_Y,
-    {
-      type: "literal",
-      range: 'integer',
-      value: WALL_BOLT_OFFSET,
-    }
-  ],
-  [
-    TYPE_SHAPE_SPHERE,
-    {
-      type: 'literal',
-      range: 'positive-integer',
-      value: WALL_BOLT_DIAMETER,
-    }
-  ],
-  // -ve x
-  [
-    TYPE_TRANSLATE_X,
-    {
-      type: "literal",
-      range: 'integer',
-      value: -WALL_DIMENSION,
-    }
-  ],
-  [
-    TYPE_SHAPE_SPHERE,
-    {
-      type: 'literal',
-      range: 'positive-integer',
-      value: WALL_BOLT_DIAMETER,
-    }
-  ],
-  [
-    TYPE_TRANSLATE_Z,
-    {
-      type: "literal",
-      range: 'integer',
-      value: WALL_BOLT_OFFSET,
-    }
-  ],
-  [
-    TYPE_SHAPE_SPHERE,
-    {
-      type: 'literal',
-      range: 'positive-integer',
-      value: WALL_BOLT_DIAMETER,
-    }
-  ],
-  [
-    TYPE_TRANSLATE_Y,
-    {
-      type: "literal",
-      range: 'integer',
-      value: -WALL_BOLT_OFFSET,
-    }
-  ],
-  [
-    TYPE_SHAPE_SPHERE,
-    {
-      type: 'literal',
-      range: 'positive-integer',
-      value: WALL_BOLT_DIAMETER,
-    }
-  ],
-  [
-    TYPE_TRANSLATE_Z,
-    {
-      type: "literal",
-      range: 'integer',
-      value: -WALL_BOLT_OFFSET,
-    }
-  ],
-  [
-    TYPE_SHAPE_SPHERE,
-    {
-      type: 'literal',
-      range: 'positive-integer',
-      value: WALL_BOLT_DIAMETER,
-    }
-  ],
-  // -ve z
-  [
-    TYPE_TRANSLATE_Z,
-    {
-      type: "literal",
-      range: 'integer',
-      value: -WALL_BOLT_INSET,
-    }
+    TYPE_CONTEXT_START,
   ],
   [
     TYPE_TRANSLATE_X,
     {
-      type: "literal",
+      type: 'literal',
       range: 'integer',
-      value: WALL_BOLT_INSET,
-    }
+      value: (WALL_DIMENSION - WALL_INSET)/2,
+    },    
   ],
   [
-    TYPE_SHAPE_SPHERE,
+    TYPE_ROTATE_X,
+    {
+      type: 'literal',
+      range: 'angle',
+      value: Math.PI/4,
+    },    
+  ],
+  [
+    TYPE_SHAPE_CYLINDER,
     {
       type: 'literal',
       range: 'positive-integer',
-      value: WALL_BOLT_DIAMETER,
-    }
-  ],
-  [
-    TYPE_TRANSLATE_X,
-    {
-      type: "literal",
-      range: 'integer',
-      value: WALL_BOLT_OFFSET,
-    }
-  ],
-  [
-    TYPE_TRANSLATE_Y,
-    {
-      type: "literal",
-      range: 'integer',
-      value: WALL_BOLT_OFFSET,
-    }
-  ],
-  [
-    TYPE_SHAPE_SPHERE,
+      value: WALL_INSET,
+    },
     {
       type: 'literal',
       range: 'positive-integer',
-      value: WALL_BOLT_DIAMETER,
-    }
+      value: WALL_INSET_DIAMETER_INNER,
+    },
+    {
+      type: 'literal',
+      range: 'positive-integer',
+      value: WALL_INSET_DIAMETER_OUTER,
+    },
+    {
+      type: 'literal',
+      range: 'positive-integer',
+      value: 4,
+    },
+  ],
+  [ 
+    TYPE_SAVE_CONTEXT,
   ],  
   [
-    TYPE_TRANSLATE_Z,
-    {
-      type: "literal",
-      range: 'integer',
-      value: WALL_DIMENSION,
-    }
+    TYPE_CONTEXT_END_SUBTRACTION,
   ],
   [
-    TYPE_SHAPE_SPHERE,
+    TYPE_CONTEXT_START,
+  ],
+  [
+    TYPE_ROTATE_Y,
     {
       type: 'literal',
-      range: 'positive-integer',
-      value: WALL_BOLT_DIAMETER,
-    }
-  ],  
-  [
-    TYPE_TRANSLATE_X,
-    {
-      type: "literal",
-      range: 'integer',
-      value: -WALL_BOLT_OFFSET,
-    }
+      range: 'angle',
+      value: Math.PI,
+    },    
   ],
   [
-    TYPE_TRANSLATE_Y,
-    {
-      type: "literal",
-      range: 'integer',
-      value: -WALL_BOLT_OFFSET,
-    }
+    TYPE_RESTORE_CONTEXT,
   ],
   [
-    TYPE_SHAPE_SPHERE,
+    TYPE_CONTEXT_END_SUBTRACTION,
+  ],
+  [
+    TYPE_CONTEXT_START,
+  ],
+  [
+    TYPE_ROTATE_Y,
     {
       type: 'literal',
-      range: 'positive-integer',
-      value: WALL_BOLT_DIAMETER,
-    }
-  ],  
-
+      range: 'angle',
+      value: Math.PI/2,
+    },    
+  ],
+  [
+    TYPE_RESTORE_CONTEXT,
+  ],
+  [
+    TYPE_CONTEXT_END_SUBTRACTION,
+  ],
+  [
+    TYPE_CONTEXT_START,
+  ],
+  [
+    TYPE_ROTATE_Y,
+    {
+      type: 'literal',
+      range: 'angle',
+      value: -Math.PI/2,
+    },    
+  ],
+  [
+    TYPE_RESTORE_CONTEXT,
+  ],
+  [
+    TYPE_CONTEXT_END_SUBTRACTION,
+  ],
 ];

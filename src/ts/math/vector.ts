@@ -1,7 +1,7 @@
 ///<reference path="../hax.ts"/>
 
 type Rect2 = [number, number, number, number];
-type Vector2 = [number, number, number?];
+type Vector2 = [number, number];
 
 type Vector3 = [number, number, number];
 type Vector4 = [number, number, number, number];
@@ -12,13 +12,12 @@ const vector2AngleAndDistance = ([x1, y1]: Vector2, [x2, y2]: Vector2) => {
   return [mathAtan2(dy, dx), mathPow(dx*dx + dy*dy, .5)];
 }
 
-const vector2Rotate = (a: number, [x, y, z]: Vector2): Vector2 => {
+const vector2Rotate = (a: number, [x, y]: Vector2): Vector2 => {
   const sin = mathSin(a);
   const cos = mathCos(a);
   return [
     x * cos - y * sin,
     x * sin + y * cos,
-    z
   ];
 }
 
