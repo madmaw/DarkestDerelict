@@ -388,7 +388,7 @@ const processVolumetricDrawCommandString = (
         fixNormals(
             volumeMap(
                 contexts[0].volume,
-                (v, [x, y, z]) => v || volume[x][y][z],
+                (v, [x, y, z]) => v || volume[z][y][x],
             ),
         );
         break;
@@ -397,11 +397,11 @@ const processVolumetricDrawCommandString = (
         fixNormals(
             volumeMap(
                 contexts[0].volume,
-                (v, [x, y, z]) => !volume[x][y][z] && v,
+                (v, [x, y, z]) => !volume[z][y][x] && v,
             ),
             ([x, y, z]: Vector3) => {
               const a = [[-1, 0, 0], [1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, -1], [0, 0, 1]]
-                  .map(([dx, dy, dz]) => volume[x+dx | 0][y+dy | 0][z+dz | 0])
+                  .map(([dx, dy, dz]) => volume[z+dz | 0][y+dy | 0][x+dx | 0])
                   .filter(v => v && v.length>1);
               const n = a
                   .reduce((acc, n, _, a) => acc.map((v, i) =>  v - n[i+1]/a.length), [0, 0, 0]) as Vector3;
@@ -416,7 +416,7 @@ const processVolumetricDrawCommandString = (
         volumeMap(
             contexts[0].volume,
             (v, [x, y, z]) => {
-              const s = volume[x][y][z];
+              const s = volume[z][y][x];
               return v && s
                   ? [s[0], ...v.slice(1)] as any as Voxel
                   : v;
@@ -432,7 +432,7 @@ const processVolumetricDrawCommandString = (
         fixNormals(
             volumeMap(
                 volume,
-                (v, [x, y, z]) => v || savedVolume[x][y][z],
+                (v, [x, y, z]) => v || savedVolume[z][y][x],
             ),
         );
         break;
@@ -450,7 +450,7 @@ const processVolumetricDrawCommandString = (
     const { volume } = contexts.shift();
     volumeMap(
         contexts[0].volume,
-        (v, [x, y, z]) => v || volume[x][y][z],
+        (v, [x, y, z]) => v || volume[z][y][x],
     );
   }
 
@@ -470,15 +470,15 @@ const createEmptyVolume = <T>(d: number): Volume<T> => (
 );
 
 const volumeMap = <T>(volume: Volume<T>, f: (t: T | Falseish, position: Vector3) => T | Falseish): Volume<T> => {
-  for (let x=volume.length; x; ) {
-    x--;
-    const ax = volume[x];
-    for (let y=ax.length; y; ) {
+  for (let z=volume.length; z; ) {
+    z--;
+    const az = volume[z];
+    for (let y=az.length; y; ) {
       y--;
-      const ay = ax[y];
-      for (let z=ay.length; z; ) {
-        z--;
-        ay[z] = f(ay[z], [x, y, z]);
+      const ay = az[y];
+      for (let x=ay.length; x; ) {
+        x--;
+        ay[x] = f(ay[x], [x, y, z]);
       }
     }
   }
@@ -514,7 +514,7 @@ const fixNormals = (volume: Volume<Voxel>, shape?: Shape, transform?: Matrix4, i
           && y < VOLUME_DIMENSION
           && z >= 0
           && z < VOLUME_DIMENSION
-          && !volume[x][y][z];
+          && !volume[z][y][x];
     }); 
 
     if (exposed) {
@@ -628,7 +628,7 @@ const volumeToTexture = (
         for (let vz=VOLUME_DIMENSION; vz>0; ) {
           vz--;
           const v = vector3TransformMatrix4(transform, vx, vy, vz).map(Math.round);
-          const voxel = volume[v[0]][v[1]][v[2]];
+          const voxel = volume[v[2]][v[1]][v[0]];
           if (voxel) {
             if (!firstVoxel) {
               firstVoxel = voxel;

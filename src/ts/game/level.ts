@@ -31,7 +31,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
     };
   });
   const dig = (x: number, y: number, z: number, dx: number, dz: number) => {
-    (tiles[x][y][z] as Tile).parties = [];
+    (tiles[z][y][x] as Tile).parties = [];
     let validTiles: Vector2[];
     do {
       validTiles = ([[x+1, z], [x-1, z], [x, z+1], [x, z-1], ...new Array(y).fill([x+dx, z+dz])] as Vector2[])
@@ -40,11 +40,11 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
               && tz>0
               && tx<LEVEL_DIMENSION-1
               && tz<LEVEL_DIMENSION-1
-              && (tiles[tx][y][tz] as Tile).parties.length
+              && (tiles[tz][y][tx] as Tile).parties.length
               && TILE_DELTAS.every(dx => (
                   TILE_DELTAS.every(dz => (!dx && !dz)
                       || (tx+dx == x || tz+dz == z)
-                      || (tiles[tx+dx][y][tz+dz] as Tile).parties.length
+                      || (tiles[tz+dz][y][tx+dx] as Tile).parties.length
                   )
               ));
       });
@@ -82,7 +82,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
     const s = [];
     for (let z=0; z<LEVEL_DIMENSION; z++) {
       for (let x=0; x<LEVEL_DIMENSION; x++) {
-        const item = tiles[x][1][z];
+        const item = tiles[z][1][x];
         s.push(!item || item.parties.length == 0 ? ' ' : item.parties[0].type === PARTY_TYPE_OBSTACLE ? '#' : '*');
       }
       s.push('\n');
