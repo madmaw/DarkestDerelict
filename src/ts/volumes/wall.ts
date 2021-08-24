@@ -121,4 +121,39 @@ const VOLUMETRIC_COMMANDS_WALL: VolumetricDrawCommand[] = [
   [
     TYPE_CONTEXT_END_SUBTRACTION,
   ],
+  [
+    TYPE_MATERIAL_OUT_OF_BOUNDS,
+  ],
+  [
+    TYPE_TRANSLATE_X,
+    {
+      type: 'literal',
+      range: 'integer',
+      value: WALL_DIMENSION/2,
+    },    
+  ],
+  [
+    TYPE_TRANSLATE_Y,
+    {
+      type: 'literal',
+      range: 'integer',
+      value: WALL_DIMENSION/2 - WALL_INSET,
+    },    
+  ],
+  [
+    TYPE_TRANSLATE_Z,
+    {
+      type: 'literal',
+      range: 'integer',
+      value: WALL_DIMENSION/2 - WALL_INSET,
+    },    
+  ],
+  [
+    TYPE_SHAPE_SPHERE,
+    {
+      type: 'literal',
+      range: 'positive-integer',
+      value: 2,
+    },
+  ],
 ];

@@ -112,10 +112,12 @@ const VERTEX_SHADER = `
   const L_SURFACE_NORMAL = FLAG_LONG_SHADER_NAMES ? 'lSurfaceNormal' : 'x';
   const L_CAMERA_DIRECTION = FLAG_LONG_SHADER_NAMES ? 'lCameraDirection' : 'w';
 
-  const CONST_NUM_STEPS = 99;
+  const CONST_NUM_STEPS = 256;
   const MAX_DEPTH = VOLUME_DIMENSION/TEXTURE_DIMENSION;
   const C_MAX_DEPTH = `${MAX_DEPTH}`;
-  const C_STEP_DEPTH = `${MAX_DEPTH/CONST_NUM_STEPS}`;
+  const C_MIN_DEPTH = -VOLUME_DEPTH_OFFSET/TEXTURE_DIMENSION;
+  const STEP_DEPTH = (MAX_DEPTH-C_MIN_DEPTH)/CONST_NUM_STEPS;
+  const C_STEP_DEPTH = `${STEP_DEPTH}`;
   const DEPTH_SCALE = 256/VOLUME_DIMENSION*MAX_DEPTH;
   const C_DEPTH_SCALE = `${DEPTH_SCALE}${DEPTH_SCALE==Math.round(DEPTH_SCALE)?'.':''}`;
   const C_MAX_NUM_LIGHTS = 4;
@@ -140,21 +142,22 @@ const VERTEX_SHADER = `
   void main() {
     vec3 cameraNormal = normalize(${V_WORLD_POSITION}.xyz - ${U_CAMERA_POSITION});
     vec3 ${L_CAMERA_DIRECTION} = ${V_SURFACE_ROTATION} * cameraNormal;
-    vec2 surfacePosition = ${V_SURFACE_TEXTURE_COORD};
+    vec2 surfacePosition = ${V_SURFACE_TEXTURE_COORD}+${C_MIN_DEPTH}*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
     vec4 ${L_DEPTH_TEXTURE} = vec4(0.);
     
     float pixelDepth=0.;
-    for (float depth=0.; depth<${MAX_DEPTH}; depth+=${C_STEP_DEPTH}) {
+    /* TODO : make this a while */
+    for (float depth=${C_MIN_DEPTH+STEP_DEPTH}; depth<${C_MAX_DEPTH}; depth+=${C_STEP_DEPTH}) {
       vec2 previousSurfacePosition = surfacePosition;
       surfacePosition = ${V_SURFACE_TEXTURE_COORD}-depth*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
-      if (all(lessThan(${V_SURFACE_TEXTURE_BOUNDS}.xy, surfacePosition)) && all(lessThan(surfacePosition, ${V_SURFACE_TEXTURE_BOUNDS}.zw))) {
+      if (all(lessThanEqual(${V_SURFACE_TEXTURE_BOUNDS}.xy, surfacePosition)) && all(lessThan(surfacePosition, ${V_SURFACE_TEXTURE_BOUNDS}.zw))) {
         ${L_DEPTH_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, surfacePosition);
-        float y1 = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, surfacePosition).b*${C_DEPTH_SCALE}-depth;
+        float y1 = (${L_DEPTH_TEXTURE}.b-${VOLUME_DEPTH_PROPORTION})*${C_DEPTH_SCALE}-depth;
         float y0 = ${C_STEP_DEPTH};
-        float y2 = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, previousSurfacePosition).b*${C_DEPTH_SCALE}-depth;
+        float y2 = (texture2D(${U_DEPTH_TEXTURE_SAMPLER}, previousSurfacePosition).b-${VOLUME_DEPTH_PROPORTION})*${C_DEPTH_SCALE}-depth;
         float scale = 1./(1.-y1/(y0-y2));
 
-        if (${L_DEPTH_TEXTURE}.b*${C_DEPTH_SCALE}<=depth && ${L_DEPTH_TEXTURE}.a>0. && ${L_DEPTH_TEXTURE}.a*${C_DEPTH_SCALE} > depth && scale>=0. && scale<=1.) {
+        if ((${L_DEPTH_TEXTURE}.b-${VOLUME_DEPTH_PROPORTION})*${C_DEPTH_SCALE}<=depth && ${L_DEPTH_TEXTURE}.a>0. && ${L_DEPTH_TEXTURE}.a*${C_DEPTH_SCALE} > depth && scale>=0. && scale<=1.) {
           vec4 previousSurface = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, previousSurfacePosition);
           if (previousSurface.a>0.) {
             pixelDepth=mix(depth, depth-${C_STEP_DEPTH}, scale);
@@ -163,6 +166,7 @@ const VERTEX_SHADER = `
           ${L_DEPTH_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, surfacePosition);
           break;
         }
+      } else if (depth < 0.) {
       } else {
         break;
       }
@@ -203,7 +207,7 @@ const VERTEX_SHADER = `
               float p = rotatedLight.x/reach;
               ${L_LIGHTING} += light.xyz
                   * (1.-pow(p, 2.))*reach
-                  * max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(lightDirection.xyz)), pow(1.-p, 9.))
+                  * max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(lightDirection.xyz)), pow(1.-p, abs(light.w)))
                   * brightness;
             }
           }
@@ -270,14 +274,14 @@ onload = async () => {
     [[255, 255, 255, 128], [0, 0, 0, 128]],
   ]];
 
-  type LoadingEvent = [string, VolumetricDrawCommand[], number, [Volume<Texel>[], (SpriteAnimationSequence[])?][]];
+  type LoadingEvent = [string, VolumetricDrawCommand[], [Volume<Texel>[], (SpriteAnimationSequence[])?][]];
 
   const COMMANDS: readonly LoadingEvent[] = [
-    ['wall', VOLUMETRIC_COMMANDS_WALL, 0, [
+    ['wall', VOLUMETRIC_COMMANDS_WALL, [
       [[TEXTURE_BLUE_DULL]],
       [[TEXTURE_WHITE_SHINY, TEXTURE_GREEN, TEXTURE_BLUE_DULL]],
     ]],
-    ['marine', VOLUMETRIC_COMMANDS_MARINE, 0, [
+    ['marine', VOLUMETRIC_COMMANDS_MARINE, [
       [[TEXTURE_RED_SHINY, TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_RED_SHINY], ANIMATIONS_MARINE],
       [[TEXTURE_GREEN, TEXTURE_GREEN, TEXTURE_WHITE_SHINY, TEXTURE_GREEN], ANIMATIONS_MARINE],
     ]],
@@ -285,7 +289,7 @@ onload = async () => {
 
   const eventQueue: EventQueue<LoadingEvent, EntityRenderables[]> = {
     events: [],
-    handler: async ([name, commands, padding, variations]) => {
+    handler: async ([name, commands, variations]) => {
       return await Promise.all(variations.map(async ([renderTextures, animations], i, a) => {
         const volumes = animations
             ? processSpriteCommands(name, commands, animations)
@@ -300,10 +304,10 @@ onload = async () => {
 
         let depthTextureBounds: Rect2[];
         const frames: TextureFrame[][] = volumes.map(volumes => volumes.map(volume => {
-          const [depthTextureData, textureBounds] = volumeToDepthTexture(volume, bounds, padding);
+          const [depthTextureData, textureBounds] = volumeToDepthTexture(volume, bounds);
           // should all be the same
           depthTextureBounds = textureBounds;
-          const [renderTextureData] = volumeToRenderTexture(volume, bounds, padding, renderTextures);
+          const [renderTextureData] = volumeToRenderTexture(volume, bounds, renderTextures);
 
           // depth texture
           const depthTexture = gl.createTexture();
@@ -345,10 +349,12 @@ onload = async () => {
               debugCanvas.height = TEXTURE_DIMENSION;
               const debugContext = debugCanvas.getContext('2d');
               const debugData = debugContext.createImageData(TEXTURE_DIMENSION, TEXTURE_DIMENSION);
+              // rewrite the alpha
               debugData.data.set(texture, 0);
+              debugData.data.forEach((v, i) => debugData.data[i] = (i+1) % 4 || !v ? v : 255);
               debugContext.putImageData(debugData, 0, 0);
               document.firstChild.appendChild(debugCanvas);  
-            })
+            });
           }      
 
           return {
@@ -360,8 +366,8 @@ onload = async () => {
         // positions
         const vertexPositions = CARDINAL_PROJECTIONS.map((rotation) => {
           const [omin, omax] = bounds;
-          const min = omin.map(v => v - padding) as Vector3;
-          const max = omax.map(v => v + padding + 1) as Vector3;
+          const min = omin as Vector3;
+          const max = omax.map(v => v + 1) as Vector3;
           const inverse = matrix4Invert(rotation);
           const transform = matrix4Multiply(
               inverse,
@@ -493,43 +499,45 @@ onload = async () => {
     //matrix4Perspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .35, 10),
     matrix4Rotate(-Math.PI/18, 1, 0, 0),
     matrix4Translate(0, 0, -.35),
+    matrix4Rotate(-Math.PI/2, 0, 1, 0),    
   );
 
   const entityRenderables = await addEvents(eventQueue, ...COMMANDS);
 
   const level = generateLevel(entityRenderables);
 
-  let cameraRotation = Math.PI/2;
+  let cameraRotation = 0;
   let targetRotation = cameraRotation;
   let cameraPosition: Vector3 = [LEVEL_DIMENSION/2 | 0, 1.6, 1];
   let targetPosition = [...cameraPosition];
-  let numLights = 1;
+  let numLights = 2;
   // slightly scale up to hide wall-gaps
-  const scale = 1.01/(VOLUME_SCALE*WALL_DIMENSION);
+  const scale = 1/(VOLUME_SCALE*WALL_DIMENSION);
   const modelScaleMatrix = matrix4Scale(scale, scale, scale);
   
   onkeydown = (e: KeyboardEvent) => {
     const actionMultiplier = e.shiftKey ? 0.125 : 1;
     let positionMultiplier = 1;
     switch (e.keyCode) {
-      case 39: // right
-        targetRotation += Math.PI/2 * actionMultiplier;
-        break;
       case 37: // left
         targetRotation -= Math.PI/2 * actionMultiplier;
+        break;
+      case 39: // right
+        targetRotation += Math.PI/2 * actionMultiplier;
         break;
       case 40: // down
         positionMultiplier = -1;
       case 38: // up
         const sin = Math.sin(targetRotation) * actionMultiplier;
         const cos = Math.cos(targetRotation) * actionMultiplier;
-        targetPosition[0] -= cos * positionMultiplier;
-        targetPosition[2] -= sin * positionMultiplier;
+        targetPosition[0] += cos * positionMultiplier;
+        targetPosition[2] += sin * positionMultiplier;
         break;
       case 32: // space
         numLights = (numLights + 1)%4;
         break;
     } 
+    //console.log(targetRotation, targetPosition);
   }
   
   let previous = 0;
@@ -548,23 +556,21 @@ onload = async () => {
       const movementScale = Math.min(deltaPositionLength, 0.002*delta)/deltaPositionLength;
       cameraPosition = cameraPosition.map((v, i) => v + deltaPosition[i]*movementScale) as Vector3;
     }
-    const cameraRotationMatrix = matrix4Rotate(cameraRotation - Math.PI/2, 0, 1, 0);
-
     const ambientLight = [.2, .2, .2, numLights];
     const lights = [
       .3, .3, .3, 0,
       .5, .5, .5, 3,
-      .4, .4, .5, -1,
+      .49, .49, .5, -9,
     ];
     const lightTransforms = [
       ...matrix4Translate(...cameraPosition), 
-      ...matrix4Multiply(matrix4Translate(...cameraPosition), matrix4Rotate(-cameraRotation + Math.PI/20, 0, 1, 0), matrix4Rotate(-Math.PI/20, 0, 0, 1), matrix4Translate(.3, -.2, -.3)),
+      ...matrix4Multiply(matrix4Translate(...cameraPosition), matrix4Rotate(cameraRotation, 0, 1, 0), matrix4Rotate(Math.PI/13, 0, 0, 1), matrix4Translate(.2, 0, .3)),
       ...matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 0, 1), matrix4Translate(0, -2, 0)),
     ];
 
     const projectionMatrix = matrix4Multiply(
         perspectiveMatrix,
-        cameraRotationMatrix,
+        matrix4Rotate(-cameraRotation, 0, 1, 0),
     );
     gl.uniformMatrix4fv(
         uniforms[U_PROJECTION_MATRIX_INDEX],

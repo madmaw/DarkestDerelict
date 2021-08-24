@@ -114,10 +114,9 @@ const matrix4InfinitePerspective = (tanFovyDiv2: number, aspect: number, znear: 
   return [
     f/aspect, 0, 0, 0,
     0, f, 0, 0,
-    0, 0, -1, -1,
+    0, 0, -1, -1, 
     0, 0, -2 * znear, 0
   ];
-
 };
 
 const matrix4PerspectiveFlippedY = (tanFovyDiv2: number, aspect: number, znear: number, zfar: number): Matrix4 => {
@@ -127,7 +126,7 @@ const matrix4PerspectiveFlippedY = (tanFovyDiv2: number, aspect: number, znear: 
     f/aspect, 0, 0, 0,
     0, -f, 0, 0,
     0, 0, (zfar + znear) * nf, -1,
-    0, 0, (2 * zfar * znear) * nf, 0
+    0, 0, 2 * zfar * znear * nf, 0
   ];
 }
 
@@ -145,11 +144,17 @@ const matrix4Rotate = (rad: number, x: number, y: number, z: number): Matrix4 =>
   s_ = mathSin(rad);
   c_ = mathCos(rad);
   t_ = 1 - c_;
+  // NOTE: b20 and b02 are swapped from the glmatrix implementation. This appears
+  // to be the correct behaviour (maybe there is a corresponding fix in their 
+  // unrolled matrix multiplication?)
   return [
-    x * x * t_ + c_, y * x * t_ - z * s_, z * x * t_ - y * s_, 0,
-    x * y * t_ + z * s_, y * y * t_ + c_, z * y * t_ - x * s_, 0,
-    x * z * t_ + y * s_, y * z * t_ + x * s_, z * z * t_ + c_, 0,
-    0, 0, 0, 1
+    // b00                b10                   b20
+    x * x * t_ + c_,      y * x * t_ - z * s_,  z * x * t_ + y * s_,  0,
+    // b01                b11                   b21
+    x * y * t_ + z * s_,  y * y * t_ + c_,      z * y * t_ - x * s_,  0,
+    // b02                b12                   b22
+    x * z * t_ - y * s_,  y * z * t_ + x * s_,  z * z * t_ + c_,      0,
+    0,                    0,                    0,                    1
   ];
 }
 

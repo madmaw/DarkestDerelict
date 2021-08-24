@@ -39,8 +39,10 @@ const TYPE_MATERIAL_ID = '#';
 const TYPE_MATERIAL_OUT_OF_BOUNDS = '?';
 
 const VOLUME_DIMENSION = parseInt(window.location.hash?.substr(1) || '16');
-const VOLUME_MIDPOINT = (VOLUME_DIMENSION)/2;
-const OFFSET_VOLUME_MIDPOINT = (VOLUME_DIMENSION-.98)/2;
+const VOLUME_MIDPOINT = VOLUME_DIMENSION/2;
+const OFFSET_VOLUME_MIDPOINT = (VOLUME_DIMENSION-1)/2;
+const VOLUME_DEPTH_OFFSET = 4;
+const VOLUME_DEPTH_PROPORTION = VOLUME_DEPTH_OFFSET/256;
 
 //const VOLUME_SCALE = VOLUME_DIMENSION/256;
 const VOLUME_SCALE = VOLUME_DIMENSION/32;
@@ -298,6 +300,8 @@ const processVolumetricDrawCommandString = (
         {
           const width = positiveIntegerFromBase64(nextCommand());
           const widthDiv2 = width/2;
+          const widthMinux1Px = width-1/(VOLUME_SCALE);
+          const widthMinus1pxDiv2 = widthMinux1Px/2;
           const leftRadius = positiveIntegerFromBase64(nextCommand())/2;
           const rightRadius = positiveIntegerFromBase64(nextCommand())/2;
           //const angle = Math.PI/2 + Math.asin((rightRadius - leftRadius)/width);
@@ -307,6 +311,7 @@ const processVolumetricDrawCommandString = (
           const steps = positiveIntegerFromBase64(nextCommand());
           const stepAngle = Math.PI*2/steps;
           const cosStepAngleDiv2 = Math.cos(stepAngle/2)
+          const sinStepAngleDiv2 = Math.sin(stepAngle/2)
 
           renderShape(
               volume,
@@ -318,15 +323,22 @@ const processVolumetricDrawCommandString = (
                 }
                 const sector = a / stepAngle | 0;
                 const sectorAngle = sector * stepAngle + stepAngle/2;
-                const rOuter = leftRadius + ((x + widthDiv2) / width) * (rightRadius - leftRadius);
-                const rInner = leftRadius - 1/(VOLUME_SCALE) + ((x + widthDiv2) / width) * (rightRadius - leftRadius);
-                const [rz] = vector2Rotate(-sectorAngle, [z, y]);
+                const rOuter = widthMinux1Px > 0
+                    ? leftRadius + ((x + widthMinus1pxDiv2) / widthMinux1Px) * (rightRadius - leftRadius)
+                    // only one entry
+                    : leftRadius;
+                const rInner = rOuter - 1/VOLUME_SCALE;
+                const [rz, ry] = vector2Rotate(-sectorAngle, [z, y]);
                 const inPoly = cosStepAngleDiv2*rOuter>rz;
                 const inPolySurface = cosStepAngleDiv2*rInner<rz
                 
                 if (Math.abs(x) <= widthDiv2 && inPoly || force) {
                   return inPolySurface
-                      ? [cos, Math.sin(sectorAngle)*sin, Math.cos(sectorAngle)*sin] as Vector3
+                      ? Math.abs(ry) - rInner * sinStepAngleDiv2 > 0
+                          ? ry > 0
+                              ? [cos, Math.sin(sectorAngle+stepAngle/2)*sin, Math.cos(sectorAngle+stepAngle/2)*sin]
+                              : [cos, Math.sin(sectorAngle-stepAngle/2)*sin, Math.cos(sectorAngle-stepAngle/2)*sin]
+                          : [cos, Math.sin(sectorAngle)*sin, Math.cos(sectorAngle)*sin] as Vector3
                       : vectorNNormalize([x, 0, 0]);
                 }
               },
@@ -428,7 +440,7 @@ const processVolumetricDrawCommandString = (
         context.materialIndex = positiveIntegerFromBase64(nextCommand());
         break;
       case TYPE_MATERIAL_OUT_OF_BOUNDS:
-        context.materialIndex = -context.materialIndex;
+        context.materialIndex = -(context.materialIndex||1);
         break;
   
     }
@@ -458,13 +470,18 @@ const createEmptyVolume = <T>(d: number): Volume<T> => (
 );
 
 const volumeMap = <T>(volume: Volume<T>, f: (t: T | Falseish, position: Vector3) => T | Falseish): Volume<T> => {
-  volume.forEach((ax, x) => {
-    return ax.forEach((ay, y) =>
-        ay.forEach((v, z) =>
-            ay[z] = f(v, [x, y, z])
-        ),
-    );
-  })
+  for (let x=volume.length; x; ) {
+    x--;
+    const ax = volume[x];
+    for (let y=ax.length; y; ) {
+      y--;
+      const ay = ax[y];
+      for (let z=ay.length; z; ) {
+        z--;
+        ay[z] = f(ay[z], [x, y, z]);
+      }
+    }
+  }
   return volume;
 };
 
@@ -474,14 +491,10 @@ const renderShape = (volume: Volume<Voxel>, shape: Shape, transform: Matrix4, ma
       volumeMap(
           volume,
           (voxel, position) => {
-            if (voxel) {
-              return voxel;
-            }
-            const voxelCenter = position;
-            const sourcePosition = vector3TransformMatrix4(sourceTransform, ...voxelCenter);
-            if (shape(sourcePosition)) {
-              return [materialIndex];
-            } 
+            const sourcePosition = vector3TransformMatrix4(sourceTransform, ...position);
+            return shape(sourcePosition)
+                ? [materialIndex]
+                : voxel;
           }
       ),
       shape,
@@ -544,8 +557,8 @@ const calculateVolumeBounds = <T>(volume: Volume<T>): Rect3 => {
   return [min, max];
 }
 
-const volumeToDepthTexture = (volume: Volume<Voxel>, bounds: Rect3, padding: number) => {
-  return volumeToTexture(volume, bounds, padding, (voxel, x, y, transformedBounds, minz, maxz, inverse) => {
+const volumeToDepthTexture = (volume: Volume<Voxel>, bounds: Rect3) => {
+  return volumeToTexture(volume, bounds, (voxel, x, y, transformedBounds, minz, maxz, inverse) => {
     // if the normal is on the edge, assume that we actually just want the surface normal
     const isOnEdge = !minz && [x, y].some((v, i) => transformedBounds.some(bound => bound[i] == v));
     const normal = isOnEdge
@@ -554,14 +567,14 @@ const volumeToDepthTexture = (volume: Volume<Voxel>, bounds: Rect3, padding: num
     return [
       ((normal[0]+1)*127)|0,
       ((normal[1]+1)*127)|0,
-      Math.min(minz + padding, 255),
-      Math.min(maxz + 1 + padding, 255),
+      Math.min(minz + VOLUME_DEPTH_OFFSET, 255),
+      Math.min(maxz + 1, 255),
     ];
   });
 }
 
-const volumeToRenderTexture = (volume: Volume<Voxel>, bounds: Rect3, padding: number, renderTextures: readonly Volume<Texel>[]) => {
-  return volumeToTexture(volume, bounds, padding, (voxel, x, y, _, z) => {
+const volumeToRenderTexture = (volume: Volume<Voxel>, bounds: Rect3, renderTextures: readonly Volume<Texel>[]) => {
+  return volumeToTexture(volume, bounds, (voxel, x, y, _, z) => {
     const materialIndex = Math.abs(voxel[0]);
     const renderTexture = renderTextures[materialIndex%renderTextures.length];
     const col = renderTexture[x%renderTexture.length];
@@ -574,14 +587,13 @@ const volumeToRenderTexture = (volume: Volume<Voxel>, bounds: Rect3, padding: nu
 const volumeToTexture = (
     volume: Volume<Voxel>,
     [omin, omax]: Rect3,
-    padding: number,
     f: (voxel: Voxel, x: number, y: number, transformedBounds: Rect3, minz: number, maxz: number, inverse: Matrix4) => readonly number[],
 ) => {
   const data = new Uint8Array(TEXTURE_DIMENSION*TEXTURE_DIMENSION*4);
 
   let rowHeight = 0;
-  let x = padding;
-  let y = padding;
+  let x = 0;
+  let y = 0;
 
   const bounds = CARDINAL_PROJECTIONS.map((rotation) => {
     const inverse = matrix4Invert(rotation);
@@ -598,8 +610,8 @@ const volumeToTexture = (
     const max = extents1.map((v, i) => Math.round(Math.max(v, extents2[i]))) as Vector3;
     const [maxx, maxy, maxz] = max;
     const transformedBounds: Rect3 = [min, max];
-    const width = maxx - minx + 1 + padding*2;
-    const height = maxy - miny + 1 + padding*2;
+    const width = maxx - minx + 1;
+    const height = maxy - miny + 1;
     if (FLAG_CHECK_VOLUME_BOUNDS && (minx<0 || miny < 0 || minz < 0 || maxx >= VOLUME_DIMENSION || maxy >= VOLUME_DIMENSION || maxz >= VOLUME_DIMENSION)) {
       console.log(`[${minx},${miny},${minz}][${maxx},${maxy},${maxz}] out of bounds`);
     }
@@ -625,7 +637,7 @@ const volumeToTexture = (
             lastZ = vz;
           }
         }
-        let index = (y+vy+padding-miny) * TEXTURE_DIMENSION * 4 + (x+vx+padding-minx) * 4;
+        let index = (y+vy-miny) * TEXTURE_DIMENSION * 4 + (x+vx-minx) * 4;
         if (firstVoxel) {
           const bytes = f(firstVoxel, vx, vy, transformedBounds, maxz - firstZ, maxz - lastZ, inverse);
           data.set(bytes, index);
