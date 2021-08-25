@@ -136,6 +136,7 @@ type VolumetricDrawCommand = [
   '^', //TYPE_LOAD_SAVED_VOLUME
 ] | [
   '#', // TYPE_MATERIAL_ID
+  Value<'positive-integer'>,
 ] | [
   '?', // TYPE_MATERIAL_OUT_OF_BOUNDS
 ];
@@ -201,7 +202,6 @@ const processVolumetricDrawCommandString = (
   }];
 
   let savedCommands: string[] | undefined;
-  let contextIndex = 0;
 
   const nextContext = () => {
     const context = contexts.shift();
@@ -375,11 +375,10 @@ const processVolumetricDrawCommandString = (
         transforms.push(matrix4Rotate(angleFromBase64(nextCommand()), 0, 0, 1));
         break;
       case TYPE_CONTEXT_START:
-        contextIndex++;
         contexts.unshift({
           volume: createEmptyVolume(VOLUME_DIMENSION),
           transforms: [],
-          materialIndex: contextIndex,
+          materialIndex,
           commands: [],
         });
         break;

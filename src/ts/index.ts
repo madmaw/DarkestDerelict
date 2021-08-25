@@ -282,7 +282,7 @@ onload = async () => {
       [[TEXTURE_WHITE_SHINY, TEXTURE_GREEN, TEXTURE_BLUE_DULL]],
     ]],
     ['marine', VOLUMETRIC_COMMANDS_MARINE, [
-      [[TEXTURE_RED_SHINY, TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_RED_SHINY], ANIMATIONS_MARINE],
+      [[TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY], ANIMATIONS_MARINE],
       [[TEXTURE_GREEN, TEXTURE_GREEN, TEXTURE_WHITE_SHINY, TEXTURE_GREEN], ANIMATIONS_MARINE],
     ]],
   ];
@@ -371,7 +371,7 @@ onload = async () => {
           const inverse = matrix4Invert(rotation);
           const transform = matrix4Multiply(
               inverse,
-              matrix4Translate(-VOLUME_MIDPOINT, -omin[1], -VOLUME_MIDPOINT),
+              matrix4Translate(-VOLUME_MIDPOINT, -VOLUME_MIDPOINT, -omin[2]),
           );
           const extents1 = vector3TransformMatrix4(transform, ...min);
           const extents2 = vector3TransformMatrix4(transform, ...max);
@@ -495,11 +495,12 @@ onload = async () => {
 
   const aspect = canvas.width/canvas.height;
   const perspectiveMatrix = matrix4Multiply(
-    matrix4InfinitePerspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .4),
-    //matrix4Perspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .35, 10),
-    matrix4Rotate(-Math.PI/18, 1, 0, 0),
-    matrix4Translate(0, 0, -.35),
-    matrix4Rotate(-Math.PI/2, 0, 1, 0),    
+      matrix4InfinitePerspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .4),
+      //matrix4Perspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .35, 10),
+      matrix4Rotate(Math.PI/18, 1, 0, 0),
+      matrix4Translate(0, 0, -.35),
+      matrix4Rotate(-Math.PI/2, 1, 0, 0),
+      matrix4Rotate(Math.PI/2, 0, 0, 1),
   );
 
   const entityRenderables = await addEvents(eventQueue, ...COMMANDS);
@@ -508,7 +509,7 @@ onload = async () => {
 
   let cameraRotation = 0;
   let targetRotation = cameraRotation;
-  let cameraPosition: Vector3 = [LEVEL_DIMENSION/2 | 0, 1.6, 1];
+  let cameraPosition: Vector3 = [LEVEL_DIMENSION/2 | 0, 1, 1.6];
   let targetPosition = [...cameraPosition];
   let numLights = 2;
   // slightly scale up to hide wall-gaps
@@ -520,18 +521,18 @@ onload = async () => {
     let positionMultiplier = 1;
     switch (e.keyCode) {
       case 37: // left
-        targetRotation -= Math.PI/2 * actionMultiplier;
+        targetRotation += Math.PI/2 * actionMultiplier;
         break;
       case 39: // right
-        targetRotation += Math.PI/2 * actionMultiplier;
+        targetRotation -= Math.PI/2 * actionMultiplier;
         break;
       case 40: // down
         positionMultiplier = -1;
       case 38: // up
-        const sin = Math.sin(targetRotation) * actionMultiplier;
         const cos = Math.cos(targetRotation) * actionMultiplier;
+        const sin = Math.sin(targetRotation) * actionMultiplier;
         targetPosition[0] += cos * positionMultiplier;
-        targetPosition[2] += sin * positionMultiplier;
+        targetPosition[1] += sin * positionMultiplier;
         break;
       case 32: // space
         numLights = (numLights + 1)%4;
@@ -556,6 +557,12 @@ onload = async () => {
       const movementScale = Math.min(deltaPositionLength, 0.002*delta)/deltaPositionLength;
       cameraPosition = cameraPosition.map((v, i) => v + deltaPosition[i]*movementScale) as Vector3;
     }
+
+    const projectionMatrix = matrix4Multiply(
+        perspectiveMatrix,
+        matrix4Rotate(-cameraRotation, 0, 0, 1),
+    );
+
     const ambientLight = [.2, .2, .2, numLights];
     const lights = [
       .3, .3, .3, 0,
@@ -564,14 +571,10 @@ onload = async () => {
     ];
     const lightTransforms = [
       ...matrix4Translate(...cameraPosition), 
-      ...matrix4Multiply(matrix4Translate(...cameraPosition), matrix4Rotate(cameraRotation, 0, 1, 0), matrix4Rotate(Math.PI/13, 0, 0, 1), matrix4Translate(.2, 0, .3)),
-      ...matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 0, 1), matrix4Translate(0, -2, 0)),
+      ...matrix4Multiply(matrix4Translate(...cameraPosition), matrix4Rotate(cameraRotation, 0, 0, 1), matrix4Rotate(Math.PI/13, 0, 1, 0), matrix4Translate(.2, -.3, 0)),
+      ...matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Translate(0, 0, -2)),
     ];
 
-    const projectionMatrix = matrix4Multiply(
-        perspectiveMatrix,
-        matrix4Rotate(-cameraRotation, 0, 1, 0),
-    );
     gl.uniformMatrix4fv(
         uniforms[U_PROJECTION_MATRIX_INDEX],
         false,
@@ -600,7 +603,7 @@ onload = async () => {
 
       tile.parties.forEach(party => {
         const position = party.position;
-        const rotation = party.yRotation;
+        const rotation = party.zRotation;
         party.members.forEach(partyMember => {
 
           const {
@@ -617,7 +620,7 @@ onload = async () => {
           } = frames[0][0];
         
           const modelPositionMatrix = matrix4Translate(...position);
-          const modelRotationMatrix = matrix4Rotate(rotation, 0, 1, 0);
+          const modelRotationMatrix = matrix4Rotate(rotation, 0, 0, 1);
           const modelViewMatrix = matrix4Multiply(
               modelPositionMatrix,
               modelRotationMatrix,

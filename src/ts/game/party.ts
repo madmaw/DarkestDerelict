@@ -21,7 +21,7 @@ const PARTY_TYPE_OBSTACLE: PartyTypeObstacle = 3;
 type Party = {
   members: PartyMember[],
   position: Vector3,
-  yRotation: number,
+  zRotation: number,
   orientation: Orientation,
   type: PartyType,
 };

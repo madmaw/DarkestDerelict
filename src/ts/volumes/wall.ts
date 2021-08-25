@@ -1,4 +1,4 @@
-const WALL_DIMENSION = 24;
+const WALL_DIMENSION = 30;
 const WALL_INSET = 2;
 const WALL_INSET_DIAMETER_INNER = 22;
 const WALL_INSET_DIAMETER_OUTER = 24;
@@ -74,7 +74,7 @@ const VOLUMETRIC_COMMANDS_WALL: VolumetricDrawCommand[] = [
     TYPE_CONTEXT_START,
   ],
   [
-    TYPE_ROTATE_Y,
+    TYPE_ROTATE_Z,
     {
       type: 'literal',
       range: 'angle',
@@ -91,7 +91,7 @@ const VOLUMETRIC_COMMANDS_WALL: VolumetricDrawCommand[] = [
     TYPE_CONTEXT_START,
   ],
   [
-    TYPE_ROTATE_Y,
+    TYPE_ROTATE_Z,
     {
       type: 'literal',
       range: 'angle',
@@ -108,7 +108,7 @@ const VOLUMETRIC_COMMANDS_WALL: VolumetricDrawCommand[] = [
     TYPE_CONTEXT_START,
   ],
   [
-    TYPE_ROTATE_Y,
+    TYPE_ROTATE_Z,
     {
       type: 'literal',
       range: 'angle',

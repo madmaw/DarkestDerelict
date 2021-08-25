@@ -19,7 +19,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
         orientation: ORIENTATION_EAST,
         position,
         type: PARTY_TYPE_OBSTACLE,
-        yRotation: Math.PI/2 * (Math.random()*4|0),
+        zRotation: Math.PI/2 * (Math.random()*4|0),
         members: [{
           animationQueue: undefined,
           entity: {
@@ -30,32 +30,32 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
       }],
     };
   });
-  const dig = (x: number, y: number, z: number, dx: number, dz: number) => {
-    (tiles[z][y][x] as Tile).parties = [];
+  const dig = (tiles: Tile[][], x: number, y: number, dx: number, dy: number) => {
+    (tiles[y][x] as Tile).parties = [];
     let validTiles: Vector2[];
     do {
-      validTiles = ([[x+1, z], [x-1, z], [x, z+1], [x, z-1], ...new Array(y).fill([x+dx, z+dz])] as Vector2[])
-        .filter(([tx, tz]) => {
+      validTiles = ([[x+1, y], [x-1, y], [x, y+1], [x, y-1], ...new Array(y).fill([x+dx, y+dy])] as Vector2[])
+        .filter(([tx, ty]) => {
           return tx>0
-              && tz>0
+              && ty>0
               && tx<LEVEL_DIMENSION-1
-              && tz<LEVEL_DIMENSION-1
-              && (tiles[tz][y][tx] as Tile).parties.length
+              && ty<LEVEL_DIMENSION-1
+              && (tiles[ty][tx] as Tile).parties.length
               && TILE_DELTAS.every(dx => (
-                  TILE_DELTAS.every(dz => (!dx && !dz)
-                      || (tx+dx == x || tz+dz == z)
-                      || (tiles[tz+dz][y][tx+dx] as Tile).parties.length
+                  TILE_DELTAS.every(dy => (!dx && !dy)
+                      || (tx+dx == x || ty+dy == y)
+                      || (tiles[ty+dy][tx+dx] as Tile).parties.length
                   )
               ));
       });
       if (validTiles.length) {
-        const [tx, tz] = validTiles[validTiles.length*Math.random()|0];
-        dig(tx, y, tz, tx-x, tz-z);
+        const [tx, ty] = validTiles[validTiles.length*Math.random()|0];
+        dig(tiles, tx, ty, tx-x, ty-y);
       }
     } while(validTiles.length);
   };
 
-  dig(LEVEL_DIMENSION/2 | 0, 1, 1, 0, 1);
+  dig(tiles[1] as Tile[][], LEVEL_DIMENSION/2 | 0, 1, 0, 1);
 
   volumeMap(tiles, (t: Tile, position: Vector3) => {
     if (!t.parties.length) {
@@ -64,7 +64,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
           position,
           type: PARTY_TYPE_ITEM,
           orientation: ORIENTATION_EAST,
-          yRotation: 0,
+          zRotation: 0,
           members: [{
             animationQueue: undefined,
             entity: {
@@ -80,9 +80,10 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
 
   if (FLAG_DEBUG_LEVEL_GENERATION) {
     const s = [];
-    for (let z=0; z<LEVEL_DIMENSION; z++) {
+    for (let y=LEVEL_DIMENSION; y;) {
+      y--;
       for (let x=0; x<LEVEL_DIMENSION; x++) {
-        const item = tiles[z][1][x];
+        const item = tiles[1][y][x];
         s.push(!item || item.parties.length == 0 ? ' ' : item.parties[0].type === PARTY_TYPE_OBSTACLE ? '#' : '*');
       }
       s.push('\n');

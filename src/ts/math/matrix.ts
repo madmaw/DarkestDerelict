@@ -144,16 +144,15 @@ const matrix4Rotate = (rad: number, x: number, y: number, z: number): Matrix4 =>
   s_ = mathSin(rad);
   c_ = mathCos(rad);
   t_ = 1 - c_;
-  // NOTE: b20 and b02 are swapped from the glmatrix implementation. This appears
-  // to be the correct behaviour (maybe there is a corresponding fix in their 
-  // unrolled matrix multiplication?)
+  // NOTE: xyz and zxy the 'depth' axis points in different directions
+  // (toward the screen for z, away from the screen for y)
   return [
-    // b00                b10                   b20
-    x * x * t_ + c_,      y * x * t_ - z * s_,  z * x * t_ + y * s_,  0,
-    // b01                b11                   b21
-    x * y * t_ + z * s_,  y * y * t_ + c_,      z * y * t_ - x * s_,  0,
-    // b02                b12                   b22
-    x * z * t_ - y * s_,  y * z * t_ + x * s_,  z * z * t_ + c_,      0,
+    // b00                b01                   b02
+    x * x * t_ + c_,      y * x * t_ + z * s_,  z * x * t_ - y * s_,  0,
+    // b10                b11                   b12
+    x * y * t_ - z * s_,  y * y * t_ + c_,      z * y * t_ + x * s_,  0,
+    // b20                b21                   b22
+    x * z * t_ + y * s_,  y * z * t_ - x * s_,  z * z * t_ + c_,      0,
     0,                    0,                    0,                    1
   ];
 }
