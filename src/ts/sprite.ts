@@ -20,7 +20,7 @@ const processSpriteCommands = (name: string, volumeCommands: readonly Volumetric
       .map(command => command
           .map(({tweens, frames: increments}) => tweens
               .map(({from, to, range}) => new Array(increments).fill(0)
-                  .map((_, i) => literalValueComponentsToBase64(increments ? from + (to - from)*(i+1)/increments : from, range))
+                  .map((_, i) => numericValueComponentsToBase64(increments ? from + (to - from)*(i+1)/increments : from, range))
                   .join(''),
               ),
           ),
@@ -35,7 +35,7 @@ const processSpriteSequencesString = (volumeTemplate: string, animationSequences
   return animationSequencesStrings.map(animationSequenceStrings => {
     return animationSequenceStrings.map(animationStepStrings => {
       const params: string[][] = [];
-      animationStepStrings.map((animationStep, i) => animationStep.split('').map((v, j) => {
+      animationStepStrings.map((animationStep, i) => [...animationStep].map((v, j) => {
         if (!params[j]) {
           params[j] = [];
         }

@@ -28,7 +28,7 @@ module.exports = function (grunt) {
           all: ["build", "dist", "dist.zip", "js13k.zip"]
       },
       'closure-compiler': {
-          es2018: {
+          es2020: {
               closurePath: 'libbuild/closure-compiler-v20210601',
               js: 'build/out.js',
               jsOutputFile: 'dist/out.min.js',
@@ -36,8 +36,8 @@ module.exports = function (grunt) {
               reportFile: 'closure.txt',
               options: {
                   compilation_level: 'ADVANCED_OPTIMIZATIONS',
-                  language_in: 'ECMASCRIPT_2018',
-                  language_out: 'ECMASCRIPT_2018',
+                  language_in: 'ECMASCRIPT_2020',
+                  language_out: 'ECMASCRIPT_2020',
                   externs: 'src/externs/externs.js',
                   create_source_map: "true",
               }
@@ -50,7 +50,7 @@ module.exports = function (grunt) {
               reportFile: 'closure.txt',
               options: {
                   compilation_level: 'ADVANCED_OPTIMIZATIONS',
-                  language_in: 'ECMASCRIPT_2018',
+                  language_in: 'ECMASCRIPT_2020',
                   language_out: 'ECMASCRIPT5',
                   externs: 'src/externs/externs.js'
               }
@@ -197,7 +197,7 @@ module.exports = function (grunt) {
   // Default task(s).
   grunt.registerTask('reset', ['clean:all']);
   grunt.registerTask('prod', ['ts']);
-  grunt.registerTask('dist', ['prod', 'closure-compiler:es2018', 'copy','cssmin','replace:html', 'replace:js', 'replace:js2', 'inline', 'htmlmin']);
+  grunt.registerTask('dist', ['prod', 'closure-compiler:es2020', 'copy','cssmin','replace:html', 'replace:js', 'replace:js2', 'inline', 'htmlmin']);
   grunt.registerTask('default', ['prod', 'connect', 'watch']);
 
 };

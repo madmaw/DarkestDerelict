@@ -2,7 +2,7 @@ const LEVEL_DIMENSION = 9;
 const TILE_DELTAS = [-1, 0, 1];
 
 type Tile = {
-  parties: Party[],  
+  parties: Party[],
 };
 
 type Level = {
@@ -13,7 +13,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
   const walls = entityRenderables[ENTITY_TYPE_WALL];
   const tiles = createEmptyVolume<Tile>(LEVEL_DIMENSION);
   volumeMap(tiles, (t, position) => {
-    const wallRenderable = walls[(position[1]/2|0)%walls.length];
+    const wallRenderables = walls[(position[2])%walls.length];
     return {
       parties: [{
         orientation: ORIENTATION_EAST,
@@ -21,9 +21,10 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
         type: PARTY_TYPE_OBSTACLE,
         zRotation: Math.PI/2 * (Math.random()*4|0),
         members: [{
+          staticTransform: matrix4Identity(),
           animationQueue: undefined,
           entity: {
-            renderables: wallRenderable,
+            renderables: wallRenderables,
             type: ENTITY_TYPE_WALL,
           }
         }],
@@ -58,17 +59,36 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
   dig(tiles[1] as Tile[][], LEVEL_DIMENSION/2 | 0, 1, 0, 1);
 
   volumeMap(tiles, (t: Tile, position: Vector3) => {
+    const floors = entityRenderables[ENTITY_TYPE_FLOOR];
     if (!t.parties.length) {
-      if (Math.random()>.9) {
+      t.parties.push({
+        orientation: ORIENTATION_EAST,
+        position,
+        type: PARTY_TYPE_FLOOR,
+        zRotation: 0,
+        members: [{
+          staticTransform: matrix4Identity(),
+          animationQueue: undefined,
+          entity: {
+            renderables: floors[position[2]%floors.length],
+            type: ENTITY_TYPE_FLOOR,
+          }
+        }],
+      });
+      if (Math.random()>.5) {
+        const index = ENTITY_TYPE_MARINE + Math.random() * 2 | 0;
+        const thingRenderables = entityRenderables[index];
+
         t.parties.push({
-          position,
+          position: [position[0], position[1], position[2] + FLOOR_DEPTH/WALL_DIMENSION],
           type: PARTY_TYPE_ITEM,
           orientation: ORIENTATION_EAST,
-          zRotation: 0,
+          zRotation: Math.random() * Math.PI*2,
           members: [{
+            staticTransform: matrix4Scale(index === ENTITY_TYPE_PISTOL ? .2 : .5),
             animationQueue: undefined,
             entity: {
-              renderables: entityRenderables[ENTITY_TYPE_MARINE][0],
+              renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
               type: ENTITY_TYPE_MARINE,
             }
           }]

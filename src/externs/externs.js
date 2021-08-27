@@ -1,5 +1,7 @@
-var d;
-var c;
+var Y;
+var Z;
+var X;
+var V;
 var innerWidth;
 var innerHeight;
 var onkeyup;

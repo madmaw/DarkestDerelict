@@ -2,15 +2,55 @@ canvas {
   image-rendering: pixelated;
 }
 
+img {
+  width: 100%;
+  object-fit: contain;
+}
+
 body {
   padding: 0;
   margin: 0;
+  width: min(100vw, 67vh);
+  height: min(150vw, 100vh);
+  display: grid;
+  grid-template-columns: 100%;
+  grid-template-rows: 55% 30% 15%;
+  overflow: hidden;
 }
 
-#c {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: min(50vh, 100vw);
-  height: min(40vh, 80vw);
+#Z {
+  width: 100%;
+  height: 100%;
+}
+
+#X {
+  display: grid;
+  grid-template-columns: 50% 50%;
+  grid-template-rows: 50% 50%;
+}
+
+#V {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.x {
+  display: grid;
+  grid-template-columns: 50% 50%;
+  grid-template-rows: 50% 50%;
+  grid-auto-rows: 20%;
+}
+
+.a {
+  grid-row: 1/3;
+  height: 100%;
+  width: 100%;
+}
+
+.b, .c {
+  height: 50%;
+}
+
+.i {
+  height: 100%;
 }

@@ -26,7 +26,7 @@ const ATTRIBUTE_NAMES = FLAG_LONG_SHADER_NAMES
       A_SURFACE_TEXTURE_BOUNDS,
       A_SURFACE_ROTATION,
     ]
-    : 'abcd'.split('');
+    : [...'abcd'];
 
 const U_MODEL_VIEW_MATRIX_INDEX = 0;
 const U_MODEL_VIEW_MATRIX = FLAG_LONG_SHADER_NAMES ? 'uModelViewMatrix' : 'A';
@@ -67,7 +67,7 @@ const UNIFORM_NAMES = FLAG_LONG_SHADER_NAMES
       U_LIGHT_TRANSFORMS,
       U_AMBIENT_LIGHT,
     ]
-    : 'ABCDEFGHI'.split('');
+    : [...'ABCDEFGHI'];
 
 const V_SURFACE_TEXTURE_COORD = FLAG_LONG_SHADER_NAMES ? 'vSurfaceTextureCoord' : 'Z';
 const V_SURFACE_TEXTURE_BOUNDS = FLAG_LONG_SHADER_NAMES ? 'vSurfaceTextureBounds' : 'Y';
@@ -81,6 +81,8 @@ const L_VERTEX_NORMAL = FLAG_LONG_SHADER_NAMES ? 'lVertexNormal' : 'z';
 
 // VERTEX
 const VERTEX_SHADER = `
+  precision ${PRECISION}  float;
+
   attribute vec3 ${A_VERTEX_POSITION};
   attribute vec2 ${A_SURFACE_TEXTURE_COORD};
   attribute vec4 ${A_SURFACE_TEXTURE_BOUNDS};
@@ -89,12 +91,12 @@ const VERTEX_SHADER = `
   uniform mat4 ${U_MODEL_VIEW_MATRIX};
   uniform mat4 ${U_MODEL_ROTATION_MATRIX};
   uniform mat4 ${U_PROJECTION_MATRIX};
-  uniform ${PRECISION} vec3 ${U_CAMERA_POSITION};
+  uniform vec3 ${U_CAMERA_POSITION};
 
-  varying ${PRECISION} vec2 ${V_SURFACE_TEXTURE_COORD};
-  varying ${PRECISION} vec4 ${V_SURFACE_TEXTURE_BOUNDS};
-  varying ${PRECISION} mat3 ${V_SURFACE_ROTATION};
-  varying ${PRECISION} vec4 ${V_WORLD_POSITION};
+  varying vec2 ${V_SURFACE_TEXTURE_COORD};
+  varying vec4 ${V_SURFACE_TEXTURE_BOUNDS};
+  varying mat3 ${V_SURFACE_ROTATION};
+  varying vec4 ${V_WORLD_POSITION};
 
   void main() {
     ${V_WORLD_POSITION} = ${U_MODEL_VIEW_MATRIX} * vec4(${A_VERTEX_POSITION}, 1.);
@@ -146,7 +148,6 @@ const VERTEX_SHADER = `
     vec4 ${L_DEPTH_TEXTURE} = vec4(0.);
     
     float pixelDepth=0.;
-    /* TODO : make this a while */
     for (float depth=${C_MIN_DEPTH+STEP_DEPTH}; depth<${C_MAX_DEPTH}; depth+=${C_STEP_DEPTH}) {
       vec2 previousSurfacePosition = surfacePosition;
       surfacePosition = ${V_SURFACE_TEXTURE_COORD}-depth*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
@@ -221,7 +222,7 @@ const VERTEX_SHADER = `
   `;
 
 onload = async () => {
-  const canvas = c;
+  const canvas = Z;
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
   const gl = canvas.getContext('webgl');
@@ -267,7 +268,9 @@ onload = async () => {
   const TEXTURE_RED_SHINY: Texel[][][] = [[[[128, 92, 92, 255]]]];
   const TEXTURE_GREEN: Texel[][][] = [[[[92, 128, 92, 128]]]];
   const TEXTURE_BLUE_DULL: Texel[][][] = [[[[118, 118, 128, 32]]]];
+  const TEXTURE_GUNMETAL: Texel[][][] = [[[[118, 118, 128, 200]]]];
   const TEXTURE_WHITE_SHINY: Texel[][][] = [[[[255, 255, 255, 255]]]];
+  const TEXTURE_BLACK: Texel[][][] = [[[[0, 0, 0, 0]]]];
 
   const TEXTURE_SPECKLED: Texel[][][] = [[
     [[0, 0, 0, 128], [255, 255, 255, 128]],
@@ -276,21 +279,34 @@ onload = async () => {
 
   type LoadingEvent = [string, VolumetricDrawCommand[], [Volume<Texel>[], (SpriteAnimationSequence[])?][]];
 
+  const SURFACE_TEXELS: [Volume<Texel>[]][] = [
+    [[TEXTURE_BLUE_DULL, TEXTURE_WHITE_SHINY]],
+    [[TEXTURE_WHITE_SHINY, TEXTURE_GREEN, TEXTURE_BLUE_DULL]],
+  ];
+
   const COMMANDS: readonly LoadingEvent[] = [
-    ['wall', VOLUMETRIC_COMMANDS_WALL, [
-      [[TEXTURE_BLUE_DULL]],
-      [[TEXTURE_WHITE_SHINY, TEXTURE_GREEN, TEXTURE_BLUE_DULL]],
-    ]],
+    ['wall', VOLUMETRIC_COMMANDS_WALL, SURFACE_TEXELS],
+    ['floor', VOLUMETRIC_COMMANDS_FLOOR, SURFACE_TEXELS],
     ['marine', VOLUMETRIC_COMMANDS_MARINE, [
-      [[TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY], ANIMATIONS_MARINE],
-      [[TEXTURE_GREEN, TEXTURE_GREEN, TEXTURE_WHITE_SHINY, TEXTURE_GREEN], ANIMATIONS_MARINE],
+      [[TEXTURE_GREEN, TEXTURE_WHITE_SHINY, TEXTURE_RED_SHINY], ANIMATIONS_MARINE],
+      [[TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_GREEN], ANIMATIONS_MARINE],
+    ]],
+    ['pistol', VOLUMETRIC_COMMANDS_PISTOL, [
+      [[TEXTURE_GUNMETAL, TEXTURE_BLACK]],
+    ]],
+    ['cathead', VOLUMETRIC_COMMANDS_SYMBOL, [
+      [[TEXTURE_RED_SHINY]],
     ]],
   ];
 
   const eventQueue: EventQueue<LoadingEvent, EntityRenderables[]> = {
     events: [],
     handler: async ([name, commands, variations]) => {
-      return await Promise.all(variations.map(async ([renderTextures, animations], i, a) => {
+      Y.innerText = `${(COMMANDS.length-eventQueue.events.length)/COMMANDS.length*100 | 0}%`
+      // allow rendering of progress
+      await delay();
+
+      return variations.map(([renderTextures, animations]) => {
         const volumes = animations
             ? processSpriteCommands(name, commands, animations)
             : [[processVolumetricDrawCommands(name, commands).volume]];
@@ -341,7 +357,29 @@ onload = async () => {
           );
           gl.generateMipmap(CONST_GL_TEXTURE_2D);
 
+          const thumbnail = document.createElement('canvas');
+          // because the model faces down the x axis, the image is laying on its side
+          const w = bounds[1][1] - bounds[0][1]+1;
+          const h = bounds[1][2] - bounds[0][2]+1;
+          thumbnail.width = w;
+          thumbnail.height = h;
+          const ctx = thumbnail.getContext('2d');
+          const imageData = ctx.createImageData(w, h);
+          for (let x=0; x<w; x++) {
+            for (let y=0; y<h; y++) {
+              // it will be flipped, but not a big deal
+              const sy = x;
+              const sx = y;
+              const sourceOffset = sy*TEXTURE_DIMENSION*4 + sx*4;
+              const c = renderTextureData.slice(sourceOffset, sourceOffset+4);
+              imageData.data.set(c.map((c, i) => (i+1)%4 ? c : c ? 255 : 0), y*w*4+x*4);
+            }
+          }
+          ctx.putImageData(imageData, 0, 0);
+
           if (FLAG_DEBUG_TEXTURES) {
+            document.firstChild.appendChild(thumbnail);
+
             const textures = [depthTextureData, renderTextureData];
             textures.forEach(texture => {
               const debugCanvas = document.createElement('canvas');
@@ -355,11 +393,12 @@ onload = async () => {
               debugContext.putImageData(debugData, 0, 0);
               document.firstChild.appendChild(debugCanvas);  
             });
-          }      
+          }
 
           return {
             depthTexture,
             renderTexture,
+            thumbnail,
           }
         }));
 
@@ -451,9 +490,6 @@ onload = async () => {
             CONST_GL_STATIC_DRAW,
         );
 
-        d.innerText = `${((1-eventQueue.events.length)+((i+1)/a.length))/COMMANDS.length*100 | 0}%`
-        // allow rendering of progress
-        await delay();
         return {
           bounds,
           frames,
@@ -462,8 +498,8 @@ onload = async () => {
           surfaceRotationsBuffer,
           textureBoundsBuffer,
           textureCoordinatesBuffer,
-        };
-      }));
+        } as EntityRenderables;
+      });
     },
   }
 
@@ -498,23 +534,73 @@ onload = async () => {
       matrix4InfinitePerspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .4),
       //matrix4Perspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .35, 10),
       matrix4Rotate(Math.PI/18, 1, 0, 0),
-      matrix4Translate(0, 0, -.35),
+      matrix4Translate(0, 0, -.2),
       matrix4Rotate(-Math.PI/2, 1, 0, 0),
       matrix4Rotate(Math.PI/2, 0, 0, 1),
   );
 
   const entityRenderables = await addEvents(eventQueue, ...COMMANDS);
+  
+  X.innerHTML = new Array(4).fill(X.innerHTML).join('');
+  V.innerHTML = new Array(4).fill(V.innerHTML).join('');  
+  Y.hidden = true;
 
   const level = generateLevel(entityRenderables);
+  const party: Party = {
+    members: new Array(4).fill(0),
+    orientation: ORIENTATION_NORTH,
+    position: [LEVEL_DIMENSION/2 | 0, 1, 1.6],
+    type: PARTY_TYPE_PLAYER,
+    zRotation: Math.PI/2,
+  };
+  party.members[0] = {
+    animationQueue: undefined,
+    entity: {
+      renderables: entityRenderables[ENTITY_TYPE_MARINE][0],
+      type: ENTITY_TYPE_MARINE,
+    },
+    staticTransform: matrix4Scale(.5),
+    weapon: {
+      renderables: entityRenderables[ENTITY_TYPE_PISTOL][0],
+      type: ENTITY_TYPE_PISTOL,
+    }
+  };
 
-  let cameraRotation = 0;
-  let targetRotation = cameraRotation;
-  let cameraPosition: Vector3 = [LEVEL_DIMENSION/2 | 0, 1, 1.6];
-  let targetPosition = [...cameraPosition];
+  const renderEntityToCanvas = (entity: Entity | Falseish, canvas: HTMLCanvasElement) => {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (entity) {
+      const thumbnail = entity.renderables.frames[0][0].thumbnail;
+      const scale = Math.min(canvas.width*.5/thumbnail.width, canvas.height*.8/thumbnail.height);
+      ctx.drawImage(
+          thumbnail,
+          (canvas.width - thumbnail.width*scale)/2,
+          (canvas.height - thumbnail.height*scale)/2,
+          thumbnail.width*scale,
+          thumbnail.height*scale,
+      );
+    }
+  }
+
+  const updateInventory = () => {
+    party.members.forEach((m, i) => {
+      const e = X.children.item(i);
+      const entityElement: HTMLCanvasElement = e.querySelector('.a');
+      const weaponElement: HTMLCanvasElement = e.querySelector('.b');
+      renderEntityToCanvas(m && m.entity, entityElement);
+      renderEntityToCanvas(m && m.weapon, weaponElement);
+    });
+  };
+  updateInventory();
+
+  let targetRotation = party.zRotation;
+  let targetPosition = [...party.position];
   let numLights = 2;
   // slightly scale up to hide wall-gaps
-  const scale = 1/(VOLUME_SCALE*WALL_DIMENSION);
-  const modelScaleMatrix = matrix4Scale(scale, scale, scale);
+  const scale = 1.02/(VOLUME_SCALE*WALL_DIMENSION);
+  const modelScaleMatrix = matrix4Scale(scale);
   
   onkeydown = (e: KeyboardEvent) => {
     const actionMultiplier = e.shiftKey ? 0.125 : 1;
@@ -550,17 +636,17 @@ onload = async () => {
     let delta = now - previous;
     previous = now;
 
-    cameraRotation += (targetRotation - cameraRotation)*delta/200;
-    const deltaPosition = vectorNSubtract(targetPosition, cameraPosition);
+    party.zRotation += (targetRotation - party.zRotation)*delta/200;
+    const deltaPosition = vectorNSubtract(targetPosition, party.position);
     const deltaPositionLength = vectorNLength(deltaPosition);
     if (deltaPositionLength > 0) {
       const movementScale = Math.min(deltaPositionLength, 0.002*delta)/deltaPositionLength;
-      cameraPosition = cameraPosition.map((v, i) => v + deltaPosition[i]*movementScale) as Vector3;
+      party.position = party.position.map((v, i) => v + deltaPosition[i]*movementScale) as Vector3;
     }
 
     const projectionMatrix = matrix4Multiply(
         perspectiveMatrix,
-        matrix4Rotate(-cameraRotation, 0, 0, 1),
+        matrix4Rotate(-party.zRotation, 0, 0, 1),
     );
 
     const ambientLight = [.2, .2, .2, numLights];
@@ -570,9 +656,9 @@ onload = async () => {
       .49, .49, .5, -9,
     ];
     const lightTransforms = [
-      ...matrix4Translate(...cameraPosition), 
-      ...matrix4Multiply(matrix4Translate(...cameraPosition), matrix4Rotate(cameraRotation, 0, 0, 1), matrix4Rotate(Math.PI/13, 0, 1, 0), matrix4Translate(.2, -.3, 0)),
-      ...matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Translate(0, 0, -2)),
+      ...matrix4Translate(...party.position), 
+      ...matrix4Multiply(matrix4Translate(...party.position), matrix4Rotate(party.zRotation, 0, 0, 1), matrix4Rotate(Math.PI/13, 0, 1, 0), matrix4Translate(.2, -.3, 0)),
+      ...matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Translate(0, 0, -2.1)),
     ];
 
     gl.uniformMatrix4fv(
@@ -582,7 +668,7 @@ onload = async () => {
     );
     gl.uniform3fv(
         uniforms[U_CAMERA_POSITIION_INDEX],
-        cameraPosition,
+        party.position,
     );
     gl.uniform4fv(
         uniforms[U_AMBIENT_LIGHT_INDEX],
@@ -605,6 +691,9 @@ onload = async () => {
         const position = party.position;
         const rotation = party.zRotation;
         party.members.forEach(partyMember => {
+          if (!partyMember) {
+            return;
+          }
 
           const {
             frames,
@@ -625,6 +714,7 @@ onload = async () => {
               modelPositionMatrix,
               modelRotationMatrix,
               modelScaleMatrix,
+              partyMember.staticTransform,
           );
         
           // vertexes

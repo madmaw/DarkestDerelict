@@ -4,6 +4,8 @@ const MARINE_LEFT_SHOULDER_INDEX = 0;
 const MARINE_RIGHT_SHOULDER_INDEX = 1;
 const MARINE_LEFT_HIP_INDEX = 2;
 const MARINE_RIGHT_HIP_INDEX = 3;
+const MARINE_LEFT_KNEE_INDEX = 4;
+const MARINE_RIGHT_KNEE_INDEX = 5;
 
 const MARINE_ANIMAITON_NEUTRAL = 0;
 const MARINE_ANIMATION_WALK_1 = 1;
@@ -25,62 +27,76 @@ const ANIMATIONS_MARINE: SpriteAnimationSequence[] = [
           range: 'angle',
           from: 0,
           to: 0,
-        }
+        },
+        // left hip
+        {
+          range: 'angle',
+          from: 0,
+          to: 0,
+        },
+        // right hip
+        {
+          range: 'angle',
+          from: 0,
+          to: 0,
+        },
+        // left knee
+        {
+          range: 'angle',
+          from: 0,
+          to: 0,
+        },
+        // right knee
+        {
+          range: 'angle',
+          from: 0,
+          to: 0,
+        },
       ],
     }
   ],
   [
     {
-      frames: 4,
+      frames: 1,
       tweens: [
         // left shoulder
         {
           range: 'angle',
-          from: 0,
-          to: -Math.PI/4,
-        },
-        // right shoulder
-        {
-          range: 'angle',
-          from: 0,
-          to: Math.PI/4,
-        }
-      ],
-    },
-    {
-      frames: 8,
-      tweens: [
-        // left shoulder
-        {
-          range: 'angle',
-          from: -Math.PI/4,
+          from: Math.PI/4,
           to: Math.PI/4,
         },
         // right shoulder
         {
           range: 'angle',
           from: Math.PI/4,
-          to: -Math.PI/4,
-        }
-      ],
-    },
-    {
-      frames: 4,
-      tweens: [
-        // left shoulder
-        {
-          range: 'angle',
-          from: Math.PI/4,
-          to: 0,
+          to: Math.PI/4,
         },
-        // right shoulder
+        // left hip
         {
           range: 'angle',
-          from: -Math.PI/4,
-          to: 0,
-        }
+          from: -Math.PI*2/3,
+          to: -Math.PI*2/3,
+        },
+        // right hip
+        {
+          range: 'angle',
+          from: -Math.PI*2/3,
+          to: -Math.PI*2/3,
+        },
+        // left knee
+        {
+          range: 'angle',
+          from: Math.PI/3,
+          to: Math.PI/3,
+        },
+        // right knee
+        {
+          range: 'angle',
+          from: Math.PI/3,
+          to: Math.PI/3,
+        },
       ],
-    }    
+    }
   ],
 ];
 
@@ -92,7 +108,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_TRANSLATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: 1,
         range: 'integer'
       },
@@ -100,7 +116,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_ROTATE_Z, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: Math.PI/2,
         range: 'angle'
       },
@@ -108,17 +124,17 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_SHAPE_CAPSULE,
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 3,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 4,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 4,
       },
@@ -133,23 +149,23 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_TRANSLATE_Y, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: 1,
         range: 'integer'
       },
     ],
-    [
-      TYPE_ROTATE_Z, 
-      {
-        type: 'literal',
-        value: -Math.PI/6,
-        range: 'angle'
-      },
-    ],
+    // [
+    //   TYPE_ROTATE_Z, 
+    //   {
+    //     type: 'numeric',
+    //     value: Math.PI/6,
+    //     range: 'angle'
+    //   },
+    // ],
     [
       TYPE_ROTATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: Math.PI/9,
         range: 'angle'
       },
@@ -157,22 +173,22 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_ROTATE_Y, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -Math.PI/2,
         range: 'angle'
       },
     ],
-    // [
-    //   TYPE_ROTATE_Y, 
-    //   {
-    //     type: 'ref',
-    //     index: MARINE_LEFT_HIP_INDEX,
-    //   },
-    // ],
+    [
+      TYPE_ROTATE_Y, 
+      {
+        type: 'ref',
+        index: MARINE_LEFT_HIP_INDEX,
+      },
+    ],
     [
       TYPE_TRANSLATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -3,
         range: 'integer'
       },
@@ -180,17 +196,17 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_SHAPE_CAPSULE,
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 4,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 6,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 5,
       },
@@ -199,39 +215,46 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_TRANSLATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -4,
         range: 'integer'
       },
     ],
-    [
-      TYPE_ROTATE_X, 
-      {
-        type: 'literal',
-        value: Math.PI/9,
-        range: 'angle'
-      },
-    ],
+    // [
+    //   TYPE_ROTATE_X, 
+    //   {
+    //     type: 'numeric',
+    //     value: Math.PI/9,
+    //     range: 'angle'
+    //   },
+    // ],
     [
       TYPE_ROTATE_Z, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: Math.PI/9,
         range: 'angle'
       },
     ],
+    // [
+    //   TYPE_ROTATE_Y, 
+    //   {
+    //     type: 'numeric',
+    //     value: Math.PI/9,
+    //     range: 'angle'
+    //   },
+    // ],
     [
       TYPE_ROTATE_Y, 
       {
-        type: 'literal',
-        value: Math.PI/9,
-        range: 'angle'
+        type: 'ref',
+        index: MARINE_LEFT_KNEE_INDEX,
       },
     ],
     [
       TYPE_TRANSLATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -2,
         range: 'integer'
       },
@@ -239,17 +262,17 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_SHAPE_CAPSULE,
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 4,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 5,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 4,
       },
@@ -258,15 +281,23 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_TRANSLATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -3,
         range: 'integer'
       },
     ],
+    // [
+    //   TYPE_ROTATE_X, 
+    //   {
+    //     type: 'numeric',
+    //     value: Math.PI/4,
+    //     range: 'angle'
+    //   },
+    // ],    
     [
       TYPE_ROTATE_Y, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -Math.PI/2,
         range: 'angle'
       },
@@ -274,7 +305,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_TRANSLATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -2,
         range: 'integer'
       },
@@ -282,7 +313,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_SCALE_Y, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: 1.5,
         range: 'positive-float'
       },
@@ -290,17 +321,17 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_SHAPE_CAPSULE,
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 4,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 3,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 2,
       },      
@@ -315,23 +346,23 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_TRANSLATE_Y, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -1,
         range: 'integer'
       },
     ],
-    [
-      TYPE_ROTATE_Z, 
-      {
-        type: 'literal',
-        value: Math.PI/6,
-        range: 'angle'
-      },
-    ],
+    // [
+    //   TYPE_ROTATE_Z, 
+    //   {
+    //     type: 'numeric',
+    //     value: Math.PI/6,
+    //     range: 'angle'
+    //   },
+    // ],
     [
       TYPE_ROTATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -Math.PI/9,
         range: 'angle'
       },
@@ -339,22 +370,22 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_ROTATE_Y, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -Math.PI/2,
         range: 'angle'
       },
     ],
-    // [
-    //   TYPE_ROTATE_Y, 
-    //   {
-    //     type: 'ref',
-    //     index: MARINE_RIGHT_HIP_INDEX,
-    //   },
-    // ],
+    [
+      TYPE_ROTATE_Y, 
+      {
+        type: 'ref',
+        index: MARINE_RIGHT_HIP_INDEX,
+      },
+    ],
     [
       TYPE_TRANSLATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -3,
         range: 'integer'
       },
@@ -362,17 +393,17 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_SHAPE_CAPSULE,
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 4,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 6,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 5,
       },
@@ -381,39 +412,46 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_TRANSLATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -4,
         range: 'integer'
       },
     ],
-    [
-      TYPE_ROTATE_X, 
-      {
-        type: 'literal',
-        value: -Math.PI/9,
-        range: 'angle'
-      },
-    ],
+    // [
+    //   TYPE_ROTATE_X, 
+    //   {
+    //     type: 'numeric',
+    //     value: -Math.PI/9,
+    //     range: 'angle'
+    //   },
+    // ],
     [
       TYPE_ROTATE_Z, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -Math.PI/9,
         range: 'angle'
       },
     ],
+    // [
+    //   TYPE_ROTATE_Y, 
+    //   {
+    //     type: 'numeric',
+    //     value: Math.PI/9,
+    //     range: 'angle'
+    //   },
+    // ],
     [
       TYPE_ROTATE_Y, 
       {
-        type: 'literal',
-        value: Math.PI/9,
-        range: 'angle'
+        type: 'ref',
+        index: MARINE_RIGHT_KNEE_INDEX,
       },
     ],
     [
       TYPE_TRANSLATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -2,
         range: 'integer'
       },
@@ -421,17 +459,17 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_SHAPE_CAPSULE,
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 4,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 5,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 4,
       },
@@ -440,15 +478,23 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_TRANSLATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -3,
         range: 'integer'
       },
     ],
+    // [
+    //   TYPE_ROTATE_X, 
+    //   {
+    //     type: 'numeric',
+    //     value: -Math.PI/4,
+    //     range: 'angle'
+    //   },
+    // ],    
     [
       TYPE_ROTATE_Y, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -Math.PI/2,
         range: 'angle'
       },
@@ -456,7 +502,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_TRANSLATE_X, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: -2,
         range: 'integer'
       },
@@ -464,7 +510,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_SCALE_Y, 
       {
-        type: 'literal',
+        type: 'numeric',
         value: 1.5,
         range: 'positive-float'
       },
@@ -472,17 +518,17 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_SHAPE_CAPSULE,
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 4,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 3,
       },
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'positive-integer',
         value: 2,
       },      
@@ -497,7 +543,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
     [
       TYPE_TRANSLATE_Z,
       {
-        type: 'literal',
+        type: 'numeric',
         range: 'integer',
         value: 8,
       }
@@ -509,7 +555,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_ROTATE_Z, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: Math.PI/2,
           range: 'angle'
         },
@@ -517,17 +563,17 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_SHAPE_CAPSULE,
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 9,
         },
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 5,
         },
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 5,
         },
@@ -542,7 +588,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_TRANSLATE_Z, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: 4,
           range: 'integer'
         },
@@ -550,7 +596,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_TRANSLATE_X, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: 1,
           range: 'integer'
         },
@@ -562,7 +608,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         [
           TYPE_SCALE_Z, 
           {
-            type: 'literal',
+            type: 'numeric',
             value: 1.2,
             range: 'positive-float'
           },
@@ -570,7 +616,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         [
           TYPE_SHAPE_SPHERE,
           {
-            type: 'literal',
+            type: 'numeric',
             value: 6,
             range: 'positive-integer',
           },
@@ -585,7 +631,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         [
           TYPE_MATERIAL_ID,
           {
-            type: 'literal',
+            type: 'numeric',
             value: 1,
             range: 'positive-integer',
           }
@@ -593,7 +639,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         [
           TYPE_SCALE_Z, 
           {
-            type: 'literal',
+            type: 'numeric',
             value: .6,
             range: 'positive-float'
           },
@@ -601,7 +647,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         [
           TYPE_TRANSLATE_X, 
           {
-            type: 'literal',
+            type: 'numeric',
             value: 2,
             range: 'integer'
           },
@@ -609,7 +655,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         [
           TYPE_SHAPE_SPHERE,
           {
-            type: 'literal',
+            type: 'numeric',
             range: 'positive-integer',
             value: 5,
           },
@@ -627,7 +673,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_TRANSLATE_Z, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: -4,
           range: 'integer'
         },
@@ -635,7 +681,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_SCALE_X, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: 0.7,
           range: 'positive-float'
         },
@@ -643,7 +689,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_ROTATE_Y, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: -Math.PI/2,
           range: 'angle'
         },
@@ -651,24 +697,81 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_SHAPE_CAPSULE,
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 5,
         },
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 11,
         },
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 7,
         },
-      ],  
+      ],
     [
       TYPE_CONTEXT_END_UNION,
     ],
+    // logo
+    // [
+    //   TYPE_CONTEXT_START,
+    // ],
+    //   [
+    //     TYPE_MATERIAL_ID,
+    //     {
+    //       type: 'numeric',
+    //       range: 'positive-integer',
+    //       value: 2,
+    //     },  
+    //   ],
+    //   [
+    //     TYPE_TRANSLATE_Z, 
+    //     {
+    //       type: 'numeric',
+    //       value: -1,
+    //       range: 'integer'
+    //     },
+    //   ],
+    //   [
+    //     TYPE_ROTATE_Y, 
+    //     {
+    //       type: 'numeric',
+    //       value: -Math.PI/2,
+    //       range: 'angle'
+    //     },
+    //   ],
+    //   [
+    //     TYPE_ROTATE_Z, 
+    //     {
+    //       type: 'numeric',
+    //       value: Math.PI/2,
+    //       range: 'angle'
+    //     },
+    //   ],
+    //   [
+    //     TYPE_SHAPE_EMOJI,
+    //     {
+    //       type: 'char',
+    //       value: '🐱',
+    //       //value: 'A',
+    //     },
+    //     {
+    //       type: 'numeric',
+    //       range: 'positive-integer',
+    //       value: 5,
+    //     },
+    //     {
+    //       type: 'numeric',
+    //       range: 'positive-integer',
+    //       value: 12,
+    //     },
+    //   ],
+    // [
+    //   TYPE_CONTEXT_END_REMATERIAL,
+    // ],    
     // left upper arm
     [
       TYPE_CONTEXT_START,
@@ -676,7 +779,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_TRANSLATE_Y, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: -5,
           range: 'integer'
         },
@@ -684,7 +787,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_ROTATE_Y, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: -Math.PI/2,
           range: 'angle'
         },
@@ -699,7 +802,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_TRANSLATE_X, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: -2,
           range: 'integer'
         },
@@ -707,17 +810,17 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_SHAPE_CAPSULE,
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 4,
         },
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 5,
         },
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 3,
         },
@@ -726,7 +829,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_TRANSLATE_X, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: -4,
           range: 'integer'
         },
@@ -734,15 +837,15 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_ROTATE_Y, 
         {
-          type: 'literal',
-          value: -Math.PI/2,
+          type: 'numeric',
+          value: -Math.PI/3,
           range: 'angle'
         },
       ],
       [
         TYPE_TRANSLATE_X, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: -2,
           range: 'integer'
         },
@@ -750,17 +853,17 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_SHAPE_CAPSULE,
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 4,
         },
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 3,
         },
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 2,
         },
@@ -775,7 +878,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_TRANSLATE_Y, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: 5,
           range: 'integer'
         },
@@ -783,7 +886,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_ROTATE_Y, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: -Math.PI/2,
           range: 'angle'
         },
@@ -798,7 +901,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_TRANSLATE_X, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: -2,
           range: 'integer'
         },
@@ -806,17 +909,17 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_SHAPE_CAPSULE,
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 4,
         },
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 5,
         },
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 3,
         },
@@ -825,7 +928,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_TRANSLATE_X, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: -4,
           range: 'integer'
         },
@@ -833,15 +936,15 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_ROTATE_Y, 
         {
-          type: 'literal',
-          value: -Math.PI/2,
+          type: 'numeric',
+          value: -Math.PI/3,
           range: 'angle'
         },
       ],
       [
         TYPE_TRANSLATE_X, 
         {
-          type: 'literal',
+          type: 'numeric',
           value: -2,
           range: 'integer'
         },
@@ -849,17 +952,17 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       [
         TYPE_SHAPE_CAPSULE,
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 4,
         },
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 3,
         },
         {
-          type: 'literal',
+          type: 'numeric',
           range: 'positive-integer',
           value: 2,
         },

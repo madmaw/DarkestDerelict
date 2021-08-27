@@ -12,14 +12,16 @@ type PartyTypeItem = 0;
 type PartyTypeHostile = 1;
 type PartyTypePlayer = 2;
 type PartyTypeObstacle = 3;
-type PartyType = PartyTypeItem | PartyTypeHostile | PartyTypePlayer | PartyTypeObstacle;
+type PartyTypeFloor = 4;
+type PartyType = PartyTypeItem | PartyTypeHostile | PartyTypePlayer | PartyTypeObstacle | PartyTypeFloor;
 const PARTY_TYPE_ITEM: PartyTypeItem = 0;
 const PARTY_TYPE_HOSTILE: PartyTypeHostile = 1;
 const PARTY_TYPE_PLAYER: PartyTypePlayer = 2;
 const PARTY_TYPE_OBSTACLE: PartyTypeObstacle = 3;
+const PARTY_TYPE_FLOOR: PartyTypeFloor = 4;
 
 type Party = {
-  members: PartyMember[],
+  members: (PartyMember | Falseish)[],
   position: Vector3,
   zRotation: number,
   orientation: Orientation,
@@ -29,4 +31,7 @@ type Party = {
 type PartyMember = {
   entity: Entity,
   animationQueue: EventQueue<EntityAnimation, void>,
+  staticTransform: Matrix4,
+  weapon?: Entity,
+  secondary?: Entity,
 }

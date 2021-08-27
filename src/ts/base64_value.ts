@@ -1,23 +1,30 @@
 type ValueRange = 'positive-integer' | 'integer' | 'positive-float' | 'angle';
 
-type Value<T> = LiteralValue<T> | RefValue;
+type Value<T> = NumericValue<T> | RefValue | CharValue;
 
 type RefValue = {
   type: 'ref',
   index: number,
 };
 
-type LiteralValue<T> = {
-  type: 'literal',
+type NumericValue<T> = {
+  type: 'numeric',
   range: T,
   value: number,
 };
 
-const literalValueToBase64 = (value: LiteralValue<ValueRange>) => {
-  return literalValueComponentsToBase64(value.value, value.range);
+type CharValue = {
+  type: 'char',
+  value: string,
 }
 
-const literalValueComponentsToBase64 = (value: number, range: ValueRange) => {
+const numericOrCharValueToBase64 = (value: NumericValue<ValueRange> | CharValue) => {
+  return value.type == 'char'
+      ? value.value
+      : numericValueComponentsToBase64(value.value, value.range);
+}
+
+const numericValueComponentsToBase64 = (value: number, range: ValueRange) => {
   switch (range) {
     case 'angle':
       return angleToBase64(value);

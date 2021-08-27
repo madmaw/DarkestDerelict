@@ -7,6 +7,9 @@ const TYPE_SHAPE_SPHERE = 'S';
 const TYPE_SHAPE_BOX = 'B';
 const TYPE_SHAPE_CAPSULE = 'C';
 const TYPE_SHAPE_CYLINDER = 'D';
+const TYPE_SHAPE_EMOJI = 'E';
+// rounding used in all subsequent shapes
+const TYPE_SHAPE_ROUNDING = 'R';
 
 // translate
 const TYPE_TRANSLATE_X = 'x';
@@ -38,6 +41,10 @@ const TYPE_RESTORE_CONTEXT = '^';
 const TYPE_MATERIAL_ID = '#';
 const TYPE_MATERIAL_OUT_OF_BOUNDS = '?';
 
+
+const UNSCALED_VOLUME_DIMENSION = 32;
+const UNSCALED_VOLUME_MIDPOINT = UNSCALED_VOLUME_DIMENSION/2;
+
 const VOLUME_DIMENSION = parseInt(window.location.hash?.substr(1) || '16');
 const VOLUME_MIDPOINT = VOLUME_DIMENSION/2;
 const OFFSET_VOLUME_MIDPOINT = (VOLUME_DIMENSION-1)/2;
@@ -45,7 +52,7 @@ const VOLUME_DEPTH_OFFSET = 4;
 const VOLUME_DEPTH_PROPORTION = VOLUME_DEPTH_OFFSET/256;
 
 //const VOLUME_SCALE = VOLUME_DIMENSION/256;
-const VOLUME_SCALE = VOLUME_DIMENSION/32;
+const VOLUME_SCALE = VOLUME_DIMENSION/UNSCALED_VOLUME_DIMENSION;
 // should be at least (VOLUME_DIMENSION+TEXTURE_PADDING*2) * 6 in area and a power-of-two
 const TEXTURE_DIMENSION = 256 * VOLUME_SCALE;
 const VOLUME_MIDPOINT_VECTOR: Vector3 = [OFFSET_VOLUME_MIDPOINT, OFFSET_VOLUME_MIDPOINT, OFFSET_VOLUME_MIDPOINT];
@@ -57,17 +64,17 @@ type Rect3 = [Vector3, Vector3];
 
 const CARDINAL_PROJECTIONS: Matrix4[] = [
   // front
-  matrix4Identity(),
-  // back
-  matrix4Rotate(Math.PI, 0, 1, 0),
-  // right
   matrix4Rotate(Math.PI/2, 0, 1, 0),
-  // left
+  // back
   matrix4Rotate(-Math.PI/2, 0, 1, 0),
-  // top
-  matrix4Rotate(Math.PI/2, 1, 0, 0),
-  // bottom
+  // right
   matrix4Rotate(-Math.PI/2, 1, 0, 0),
+  // left
+  matrix4Rotate(Math.PI/2, 1, 0, 0),
+  // top
+  matrix4Identity(),
+  // bottom
+  matrix4Rotate(Math.PI, 0, 1, 0),
 ];
 const INVERSE_CARDINAL_PROJECTIONS = CARDINAL_PROJECTIONS.map(matrix4Invert);
 const CARDINAL_NORMALS: Vector3[] = CARDINAL_PROJECTIONS.map(
@@ -93,6 +100,14 @@ type VolumetricDrawCommand = [
   Value<'positive-integer'>, // diameterRight: 
   Value<'positive-integer'>, // diameterLeft:
   Value<'positive-integer'>, // steps:
+] | [
+  'E', // TYPE_SHAPE_EMOJI
+  CharValue | RefValue,  // symbol (can be multi-byte)
+  Value<'positive-integer'>, // letter height
+  Value<'positive-integer'>, // depth
+] | [
+  'R', // TYPE_SHAPE_ROUNDING
+  Value<'positive-float'>,
 ] | [
   'x', // TYPE_TRANSLATE_X,
   Value<'integer'>, // amount: 
@@ -164,9 +179,9 @@ const convertVolumetricDrawCommands = (commands: readonly VolumetricDrawCommand[
           [
             command[0], 
             ...command.slice(1).map(
-                (v: Value<ValueRange>) => v.type == 'literal'
-                    ? literalValueToBase64(v)
-                    : v.index.toString() // numeric values sit outside base64
+                (v: Value<ValueRange>) => v.type == 'ref'
+                    ? v.index.toString() // numeric values sit outside base64
+                    : numericOrCharValueToBase64(v)
             ),
           ]
       ),
@@ -183,15 +198,16 @@ const processVolumetricDrawCommands = (name: string, commands: readonly Volumetr
 const processVolumetricDrawCommandString = (
     commandString: string,
     p: string[],
-    transform: Matrix4 = matrix4Multiply(VOLUME_MIDPOINT_MATRIX, matrix4Scale(VOLUME_SCALE, VOLUME_SCALE, VOLUME_SCALE)), 
+    transform: Matrix4 = matrix4Multiply(VOLUME_MIDPOINT_MATRIX, matrix4Scale(VOLUME_SCALE)), 
 ) => {
-  const commands = commandString.split('').map(s => p[s]?p[s]:s);
+  const commands: string[] = [...commandString].map(s => p[s]?p[s]:s);
 
   const contexts: {
     volume: Volume<Voxel>,
     transforms: Matrix4[],
     materialIndex: number,
     commands: string[],
+    rounding?: number | undefined,
   }[] = [{
     volume: createEmptyVolume(VOLUME_DIMENSION),
     transforms: [
@@ -215,7 +231,8 @@ const processVolumetricDrawCommandString = (
       context.commands.push(command);
       return command;
     };
-    const { volume, transforms, materialIndex } = context;
+    const { volume, transforms, materialIndex, rounding} = context;
+    const effectiveRounding = rounding || 1/VOLUME_SCALE;
     const transform = matrix4Multiply(...contexts.map(c => c.transforms).reverse().flat());
     const command = nextCommand();
     switch (command) {
@@ -229,6 +246,8 @@ const processVolumetricDrawCommandString = (
         );
         break;
       case TYPE_SHAPE_BOX:
+        // NOTE: we're measuring from the center of the voxel, so we need to remove the voxel height from the
+        // proportional height
         {
           const w = positiveIntegerFromBase64(nextCommand())/2;
           const h = positiveIntegerFromBase64(nextCommand())/2;
@@ -237,16 +256,16 @@ const processVolumetricDrawCommandString = (
           renderShape(
               volume,
               (test: Vector3, force?: Booleanish) => {
-                if (force || test.every((v, i) => Math.abs(v) < dims[i])) {
-                  const p = test.map((v, i) => v/dims[i]) as Vector3;
+                if (force || test.every((v, i) => Math.abs(v) <= dims[i])) {
+                  const p = test.map((v, i) => v/(dims[i]-.5*effectiveRounding));
                   const maxIndex = p.reduce(
                       (maxIndex, v, i) => Math.abs(p[maxIndex]) < Math.abs(v)
                           ? i
                           : maxIndex,
                       0,
                   );
-                  const v = test.map((v, i) => i == maxIndex || Math.abs(v) > dims[i] ? v : 0);
-                  return vectorNNormalize(v) as Vector3;
+                  const v = test.map((v, i) => i == maxIndex || Math.abs(v) > dims[i] - effectiveRounding ? v : 0);
+                  return vectorNNormalize(v as Vector3);
                 } 
               },
               transform,
@@ -300,7 +319,7 @@ const processVolumetricDrawCommandString = (
         {
           const width = positiveIntegerFromBase64(nextCommand());
           const widthDiv2 = width/2;
-          const widthMinux1Px = width-1/(VOLUME_SCALE);
+          const widthMinux1Px = width-effectiveRounding;
           const widthMinus1pxDiv2 = widthMinux1Px/2;
           const leftRadius = positiveIntegerFromBase64(nextCommand())/2;
           const rightRadius = positiveIntegerFromBase64(nextCommand())/2;
@@ -327,7 +346,7 @@ const processVolumetricDrawCommandString = (
                     ? leftRadius + ((x + widthMinus1pxDiv2) / widthMinux1Px) * (rightRadius - leftRadius)
                     // only one entry
                     : leftRadius;
-                const rInner = rOuter - 1/VOLUME_SCALE;
+                const rInner = rOuter - effectiveRounding;
                 const [rz, ry] = vector2Rotate(-sectorAngle, [z, y]);
                 const inPoly = cosStepAngleDiv2*rOuter>rz;
                 const inPolySurface = cosStepAngleDiv2*rInner<rz
@@ -346,6 +365,43 @@ const processVolumetricDrawCommandString = (
               materialIndex,
           );
         }
+        break;
+      case TYPE_SHAPE_EMOJI:
+        const symbol = nextCommand();
+        const letterHeight = positiveIntegerFromBase64(nextCommand()) * VOLUME_SCALE;
+        const widthDiv2 = positiveIntegerFromBase64(nextCommand())/2;
+        const canvas = document.createElement('canvas');
+        const canvasDimension = VOLUME_DIMENSION;
+        canvas.width = canvasDimension;
+        canvas.height = canvasDimension;
+        const ctx = canvas.getContext('2d');
+        const baseline = VOLUME_MIDPOINT + letterHeight/2;
+        ctx.font = `${letterHeight}px serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(symbol, VOLUME_MIDPOINT, baseline);
+        const pixels = ctx.getImageData(0, 0, canvasDimension, canvasDimension);
+        renderShape(
+            volume, 
+            (test: Vector3, force?: Booleanish): Vector3 => {
+              const [x, y, z] = test;
+              // need to scale back up to pixel size
+              const px = Math.round(y*VOLUME_SCALE + VOLUME_MIDPOINT);
+              const py = Math.round(-z*VOLUME_SCALE + VOLUME_MIDPOINT);
+              const a = pixels.data[py*VOLUME_DIMENSION*4+px*4+3];
+              if (a > 128 && Math.abs(x)<=widthDiv2 || force) {
+                return vectorNNormalize(
+                    Math.abs(x) >= widthDiv2 - effectiveRounding
+                        ? [x, 0, 0]
+                        : test
+                );
+              }
+            },
+            transform,
+            materialIndex,
+        );
+        break;
+      case TYPE_SHAPE_ROUNDING:
+        context.rounding = positiveFloatFromBase64(nextCommand());
         break;
       case TYPE_TRANSLATE_X:
         transforms.push(matrix4Translate(integerFromBase64(nextCommand()), 0, 0));
@@ -380,6 +436,7 @@ const processVolumetricDrawCommandString = (
           transforms: [],
           materialIndex,
           commands: [],
+          rounding,
         });
         break;
       case TYPE_CONTEXT_END_UNION:
@@ -634,8 +691,10 @@ const volumeToTexture = (
               firstZ = vz;
             }
             lastZ = vz;
+          } else if (firstVoxel) {
+            break;
           }
-        }
+        } 
         let index = (y+vy-miny) * TEXTURE_DIMENSION * 4 + (x+vx-minx) * 4;
         if (firstVoxel) {
           const bytes = f(firstVoxel, vx, vy, transformedBounds, maxz - firstZ, maxz - lastZ, inverse);
