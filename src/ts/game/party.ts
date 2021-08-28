@@ -22,16 +22,14 @@ const PARTY_TYPE_FLOOR: PartyTypeFloor = 4;
 
 type Party = {
   members: (PartyMember | Falseish)[],
-  position: Vector3,
-  zRotation: number,
   orientation: Orientation,
   type: PartyType,
 };
 
 type PartyMember = {
+  position: Vector3,
+  zRotation: number,
   entity: Entity,
-  animationQueue: EventQueue<EntityAnimation, void>,
-  staticTransform: Matrix4,
-  weapon?: Entity,
-  secondary?: Entity,
+  weapon?: Entity | Falseish,
+  secondary?: Entity | Falseish,
 }

@@ -24,14 +24,17 @@ const vector2Rotate = (a: number, [x, y]: Vector2): Vector2 => {
 // const vectorNRound = <T extends number[]>(v: T): T => {
 //   return v.map(v => Math.round(v)) as any;
 // }
+const vector3TransformMatrix4 = (m: Matrix4, x: number, y: number, z: number): Vector3 => 
+    vector4TransformMatrix4(m, x, y, z).slice(0, 3) as Vector3;
 
-const vector3TransformMatrix4 = (m: Matrix4, x: number, y: number, z: number): Vector3 => {
-    let w = (m[3] * x + m[7] * y + m[11] * z + m[15]) || 1.0;
-    return [
-        (m[0] * x + m[4] * y + m[8] * z + m[12]) / w,
-        (m[1] * x + m[5] * y + m[9] * z + m[13]) / w,
-        (m[2] * x + m[6] * y + m[10] * z + m[14]) / w
-    ];
+const vector4TransformMatrix4 = (m: Matrix4, x: number, y: number, z: number): Vector4 => {
+  let w = (m[3] * x + m[7] * y + m[11] * z + m[15]) || 1.;
+  return [
+      (m[0] * x + m[4] * y + m[8] * z + m[12]) / w,
+      (m[1] * x + m[5] * y + m[9] * z + m[13]) / w,
+      (m[2] * x + m[6] * y + m[10] * z + m[14]) / w,
+      w,
+  ];
 }
 
 const vector3CrossProduct = (v1: Vector3, v2: Vector3): Vector3 => {

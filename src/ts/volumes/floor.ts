@@ -2,6 +2,14 @@
 
 const VOLUMETRIC_COMMANDS_FLOOR: VolumetricDrawCommand[] = [
   [
+    TYPE_SHAPE_ROUNDING,
+    {
+      type: 'numeric',
+      range: 'positive-float',
+      value: 3,
+    }
+  ],
+  [
     TYPE_SHAPE_BOX,
     {
       type: 'numeric',

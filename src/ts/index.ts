@@ -114,7 +114,7 @@ const VERTEX_SHADER = `
   const L_SURFACE_NORMAL = FLAG_LONG_SHADER_NAMES ? 'lSurfaceNormal' : 'x';
   const L_CAMERA_DIRECTION = FLAG_LONG_SHADER_NAMES ? 'lCameraDirection' : 'w';
 
-  const CONST_NUM_STEPS = 256;
+  const CONST_NUM_STEPS = 64 * VOLUME_SCALE;
   const MAX_DEPTH = VOLUME_DIMENSION/TEXTURE_DIMENSION;
   const C_MAX_DEPTH = `${MAX_DEPTH}`;
   const C_MIN_DEPTH = -VOLUME_DEPTH_OFFSET/TEXTURE_DIMENSION;
@@ -268,6 +268,7 @@ onload = async () => {
   const TEXTURE_RED_SHINY: Texel[][][] = [[[[128, 92, 92, 255]]]];
   const TEXTURE_GREEN: Texel[][][] = [[[[92, 128, 92, 128]]]];
   const TEXTURE_BLUE_DULL: Texel[][][] = [[[[118, 118, 128, 32]]]];
+  const TEXTURE_REDDISH: Texel[][][] = [[[[128, 110, 118, 64]]]];
   const TEXTURE_GUNMETAL: Texel[][][] = [[[[118, 118, 128, 200]]]];
   const TEXTURE_WHITE_SHINY: Texel[][][] = [[[[255, 255, 255, 255]]]];
   const TEXTURE_BLACK: Texel[][][] = [[[[0, 0, 0, 0]]]];
@@ -277,32 +278,36 @@ onload = async () => {
     [[255, 255, 255, 128], [0, 0, 0, 128]],
   ]];
 
-  type LoadingEvent = [string, VolumetricDrawCommand[], [Volume<Texel>[], (SpriteAnimationSequence[])?][]];
+  type LoadingEvent = [string, VolumetricDrawCommand[], Matrix4, [Volume<Texel>[], (SpriteAnimationSequence[])?][]];
 
   const SURFACE_TEXELS: [Volume<Texel>[]][] = [
     [[TEXTURE_BLUE_DULL, TEXTURE_WHITE_SHINY]],
-    [[TEXTURE_WHITE_SHINY, TEXTURE_GREEN, TEXTURE_BLUE_DULL]],
+    [[TEXTURE_REDDISH, TEXTURE_BLUE_DULL]],
   ];
 
+  // slightly scale up to hide wall-gaps
+  const MODEL_SCALE = 1.02/(VOLUME_SCALE*WALL_DIMENSION);
+  const MODEL_SCALE_MATRIX = matrix4Scale(MODEL_SCALE);
+  
   const COMMANDS: readonly LoadingEvent[] = [
-    ['wall', VOLUMETRIC_COMMANDS_WALL, SURFACE_TEXELS],
-    ['floor', VOLUMETRIC_COMMANDS_FLOOR, SURFACE_TEXELS],
-    ['marine', VOLUMETRIC_COMMANDS_MARINE, [
+    ['wall', VOLUMETRIC_COMMANDS_WALL, MODEL_SCALE_MATRIX, SURFACE_TEXELS],
+    ['floor', VOLUMETRIC_COMMANDS_FLOOR,  MODEL_SCALE_MATRIX, SURFACE_TEXELS],
+    ['marine', VOLUMETRIC_COMMANDS_MARINE, matrix4Scale(MODEL_SCALE * .5), [
       [[TEXTURE_GREEN, TEXTURE_WHITE_SHINY, TEXTURE_RED_SHINY], ANIMATIONS_MARINE],
       [[TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_GREEN], ANIMATIONS_MARINE],
     ]],
-    ['pistol', VOLUMETRIC_COMMANDS_PISTOL, [
+    ['pistol', VOLUMETRIC_COMMANDS_PISTOL, matrix4Scale(MODEL_SCALE * .2), [
       [[TEXTURE_GUNMETAL, TEXTURE_BLACK]],
     ]],
-    ['cathead', VOLUMETRIC_COMMANDS_SYMBOL, [
+    ['cathead', VOLUMETRIC_COMMANDS_SYMBOL, MODEL_SCALE_MATRIX, [
       [[TEXTURE_RED_SHINY]],
     ]],
   ];
 
-  const eventQueue: EventQueue<LoadingEvent, EntityRenderables[]> = {
+  const loadingEventQueue: EventQueue<LoadingEvent, EntityRenderables[]> = {
     events: [],
-    handler: async ([name, commands, variations]) => {
-      Y.innerText = `${(COMMANDS.length-eventQueue.events.length)/COMMANDS.length*100 | 0}%`
+    handler: async ([name, commands, staticTransform, variations]) => {
+      Y.innerText = `${(COMMANDS.length-loadingEventQueue.events.length)/COMMANDS.length*100 | 0}%`
       // allow rendering of progress
       await delay();
 
@@ -357,17 +362,17 @@ onload = async () => {
           );
           gl.generateMipmap(CONST_GL_TEXTURE_2D);
 
-          const thumbnail = document.createElement('canvas');
+          const thumbnailCanvas = document.createElement('canvas');
           // because the model faces down the x axis, the image is laying on its side
           const w = bounds[1][1] - bounds[0][1]+1;
           const h = bounds[1][2] - bounds[0][2]+1;
-          thumbnail.width = w;
-          thumbnail.height = h;
-          const ctx = thumbnail.getContext('2d');
+          thumbnailCanvas.width = w;
+          thumbnailCanvas.height = h;
+
+          const ctx = thumbnailCanvas.getContext('2d');
           const imageData = ctx.createImageData(w, h);
           for (let x=0; x<w; x++) {
             for (let y=0; y<h; y++) {
-              // it will be flipped, but not a big deal
               const sy = x;
               const sx = y;
               const sourceOffset = sy*TEXTURE_DIMENSION*4 + sx*4;
@@ -377,8 +382,20 @@ onload = async () => {
           }
           ctx.putImageData(imageData, 0, 0);
 
+          // unfortunately, using a canvas doesn't seem to work for drag and drop as it has zero-width when not attached to the document
+          let thumbnail: HTMLCanvasElement | HTMLImageElement;
+          if (FLAG_CANVAS_THUMBNAILS) {
+            thumbnail = thumbnailCanvas;
+            // doesn't work either
+            // thumbnail.style.width = w as any;
+            // thumbnail.style.height = h as any;
+          } else {
+            thumbnail = document.createElement('img');
+            thumbnail.src = thumbnailCanvas.toDataURL();  
+          }
+
           if (FLAG_DEBUG_TEXTURES) {
-            document.firstChild.appendChild(thumbnail);
+            document.firstChild.appendChild(thumbnailCanvas);
 
             const textures = [depthTextureData, renderTextureData];
             textures.forEach(texture => {
@@ -498,6 +515,7 @@ onload = async () => {
           surfaceRotationsBuffer,
           textureBoundsBuffer,
           textureCoordinatesBuffer,
+          staticTransform,
         } as EntityRenderables;
       });
     },
@@ -530,8 +548,9 @@ onload = async () => {
   const uniforms = UNIFORM_NAMES.map(name => gl.getUniformLocation(shaderProgram, name)); 
 
   const aspect = canvas.width/canvas.height;
+  const zNear = .4;
   const perspectiveMatrix = matrix4Multiply(
-      matrix4InfinitePerspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .4),
+      matrix4InfinitePerspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, zNear),
       //matrix4Perspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .35, 10),
       matrix4Rotate(Math.PI/18, 1, 0, 0),
       matrix4Translate(0, 0, -.2),
@@ -539,41 +558,243 @@ onload = async () => {
       matrix4Rotate(Math.PI/2, 0, 0, 1),
   );
 
-  const entityRenderables = await addEvents(eventQueue, ...COMMANDS);
+  const entityRenderables = await addEvents(loadingEventQueue, ...COMMANDS);
   
   X.innerHTML = new Array(4).fill(X.innerHTML).join('');
   V.innerHTML = new Array(4).fill(V.innerHTML).join('');  
   Y.hidden = true;
 
+  const equipmentSlots: Element[] = new Array(X.children.length).fill(0).map((_, i) => X.children.item(i));
+  const inventorySlots: Element[] = new Array(V.children.length).fill(0).map((_, i) => V.children.item(i));
+  const gameEventQueue: EventQueue<GameEvent, void> = {
+    events: [],
+    handler: async (e: GameEvent) => {
+      switch (e.type) {
+        case GAME_EVENT_TYPE_MOVE:
+          break;
+        case GAME_EVENT_TYPE_CHANGE_LOADOUT:
+          let replacementEntity: Entity | Falseish;
+          let replacementMember: PartyMember | Falseish;
+          let success: Booleanish;
+          const purpose = ENTITY_TYPES_TO_PURPOSES[e.entity.type];
+          const toSlot = e.to.party.members[e.to.slot];
+          const fromSlot = e.from.party.members[e.from.slot] as PartyMember;
+          if (purpose == ENTITY_PURPOSE_CHARACTER) {
+            replacementMember = e.to.party.members[e.to.slot];
+            success = 1;
+            e.to.party.members[e.to.slot] = e.from.party.members[e.from.slot];
+          } else if (purpose == ENTITY_PURPOSE_WEAPON && toSlot) {
+            replacementEntity = toSlot.weapon;
+            success = toSlot.weapon = e.entity;
+          }
+          if (success) {
+            if (replacementMember || e.entity == fromSlot.entity) {
+              e.from.party.members[e.from.slot] = replacementMember;
+            } else {
+              fromSlot.weapon = replacementEntity;
+            }
+          }
+          updateInventory();
+          // TODO animate repositioning of party members
+          break;
+      }
+    },
+  };
+
+  let cameraPosition: Vector3 = [LEVEL_DIMENSION/2 | 0, 1, 1.6];
+  let cameraRotation: number = Math.PI/2;
   const level = generateLevel(entityRenderables);
   const party: Party = {
     members: new Array(4).fill(0),
     orientation: ORIENTATION_NORTH,
-    position: [LEVEL_DIMENSION/2 | 0, 1, 1.6],
     type: PARTY_TYPE_PLAYER,
-    zRotation: Math.PI/2,
   };
   party.members[0] = {
-    animationQueue: undefined,
+    position: cameraPosition,
+    zRotation: Math.PI/2,
     entity: {
       renderables: entityRenderables[ENTITY_TYPE_MARINE][0],
       type: ENTITY_TYPE_MARINE,
     },
-    staticTransform: matrix4Scale(.5),
     weapon: {
       renderables: entityRenderables[ENTITY_TYPE_PISTOL][0],
       type: ENTITY_TYPE_PISTOL,
     }
   };
 
+  let slotsToEntities: Map<EventTarget, Entity> | undefined;
+
+  let dragContext: {
+    entity: Entity,
+    fromLocation: EntityLocation,
+    dragImage: HTMLElement,
+    currentTarget?: EventTarget,
+    lastPosition?: {
+      clientX: number,
+      clientY: number,
+    }
+  } | undefined | null;
+
+  const getLocationAndMaybeEntity = (target: EventTarget, p: { clientX: number, clientY: number }): [EntityLocation, Entity?] | undefined => {
+    const entity = slotsToEntities?.get(target);
+    const equipmentIndex = equipmentSlots.findIndex(v => v == target || v == (target as HTMLElement).parentElement);
+    const inventoryIndex = inventorySlots.findIndex(v => v == target);
+    const targetsWorld = target == Z;
+    if (equipmentIndex >= 0) {
+      return [{
+        party,
+        slot: equipmentIndex,
+      }, entity];
+    }
+    if (inventoryIndex >= 0) {
+      return [{
+        party,
+        slot: inventoryIndex,
+      }, entity];
+    }
+    if (targetsWorld) {
+      // attempt to find the entity in the world
+      const projectionMatrix = matrix4Multiply(
+          perspectiveMatrix,
+          matrix4Rotate(-cameraRotation, 0, 0, 1),
+          // NOTE: the shader usually does this for us
+          matrix4Translate(...vectorNDivide(cameraPosition, -1)),
+      );
+      let minParty: Party | undefined;
+      let minSlot: number | undefined;
+      let minEntity: Entity | undefined;
+      let minDistance: number = CONST_MAX_REACH;
+      const sx = p.clientX*2/Z.clientWidth - 1;
+      // flip y coordinates so screen coordinates = world coordinates
+      const sy = 1 - p.clientY*2/Z.clientHeight;
+      volumeMap(level.tiles, (t) => {
+        // get screen position
+        (t as Tile).parties.forEach(party => party.type == PARTY_TYPE_ITEM && party.members.forEach((partyMember, slot) => {
+          if (partyMember) {
+            const { 
+              staticTransform,
+              bounds,
+            } = partyMember.entity.renderables;
+            const [min, max] = bounds;
+            // note: because the screen coordinates are -1 to 1 we don't divide by 2 since the diameter will be the radius
+            // for us in screen coordinates
+            const midpoints = vector3TransformMatrix4(staticTransform, ...max.map((v, i) => v - min[i]) as Vector3);
+            const midz = midpoints[2];
+            
+            const position = partyMember.position;
+            const averageExtent = midpoints.reduce((a, v) => a + v/3, 0);
+            const v = vector4TransformMatrix4(projectionMatrix, position[0], position[1], position[2]+midz/2);
+            const [px, py, pz, pw] = v;
+            if (Math.abs(px) < 1 && Math.abs(py) < 1 && pz/pw > 0 && pw < minDistance) {
+              const r = averageExtent/pw;
+              if (vectorNLength(vectorNSubtract([sx, sy], v)) < r) {
+                minParty = party;
+                minSlot = slot;
+                minEntity = partyMember.entity;
+                minDistance = pw;
+              }
+            }
+          }
+        }))
+        return t;
+      });
+      if (minParty) {
+        return [{
+          party: minParty,
+          slot: minSlot,
+        }, minEntity];  
+      } else {
+        // TODO return some reference to an empty slot in the current tile
+      }
+    }
+  }
+
+  const onStartDrag = (target: EventTarget, p: { clientX: number, clientY: number }) => {
+    const locationAndEntity = getLocationAndMaybeEntity(target, p);
+    if (locationAndEntity && locationAndEntity[1]) {
+      const [fromLocation, entity] = locationAndEntity;
+      const dragImage = entity.renderables.frames[0][0].thumbnail;
+      dragContext = {
+        fromLocation,
+        entity,
+        dragImage,
+      };
+      O.appendChild(dragImage);
+      onDrag(p);
+    }
+  };
+  onmousedown = (e: MouseEvent) => {
+    onStartDrag(e.target, e);
+  };
+  ontouchstart = (e: TouchEvent) => {
+    onStartDrag(e.target, e.targetTouches[0]);
+  }
+
+
+  const onDrag = (p: { clientX: number, clientY: number }) => {
+    const target = document.elementFromPoint(p.clientX, p.clientY);
+    if (dragContext) {
+      dragContext.currentTarget = target;
+      dragContext.lastPosition = p;
+      updateInventory();
+      const dragImage = dragContext.dragImage;
+      dragImage.style.left = p.clientX - dragImage.clientWidth/2 as any;
+      dragImage.style.top = p.clientY - dragImage.clientHeight/2 as any;
+    }
+    return target;
+  };
+  onmousemove = (e: MouseEvent) => {
+    onDrag(e);
+  }
+  ontouchmove = (e: TouchEvent) => {
+    onDrag(e.targetTouches[0]);
+  }
+
+  const onDragEnd = (p: { clientX: number, clientY: number }) => {
+    const target = onDrag(p);
+    const location = getLocationAndMaybeEntity(target, p);
+    if (dragContext && location) {
+      const [toLocation] = location;
+      if (JSON.stringify(dragContext.fromLocation) != JSON.stringify(toLocation)) {
+        addEvents(gameEventQueue, {
+          party,
+          type: GAME_EVENT_TYPE_CHANGE_LOADOUT,
+          entity: dragContext.entity,
+          from: dragContext.fromLocation,
+          to: toLocation,
+        });  
+      }
+    }
+    cleanUpDrag();
+  }
+  onmouseup = (e: MouseEvent) => {
+    if (dragContext) {
+      onDragEnd(e);
+    }
+  }
+  ontouchend = (e: TouchEvent) => {
+    onDragEnd(e.targetTouches[0] || dragContext.lastPosition);
+  }
+
+  const cleanUpDrag = () => {
+    if (dragContext) {
+      O.removeChild(dragContext.dragImage);
+      dragContext = null;  
+      updateInventory();
+    }
+  }
+
+  onmouseleave = ontouchcancel = cleanUpDrag;
+
   const renderEntityToCanvas = (entity: Entity | Falseish, canvas: HTMLCanvasElement) => {
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (entity) {
+    if (entity && entity != dragContext?.entity) {
+      slotsToEntities.set(canvas, entity);
       const thumbnail = entity.renderables.frames[0][0].thumbnail;
-      const scale = Math.min(canvas.width*.5/thumbnail.width, canvas.height*.8/thumbnail.height);
+      const scale = Math.min(canvas.width*.6/thumbnail.width, canvas.height*.8/thumbnail.height);
       ctx.drawImage(
           thumbnail,
           (canvas.width - thumbnail.width*scale)/2,
@@ -585,22 +806,23 @@ onload = async () => {
   }
 
   const updateInventory = () => {
+    slotsToEntities = new Map();
     party.members.forEach((m, i) => {
-      const e = X.children.item(i);
-      const entityElement: HTMLCanvasElement = e.querySelector('.a');
-      const weaponElement: HTMLCanvasElement = e.querySelector('.b');
+      const el = X.children.item(i) as HTMLElement;
+      const entityElement: HTMLCanvasElement = el.querySelector('.a');
+      const weaponElement: HTMLCanvasElement = el.querySelector('.b');
+      el.className = [entityElement, weaponElement, el].some(e => e == dragContext?.currentTarget)
+          ? 'x o'
+          : 'x';
       renderEntityToCanvas(m && m.entity, entityElement);
       renderEntityToCanvas(m && m.weapon, weaponElement);
     });
   };
   updateInventory();
 
-  let targetRotation = party.zRotation;
-  let targetPosition = [...party.position];
+  let targetRotation = cameraRotation;
+  let targetPosition = [...cameraPosition];
   let numLights = 2;
-  // slightly scale up to hide wall-gaps
-  const scale = 1.02/(VOLUME_SCALE*WALL_DIMENSION);
-  const modelScaleMatrix = matrix4Scale(scale);
   
   onkeydown = (e: KeyboardEvent) => {
     const actionMultiplier = e.shiftKey ? 0.125 : 1;
@@ -626,7 +848,7 @@ onload = async () => {
     } 
     //console.log(targetRotation, targetPosition);
   }
-  
+
   let previous = 0;
   const f = (now: number) => {
     requestAnimationFrame(f);
@@ -636,17 +858,17 @@ onload = async () => {
     let delta = now - previous;
     previous = now;
 
-    party.zRotation += (targetRotation - party.zRotation)*delta/200;
-    const deltaPosition = vectorNSubtract(targetPosition, party.position);
+    cameraRotation += (targetRotation - cameraRotation)*delta/200;
+    const deltaPosition = vectorNSubtract(targetPosition, cameraPosition);
     const deltaPositionLength = vectorNLength(deltaPosition);
     if (deltaPositionLength > 0) {
       const movementScale = Math.min(deltaPositionLength, 0.002*delta)/deltaPositionLength;
-      party.position = party.position.map((v, i) => v + deltaPosition[i]*movementScale) as Vector3;
+      cameraPosition = cameraPosition.map((v, i) => v + deltaPosition[i]*movementScale) as Vector3;
     }
 
     const projectionMatrix = matrix4Multiply(
         perspectiveMatrix,
-        matrix4Rotate(-party.zRotation, 0, 0, 1),
+        matrix4Rotate(-cameraRotation, 0, 0, 1),
     );
 
     const ambientLight = [.2, .2, .2, numLights];
@@ -656,8 +878,8 @@ onload = async () => {
       .49, .49, .5, -9,
     ];
     const lightTransforms = [
-      ...matrix4Translate(...party.position), 
-      ...matrix4Multiply(matrix4Translate(...party.position), matrix4Rotate(party.zRotation, 0, 0, 1), matrix4Rotate(Math.PI/13, 0, 1, 0), matrix4Translate(.2, -.3, 0)),
+      ...matrix4Translate(...cameraPosition), 
+      ...matrix4Multiply(matrix4Translate(...cameraPosition), matrix4Rotate(cameraRotation, 0, 0, 1), matrix4Rotate(Math.PI/13, 0, 1, 0), matrix4Translate(.2, -.3, 0)),
       ...matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Translate(0, 0, -2.1)),
     ];
 
@@ -668,7 +890,7 @@ onload = async () => {
     );
     gl.uniform3fv(
         uniforms[U_CAMERA_POSITIION_INDEX],
-        party.position,
+        cameraPosition,
     );
     gl.uniform4fv(
         uniforms[U_AMBIENT_LIGHT_INDEX],
@@ -688,10 +910,8 @@ onload = async () => {
     volumeMap(level.tiles, (tile: Tile) => {
 
       tile.parties.forEach(party => {
-        const position = party.position;
-        const rotation = party.zRotation;
         party.members.forEach(partyMember => {
-          if (!partyMember) {
+          if (!partyMember || dragContext && dragContext.entity == partyMember.entity) {
             return;
           }
 
@@ -702,19 +922,21 @@ onload = async () => {
             textureCoordinatesBuffer,
             vertexIndexBuffer,
             vertexPositionBuffer,
+            staticTransform,
           } = partyMember.entity.renderables;
           const {
             depthTexture,
             renderTexture,
           } = frames[0][0];
         
+          const position = partyMember.position;
+          const rotation = partyMember.zRotation;
           const modelPositionMatrix = matrix4Translate(...position);
           const modelRotationMatrix = matrix4Rotate(rotation, 0, 0, 1);
           const modelViewMatrix = matrix4Multiply(
               modelPositionMatrix,
               modelRotationMatrix,
-              modelScaleMatrix,
-              partyMember.staticTransform,
+              staticTransform,
           );
         
           // vertexes

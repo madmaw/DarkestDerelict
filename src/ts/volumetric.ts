@@ -526,17 +526,25 @@ const createEmptyVolume = <T>(d: number): Volume<T> => (
 );
 
 const volumeMap = <T>(volume: Volume<T>, f: (t: T | Falseish, position: Vector3) => T | Falseish): Volume<T> => {
-  for (let z=volume.length; z; ) {
-    z--;
-    const az = volume[z];
-    for (let y=az.length; y; ) {
-      y--;
-      const ay = az[y];
-      for (let x=ay.length; x; ) {
-        x--;
-        ay[x] = f(ay[x], [x, y, z]);
+  if (FLAG_FAST_VOLUME_ITERATION) {
+    for (let z=volume.length; z; ) {
+      z--;
+      const az = volume[z];
+      for (let y=az.length; y; ) {
+        y--;
+        const ay = az[y];
+        for (let x=ay.length; x; ) {
+          x--;
+          ay[x] = f(ay[x], [x, y, z]);
+        }
       }
-    }
+    }  
+  } else {
+    volume.forEach((az, z) => {
+      az.forEach((ay, y) => {
+        ay.map((v, x) => f(v, [x, y, z]));
+      })
+    })
   }
   return volume;
 };

@@ -16,9 +16,10 @@ const shortenMethods = <F, T extends F>(o: F): T => {
   return o as any;
 };
 
-type Trueish = true | 1;
+type Trueish = true | 1 | any;
 type Falseish = false | 0 | undefined | null;
 type Booleanish = Trueish | Falseish;
+type TouchOrMouseEvent = TouchEvent | MouseEvent;
 
 const TRUE = 1 as const;
 const FALSE = 0 as const;

@@ -13,14 +13,19 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
   const walls = entityRenderables[ENTITY_TYPE_WALL];
   const tiles = createEmptyVolume<Tile>(LEVEL_DIMENSION);
   volumeMap(tiles, (t, position) => {
+    if (position[2] > 2) {
+      return {
+        parties: [],
+      }
+    } 
     const wallRenderables = walls[(position[2])%walls.length];
     return {
       parties: [{
         orientation: ORIENTATION_EAST,
-        position,
         type: PARTY_TYPE_OBSTACLE,
-        zRotation: Math.PI/2 * (Math.random()*4|0),
         members: [{
+          position,
+          zRotation: Math.PI/2 * (Math.random()*4|0),
           staticTransform: matrix4Identity(),
           animationQueue: undefined,
           entity: {
@@ -58,17 +63,20 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
 
   dig(tiles[1] as Tile[][], LEVEL_DIMENSION/2 | 0, 1, 0, 1);
 
+  let c = 0;
+
   volumeMap(tiles, (t: Tile, position: Vector3) => {
     const floors = entityRenderables[ENTITY_TYPE_FLOOR];
+    if (position[2] > 2) {
+      return t;
+    }
     if (!t.parties.length) {
       t.parties.push({
         orientation: ORIENTATION_EAST,
-        position,
         type: PARTY_TYPE_FLOOR,
-        zRotation: 0,
         members: [{
-          staticTransform: matrix4Identity(),
-          animationQueue: undefined,
+          position,
+          zRotation: 0,
           entity: {
             renderables: floors[position[2]%floors.length],
             type: ENTITY_TYPE_FLOOR,
@@ -76,20 +84,23 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
         }],
       });
       if (Math.random()>.5) {
-        const index = ENTITY_TYPE_MARINE + Math.random() * 2 | 0;
-        const thingRenderables = entityRenderables[index];
+        const type = (ENTITY_TYPE_MARINE + c%2) as EntityType;
+        if (c < 5) {
+          c++;
+        } else {
+          return t;
+        }
+        const thingRenderables = entityRenderables[type];
 
         t.parties.push({
-          position: [position[0], position[1], position[2] + FLOOR_DEPTH/WALL_DIMENSION],
           type: PARTY_TYPE_ITEM,
           orientation: ORIENTATION_EAST,
-          zRotation: Math.random() * Math.PI*2,
           members: [{
-            staticTransform: matrix4Scale(index === ENTITY_TYPE_PISTOL ? .2 : .5),
-            animationQueue: undefined,
+            position: [position[0], position[1], position[2] + FLOOR_DEPTH/WALL_DIMENSION],
+            zRotation: Math.random() * Math.PI*2,
             entity: {
               renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
-              type: ENTITY_TYPE_MARINE,
+              type,
             }
           }]
         })
@@ -104,7 +115,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
       y--;
       for (let x=0; x<LEVEL_DIMENSION; x++) {
         const item = tiles[1][y][x];
-        s.push(!item || item.parties.length == 0 ? ' ' : item.parties[0].type === PARTY_TYPE_OBSTACLE ? '#' : '*');
+        s.push(!item || item.parties.some(p => p.type == PARTY_TYPE_OBSTACLE) ? '#' : item.parties.some(p => p.type === PARTY_TYPE_ITEM) ? '!' : ' ');
       }
       s.push('\n');
     }
