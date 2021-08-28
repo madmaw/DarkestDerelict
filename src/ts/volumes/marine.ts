@@ -1,105 +1,5 @@
 ///<reference path="../sprite.ts"/>
 
-const MARINE_LEFT_SHOULDER_INDEX = 0;
-const MARINE_RIGHT_SHOULDER_INDEX = 1;
-const MARINE_LEFT_HIP_INDEX = 2;
-const MARINE_RIGHT_HIP_INDEX = 3;
-const MARINE_LEFT_KNEE_INDEX = 4;
-const MARINE_RIGHT_KNEE_INDEX = 5;
-
-const MARINE_ANIMAITON_NEUTRAL = 0;
-const MARINE_ANIMATION_WALK_1 = 1;
-const MARING_ANIMAITON_WALK_2 = 2;
-
-const ANIMATIONS_MARINE: SpriteAnimationSequence[] = [
-  [
-    {
-      frames: 1,
-      tweens: [
-        // left shoulder
-        {
-          range: 'angle',
-          from: 0,
-          to: 0,
-        },
-        // right shoulder
-        {
-          range: 'angle',
-          from: 0,
-          to: 0,
-        },
-        // left hip
-        {
-          range: 'angle',
-          from: 0,
-          to: 0,
-        },
-        // right hip
-        {
-          range: 'angle',
-          from: 0,
-          to: 0,
-        },
-        // left knee
-        {
-          range: 'angle',
-          from: 0,
-          to: 0,
-        },
-        // right knee
-        {
-          range: 'angle',
-          from: 0,
-          to: 0,
-        },
-      ],
-    }
-  ],
-  [
-    {
-      frames: 1,
-      tweens: [
-        // left shoulder
-        {
-          range: 'angle',
-          from: Math.PI/4,
-          to: Math.PI/4,
-        },
-        // right shoulder
-        {
-          range: 'angle',
-          from: Math.PI/4,
-          to: Math.PI/4,
-        },
-        // left hip
-        {
-          range: 'angle',
-          from: -Math.PI*2/3,
-          to: -Math.PI*2/3,
-        },
-        // right hip
-        {
-          range: 'angle',
-          from: -Math.PI*2/3,
-          to: -Math.PI*2/3,
-        },
-        // left knee
-        {
-          range: 'angle',
-          from: Math.PI/3,
-          to: Math.PI/3,
-        },
-        // right knee
-        {
-          range: 'angle',
-          from: Math.PI/3,
-          to: Math.PI/3,
-        },
-      ],
-    }
-  ],
-];
-
 const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
    // hips
   [
@@ -179,13 +79,6 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       },
     ],
     [
-      TYPE_ROTATE_Y, 
-      {
-        type: 'ref',
-        index: MARINE_LEFT_HIP_INDEX,
-      },
-    ],
-    [
       TYPE_TRANSLATE_X, 
       {
         type: 'numeric',
@@ -236,19 +129,12 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         range: 'angle'
       },
     ],
-    // [
-    //   TYPE_ROTATE_Y, 
-    //   {
-    //     type: 'numeric',
-    //     value: Math.PI/9,
-    //     range: 'angle'
-    //   },
-    // ],
     [
       TYPE_ROTATE_Y, 
       {
-        type: 'ref',
-        index: MARINE_LEFT_KNEE_INDEX,
+        type: 'numeric',
+        value: Math.PI/20,
+        range: 'angle'
       },
     ],
     [
@@ -376,13 +262,6 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
       },
     ],
     [
-      TYPE_ROTATE_Y, 
-      {
-        type: 'ref',
-        index: MARINE_RIGHT_HIP_INDEX,
-      },
-    ],
-    [
       TYPE_TRANSLATE_X, 
       {
         type: 'numeric',
@@ -433,19 +312,12 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         range: 'angle'
       },
     ],
-    // [
-    //   TYPE_ROTATE_Y, 
-    //   {
-    //     type: 'numeric',
-    //     value: Math.PI/9,
-    //     range: 'angle'
-    //   },
-    // ],
     [
       TYPE_ROTATE_Y, 
       {
-        type: 'ref',
-        index: MARINE_RIGHT_KNEE_INDEX,
+        type: 'numeric',
+        value: Math.PI/20,
+        range: 'angle'
       },
     ],
     [
@@ -788,15 +660,8 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         TYPE_ROTATE_Y, 
         {
           type: 'numeric',
-          value: -Math.PI/2,
+          value: -Math.PI*3/7,
           range: 'angle'
-        },
-      ],
-      [
-        TYPE_ROTATE_Y, 
-        {
-          type: 'ref',
-          index: MARINE_LEFT_SHOULDER_INDEX,
         },
       ],
       [
@@ -817,7 +682,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         {
           type: 'numeric',
           range: 'positive-integer',
-          value: 5,
+          value: 4,
         },
         {
           type: 'numeric',
@@ -868,6 +733,23 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
           value: 2,
         },
       ],
+      // left hand
+      [
+        TYPE_TRANSLATE_X, 
+        {
+          type: 'numeric',
+          value: -4,
+          range: 'integer'
+        },
+      ],
+      [
+        TYPE_SHAPE_SPHERE,
+        {
+          type: 'numeric',
+          range: 'positive-integer',
+          value: 3,
+        },
+      ],      
     [
       TYPE_CONTEXT_END_UNION,
     ],
@@ -887,15 +769,8 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         TYPE_ROTATE_Y, 
         {
           type: 'numeric',
-          value: -Math.PI/2,
+          value: -Math.PI*3/7,
           range: 'angle'
-        },
-      ],
-      [
-        TYPE_ROTATE_Y, 
-        {
-          type: 'ref',
-          index: MARINE_RIGHT_SHOULDER_INDEX,
         },
       ],
       [
@@ -965,6 +840,23 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
           type: 'numeric',
           range: 'positive-integer',
           value: 2,
+        },
+      ],
+      // right hand
+      [
+        TYPE_TRANSLATE_X, 
+        {
+          type: 'numeric',
+          value: -4,
+          range: 'integer'
+        },
+      ],
+      [
+        TYPE_SHAPE_SPHERE,
+        {
+          type: 'numeric',
+          range: 'positive-integer',
+          value: 3,
         },
       ],
     [

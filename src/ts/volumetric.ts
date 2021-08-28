@@ -55,6 +55,9 @@ const VOLUME_DEPTH_PROPORTION = VOLUME_DEPTH_OFFSET/256;
 const VOLUME_SCALE = VOLUME_DIMENSION/UNSCALED_VOLUME_DIMENSION;
 // should be at least (VOLUME_DIMENSION+TEXTURE_PADDING*2) * 6 in area and a power-of-two
 const TEXTURE_DIMENSION = 256 * VOLUME_SCALE;
+// it appears that, without a 1 pixel gap, you can get textures interfering with eachother at the
+// boundaries
+const TEXTURE_PADDING = 1;
 const VOLUME_MIDPOINT_VECTOR: Vector3 = [OFFSET_VOLUME_MIDPOINT, OFFSET_VOLUME_MIDPOINT, OFFSET_VOLUME_MIDPOINT];
 const NEGATIVE_VOLUME_MIDPOINT_VECTOR = vectorNDivide(VOLUME_MIDPOINT_VECTOR, -1);
 const VOLUME_MIDPOINT_MATRIX = matrix4Translate(...VOLUME_MIDPOINT_VECTOR);
@@ -189,18 +192,12 @@ const convertVolumetricDrawCommands = (commands: readonly VolumetricDrawCommand[
   return commandTemplate;
 }
 
-const processVolumetricDrawCommands = (name: string, commands: readonly VolumetricDrawCommand[]) => {
-  const commandString = convertVolumetricDrawCommands(commands);
-  console.log(`volume for ${name}`, commandString);
-  return processVolumetricDrawCommandString(commandString, []);
-}
-
 const processVolumetricDrawCommandString = (
     commandString: string,
-    p: string[],
+    params: string,
     transform: Matrix4 = matrix4Multiply(VOLUME_MIDPOINT_MATRIX, matrix4Scale(VOLUME_SCALE)), 
 ) => {
-  const commands: string[] = [...commandString].map(s => p[s]?p[s]:s);
+  const commands: string[] = [...commandString].map(s => params[s]?params[s]:s);
 
   const contexts: {
     volume: Volume<Voxel>,
@@ -264,7 +261,7 @@ const processVolumetricDrawCommandString = (
                           : maxIndex,
                       0,
                   );
-                  const v = test.map((v, i) => i == maxIndex || Math.abs(v) > dims[i] - effectiveRounding ? v : 0);
+                  const v = test.map((v, i) => i == maxIndex || Math.abs(v) > dims[i] - effectiveRounding ? v/Math.abs(v) : 0);
                   return vectorNNormalize(v as Vector3);
                 } 
               },
@@ -484,7 +481,7 @@ const processVolumetricDrawCommandString = (
         savedCommands = context.commands.slice(0, -1);
         break;  
       case TYPE_RESTORE_CONTEXT:
-        const savedVolume = processVolumetricDrawCommandString(savedCommands.join(''), p, transform).volume;
+        const savedVolume = processVolumetricDrawCommandString(savedCommands.join(''), params, transform).volume;
         fixNormals(
             volumeMap(
                 volume,
@@ -679,7 +676,7 @@ const volumeToTexture = (
     if (FLAG_CHECK_VOLUME_BOUNDS && (minx<0 || miny < 0 || minz < 0 || maxx >= VOLUME_DIMENSION || maxy >= VOLUME_DIMENSION || maxz >= VOLUME_DIMENSION)) {
       console.log(`[${minx},${miny},${minz}][${maxx},${maxy},${maxz}] out of bounds`);
     }
-    if (x + width > TEXTURE_DIMENSION) {
+    if (x + width + TEXTURE_PADDING > TEXTURE_DIMENSION) {
       y += rowHeight;
       x = 0;
       rowHeight = 0;
@@ -719,7 +716,7 @@ const volumeToTexture = (
     const sx2 = (x + width)/TEXTURE_DIMENSION;
     const sy2 = (y + height)/TEXTURE_DIMENSION;
     rowHeight = Math.max(height, rowHeight);
-    x += width;
+    x += width + TEXTURE_PADDING;
     return [sx1, sy1, sx2, sy2] as Rect2;
   });
 

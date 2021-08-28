@@ -33,14 +33,10 @@ const ENTITY_TYPES_TO_PURPOSES: Partial<Record<EntityType, EntityPurpose>> = {
   [ENTITY_TYPE_PISTOL]: ENTITY_PURPOSE_WEAPON,
 }
 
-type TextureFrame = {
+type EntityRenderables = {
   depthTexture: WebGLTexture,
   renderTexture: WebGLTexture,
-  thumbnail: HTMLCanvasElement | HTMLImageElement,
-};
-
-type EntityRenderables = {
-  frames: TextureFrame[][],
+  thumbnail: HTMLCanvasElement | HTMLImageElement,  
   vertexPositionBuffer: WebGLBuffer,
   vertexIndexBuffer: WebGLBuffer,
   textureCoordinatesBuffer: WebGLBuffer,

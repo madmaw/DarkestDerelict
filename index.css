@@ -2,11 +2,6 @@ canvas {
   image-rendering: pixelated;
 }
 
-img {
-  width: 100%;
-  object-fit: contain;
-}
-
 body {
   padding: 0;
   margin: 0;
@@ -14,11 +9,16 @@ body {
   height: min(150vw, 100vh);
   display: grid;
   grid-template-columns: 100%;
-  grid-template-rows: 55% 30% 15%;
+  grid-template-rows: 55% 36% 9%;
   overflow: hidden;
 }
 
-#Z {
+#O, #O * {
+  position: absolute;
+  pointer-events: none;
+}
+
+#Z, #O {
   width: 100%;
   height: 100%;
 }
@@ -43,14 +43,20 @@ body {
 
 .a {
   grid-row: 1/3;
-  height: 100%;
-  width: 100%;
+}
+
+.a, .i, .b, .c {
+  width: min(25vw, 17vh);
 }
 
 .b, .c {
-  height: 50%;
+  height: min(11vw, 7vh);
 }
 
-.i {
-  height: 100%;
+.a, .i {
+  height: min(22vw, 15vh);
+}
+
+.o {
+  outline: 1px solid black;
 }

@@ -114,7 +114,7 @@ const VERTEX_SHADER = `
   const L_SURFACE_NORMAL = FLAG_LONG_SHADER_NAMES ? 'lSurfaceNormal' : 'x';
   const L_CAMERA_DIRECTION = FLAG_LONG_SHADER_NAMES ? 'lCameraDirection' : 'w';
 
-  const CONST_NUM_STEPS = 64 * VOLUME_SCALE;
+  const CONST_NUM_STEPS = 32;
   const MAX_DEPTH = VOLUME_DIMENSION/TEXTURE_DIMENSION;
   const C_MAX_DEPTH = `${MAX_DEPTH}`;
   const C_MIN_DEPTH = -VOLUME_DEPTH_OFFSET/TEXTURE_DIMENSION;
@@ -148,34 +148,30 @@ const VERTEX_SHADER = `
     vec4 ${L_DEPTH_TEXTURE} = vec4(0.);
     
     float pixelDepth=0.;
-    for (float depth=${C_MIN_DEPTH+STEP_DEPTH}; depth<${C_MAX_DEPTH}; depth+=${C_STEP_DEPTH}) {
-      vec2 previousSurfacePosition = surfacePosition;
-      surfacePosition = ${V_SURFACE_TEXTURE_COORD}-depth*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
-      if (all(lessThanEqual(${V_SURFACE_TEXTURE_BOUNDS}.xy, surfacePosition)) && all(lessThan(surfacePosition, ${V_SURFACE_TEXTURE_BOUNDS}.zw))) {
-        ${L_DEPTH_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, surfacePosition);
-        float y1 = (${L_DEPTH_TEXTURE}.b-${VOLUME_DEPTH_PROPORTION})*${C_DEPTH_SCALE}-depth;
-        float y0 = ${C_STEP_DEPTH};
-        float y2 = (texture2D(${U_DEPTH_TEXTURE_SAMPLER}, previousSurfacePosition).b-${VOLUME_DEPTH_PROPORTION})*${C_DEPTH_SCALE}-depth;
-        float scale = 1./(1.-y1/(y0-y2));
+    float depth=${C_MIN_DEPTH};
+    float stepDepth=${C_STEP_DEPTH};
+    for (int i=0; i<${CONST_NUM_STEPS}; i++) {
+      depth+=stepDepth;
+      vec2 tempSurfacePosition = ${V_SURFACE_TEXTURE_COORD}-depth*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
+      if (all(lessThanEqual(${V_SURFACE_TEXTURE_BOUNDS}.xy, tempSurfacePosition)) && all(lessThan(tempSurfacePosition, ${V_SURFACE_TEXTURE_BOUNDS}.zw))) {
+        vec4 tempTexture = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, tempSurfacePosition);
 
-        if ((${L_DEPTH_TEXTURE}.b-${VOLUME_DEPTH_PROPORTION})*${C_DEPTH_SCALE}<=depth && ${L_DEPTH_TEXTURE}.a>0. && ${L_DEPTH_TEXTURE}.a*${C_DEPTH_SCALE} > depth && scale>=0. && scale<=1.) {
-          vec4 previousSurface = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, previousSurfacePosition);
-          if (previousSurface.a>0.) {
-            pixelDepth=mix(depth, depth-${C_STEP_DEPTH}, scale);
-            surfacePosition = mix(surfacePosition, previousSurfacePosition, scale);
-          }
-          ${L_DEPTH_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, surfacePosition);
-          break;
+        if ((tempTexture.b-${VOLUME_DEPTH_PROPORTION})*${C_DEPTH_SCALE}<=depth && tempTexture.a>0. && tempTexture.a*${C_DEPTH_SCALE}>depth) {
+          ${L_DEPTH_TEXTURE} = tempTexture;
+          surfacePosition = tempSurfacePosition;
+          pixelDepth=depth;
+          depth-=stepDepth;
+          stepDepth/=2.;
         }
-      } else if (depth < 0.) {
-      } else {
-        break;
+      } else if (depth > 0.) {
+        depth-=stepDepth;
+        stepDepth/=2.;
       }
-      ${L_DEPTH_TEXTURE} = vec4(0.);
     }
     /*
     ${L_DEPTH_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD});
     surfacePosition = ${V_SURFACE_TEXTURE_COORD};
+    pixelDepth = 0.;
     */
     if (${L_DEPTH_TEXTURE}.a>0.) {
       vec4 color = texture2D(${U_RENDER_TEXTURE_SAMPLER}, surfacePosition);
@@ -271,30 +267,35 @@ onload = async () => {
   const TEXTURE_REDDISH: Texel[][][] = [[[[128, 110, 118, 64]]]];
   const TEXTURE_GUNMETAL: Texel[][][] = [[[[118, 118, 128, 200]]]];
   const TEXTURE_WHITE_SHINY: Texel[][][] = [[[[255, 255, 255, 255]]]];
-  const TEXTURE_BLACK: Texel[][][] = [[[[0, 0, 0, 0]]]];
+  const TEXTURE_BLACK: Texel[][][] = [[[[0, 0, 0, 24]]]];
+  const TEXTURE_YELLOW: Texel[][][] = [[[[128, 128, 32, 24]]]];
+  const TEXTURE_PURPLE: Texel[][][] = [[[[128, 32, 128, 24]]]];
 
   const TEXTURE_SPECKLED: Texel[][][] = [[
     [[0, 0, 0, 128], [255, 255, 255, 128]],
     [[255, 255, 255, 128], [0, 0, 0, 128]],
   ]];
 
-  type LoadingEvent = [string, VolumetricDrawCommand[], Matrix4, [Volume<Texel>[], (SpriteAnimationSequence[])?][]];
+  type LoadingEvent = [string, VolumetricDrawCommand[], Matrix4, [Volume<Texel>[], string[]?][]];
 
   const SURFACE_TEXELS: [Volume<Texel>[]][] = [
     [[TEXTURE_BLUE_DULL, TEXTURE_WHITE_SHINY]],
-    [[TEXTURE_REDDISH, TEXTURE_BLUE_DULL]],
+    [[TEXTURE_REDDISH, TEXTURE_RED_SHINY]],
   ];
 
   // slightly scale up to hide wall-gaps
-  const MODEL_SCALE = 1.02/(VOLUME_SCALE*WALL_DIMENSION);
+  const MODEL_SCALE = 1.01/(VOLUME_SCALE*WALL_DIMENSION);
   const MODEL_SCALE_MATRIX = matrix4Scale(MODEL_SCALE);
   
   const COMMANDS: readonly LoadingEvent[] = [
     ['wall', VOLUMETRIC_COMMANDS_WALL, MODEL_SCALE_MATRIX, SURFACE_TEXELS],
     ['floor', VOLUMETRIC_COMMANDS_FLOOR,  MODEL_SCALE_MATRIX, SURFACE_TEXELS],
     ['marine', VOLUMETRIC_COMMANDS_MARINE, matrix4Scale(MODEL_SCALE * .5), [
-      [[TEXTURE_GREEN, TEXTURE_WHITE_SHINY, TEXTURE_RED_SHINY], ANIMATIONS_MARINE],
-      [[TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_GREEN], ANIMATIONS_MARINE],
+      [[TEXTURE_GREEN, TEXTURE_WHITE_SHINY]],
+      [[TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY]],
+      [[TEXTURE_REDDISH, TEXTURE_WHITE_SHINY]],
+      [[TEXTURE_YELLOW, TEXTURE_BLACK]],
+      [[TEXTURE_PURPLE, TEXTURE_WHITE_SHINY]],
     ]],
     ['pistol', VOLUMETRIC_COMMANDS_PISTOL, matrix4Scale(MODEL_SCALE * .2), [
       [[TEXTURE_GUNMETAL, TEXTURE_BLACK]],
@@ -306,118 +307,102 @@ onload = async () => {
 
   const loadingEventQueue: EventQueue<LoadingEvent, EntityRenderables[]> = {
     events: [],
-    handler: async ([name, commands, staticTransform, variations]) => {
+    handler: async (c) => {
+      const [name, commands, staticTransform, variations] = c;
       Y.innerText = `${(COMMANDS.length-loadingEventQueue.events.length)/COMMANDS.length*100 | 0}%`
       // allow rendering of progress
       await delay();
 
-      return variations.map(([renderTextures, animations]) => {
-        const volumes = animations
-            ? processSpriteCommands(name, commands, animations)
-            : [[processVolumetricDrawCommands(name, commands).volume]];
-        const bounds = volumes.flat().reduce<Rect3>(([min, max], volume: Volume<Voxel>) => {
-          const [vmin, vmax] = calculateVolumeBounds(volume);
-          return [
-            min.map((v, i) => Math.min(v, vmin[i])) as Vector3,
-            max.map((v, i) => Math.max(v, vmax[i])) as Vector3,
-          ];
-        }, [[VOLUME_DIMENSION, VOLUME_DIMENSION, VOLUME_DIMENSION], [0, 0, 0]]);
+      return variations.map(([renderTextures, params = []]) => {
+        const volume = processSpriteCommands(name, commands, params);
+        const bounds = calculateVolumeBounds(volume);
 
-        let depthTextureBounds: Rect2[];
-        const frames: TextureFrame[][] = volumes.map(volumes => volumes.map(volume => {
-          const [depthTextureData, textureBounds] = volumeToDepthTexture(volume, bounds);
-          // should all be the same
-          depthTextureBounds = textureBounds;
-          const [renderTextureData] = volumeToRenderTexture(volume, bounds, renderTextures);
+        
+        // render/depth bounds should be the same
+        const [depthTextureData, depthTextureBounds] = volumeToDepthTexture(volume, bounds);
+        const [renderTextureData] = volumeToRenderTexture(volume, bounds, renderTextures);
 
-          // depth texture
-          const depthTexture = gl.createTexture();
-          gl.bindTexture(CONST_GL_TEXTURE_2D, depthTexture);
-          gl.texImage2D(
-              CONST_GL_TEXTURE_2D,
-              0,
-              CONST_GL_RGBA,
-              TEXTURE_DIMENSION,
-              TEXTURE_DIMENSION,
-              0,
-              CONST_GL_RGBA,
-              CONST_GL_UNSIGNED_BYTE,
-              depthTextureData,
-          );
-          gl.generateMipmap(CONST_GL_TEXTURE_2D);
+        // depth texture
+        const depthTexture = gl.createTexture();
+        gl.bindTexture(CONST_GL_TEXTURE_2D, depthTexture);
+        gl.texImage2D(
+            CONST_GL_TEXTURE_2D,
+            0,
+            CONST_GL_RGBA,
+            TEXTURE_DIMENSION,
+            TEXTURE_DIMENSION,
+            0,
+            CONST_GL_RGBA,
+            CONST_GL_UNSIGNED_BYTE,
+            depthTextureData,
+        );
+        gl.generateMipmap(CONST_GL_TEXTURE_2D);
 
-          // render texture
-          const renderTexture = gl.createTexture();
-          gl.bindTexture(CONST_GL_TEXTURE_2D, renderTexture);
-          gl.texImage2D(
-              CONST_GL_TEXTURE_2D,
-              0,
-              CONST_GL_RGBA,
-              TEXTURE_DIMENSION,
-              TEXTURE_DIMENSION,
-              0,
-              CONST_GL_RGBA,
-              CONST_GL_UNSIGNED_BYTE,
-              renderTextureData,
-          );
-          gl.generateMipmap(CONST_GL_TEXTURE_2D);
+        // render texture
+        const renderTexture = gl.createTexture();
+        gl.bindTexture(CONST_GL_TEXTURE_2D, renderTexture);
+        gl.texImage2D(
+            CONST_GL_TEXTURE_2D,
+            0,
+            CONST_GL_RGBA,
+            TEXTURE_DIMENSION,
+            TEXTURE_DIMENSION,
+            0,
+            CONST_GL_RGBA,
+            CONST_GL_UNSIGNED_BYTE,
+            renderTextureData,
+        );
+        gl.generateMipmap(CONST_GL_TEXTURE_2D);
 
-          const thumbnailCanvas = document.createElement('canvas');
-          // because the model faces down the x axis, the image is laying on its side
-          const w = bounds[1][1] - bounds[0][1]+1;
-          const h = bounds[1][2] - bounds[0][2]+1;
-          thumbnailCanvas.width = w;
-          thumbnailCanvas.height = h;
+        const thumbnailCanvas = document.createElement('canvas');
+        // because the model faces down the x axis, the image is laying on its side
+        const w = bounds[1][1] - bounds[0][1]+1;
+        const h = bounds[1][2] - bounds[0][2]+1;
+        thumbnailCanvas.width = w;
+        thumbnailCanvas.height = h;
 
-          const ctx = thumbnailCanvas.getContext('2d');
-          const imageData = ctx.createImageData(w, h);
-          for (let x=0; x<w; x++) {
-            for (let y=0; y<h; y++) {
-              const sy = x;
-              const sx = y;
-              const sourceOffset = sy*TEXTURE_DIMENSION*4 + sx*4;
-              const c = renderTextureData.slice(sourceOffset, sourceOffset+4);
-              imageData.data.set(c.map((c, i) => (i+1)%4 ? c : c ? 255 : 0), y*w*4+x*4);
-            }
+        const ctx = thumbnailCanvas.getContext('2d');
+        const imageData = ctx.createImageData(w, h);
+        for (let x=0; x<w; x++) {
+          for (let y=0; y<h; y++) {
+            const sy = x;
+            const sx = y;
+            const sourceOffset = sy*TEXTURE_DIMENSION*4 + sx*4;
+            const c = renderTextureData.slice(sourceOffset, sourceOffset+4);
+            imageData.data.set(c.map((c, i) => (i+1)%4 ? c : c ? 255 : 0), y*w*4+x*4);
           }
-          ctx.putImageData(imageData, 0, 0);
+        }
+        ctx.putImageData(imageData, 0, 0);
 
-          // unfortunately, using a canvas doesn't seem to work for drag and drop as it has zero-width when not attached to the document
-          let thumbnail: HTMLCanvasElement | HTMLImageElement;
-          if (FLAG_CANVAS_THUMBNAILS) {
-            thumbnail = thumbnailCanvas;
-            // doesn't work either
-            // thumbnail.style.width = w as any;
-            // thumbnail.style.height = h as any;
-          } else {
-            thumbnail = document.createElement('img');
-            thumbnail.src = thumbnailCanvas.toDataURL();  
-          }
+        // unfortunately, using a canvas doesn't seem to work for drag and drop as it has zero-width when not attached to the document
+        let thumbnail: HTMLCanvasElement | HTMLImageElement;
+        if (FLAG_CANVAS_THUMBNAILS) {
+          thumbnail = thumbnailCanvas;
+          // doesn't work either
+          // thumbnail.style.width = w as any;
+          // thumbnail.style.height = h as any;
+        } else {
+          thumbnail = document.createElement('img');
+          thumbnail.src = thumbnailCanvas.toDataURL();  
+        }
 
-          if (FLAG_DEBUG_TEXTURES) {
-            document.firstChild.appendChild(thumbnailCanvas);
+        if (FLAG_DEBUG_TEXTURES) {
+          document.firstChild.appendChild(thumbnailCanvas);
 
-            const textures = [depthTextureData, renderTextureData];
-            textures.forEach(texture => {
-              const debugCanvas = document.createElement('canvas');
-              debugCanvas.width = TEXTURE_DIMENSION;
-              debugCanvas.height = TEXTURE_DIMENSION;
-              const debugContext = debugCanvas.getContext('2d');
-              const debugData = debugContext.createImageData(TEXTURE_DIMENSION, TEXTURE_DIMENSION);
-              // rewrite the alpha
-              debugData.data.set(texture, 0);
-              debugData.data.forEach((v, i) => debugData.data[i] = (i+1) % 4 || !v ? v : 255);
-              debugContext.putImageData(debugData, 0, 0);
-              document.firstChild.appendChild(debugCanvas);  
-            });
-          }
-
-          return {
-            depthTexture,
-            renderTexture,
-            thumbnail,
-          }
-        }));
+          const textures = [depthTextureData, renderTextureData];
+          textures.forEach(texture => {
+            const debugCanvas = document.createElement('canvas');
+            debugCanvas.width = TEXTURE_DIMENSION;
+            debugCanvas.height = TEXTURE_DIMENSION;
+            const debugContext = debugCanvas.getContext('2d');
+            const debugData = debugContext.createImageData(TEXTURE_DIMENSION, TEXTURE_DIMENSION);
+            // rewrite the alpha
+            debugData.data.set(texture, 0);
+            debugData.data.forEach((v, i) => debugData.data[i] = (i+1) % 4 || !v ? v : 255);
+            debugContext.putImageData(debugData, 0, 0);
+            document.firstChild.appendChild(debugCanvas);  
+          });
+        }
 
         // positions
         const vertexPositions = CARDINAL_PROJECTIONS.map((rotation) => {
@@ -508,6 +493,9 @@ onload = async () => {
         );
 
         return {
+          depthTexture,
+          renderTexture,
+          thumbnail,
           bounds,
           frames,
           vertexPositionBuffer,
@@ -548,7 +536,7 @@ onload = async () => {
   const uniforms = UNIFORM_NAMES.map(name => gl.getUniformLocation(shaderProgram, name)); 
 
   const aspect = canvas.width/canvas.height;
-  const zNear = .4;
+  const zNear = .2;
   const perspectiveMatrix = matrix4Multiply(
       matrix4InfinitePerspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, zNear),
       //matrix4Perspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .35, 10),
@@ -713,7 +701,7 @@ onload = async () => {
     const locationAndEntity = getLocationAndMaybeEntity(target, p);
     if (locationAndEntity && locationAndEntity[1]) {
       const [fromLocation, entity] = locationAndEntity;
-      const dragImage = entity.renderables.frames[0][0].thumbnail;
+      const dragImage = entity.renderables.thumbnail;
       dragContext = {
         fromLocation,
         entity,
@@ -754,8 +742,9 @@ onload = async () => {
     const target = onDrag(p);
     const location = getLocationAndMaybeEntity(target, p);
     if (dragContext && location) {
+      const fromLocation = dragContext.fromLocation;
       const [toLocation] = location;
-      if (JSON.stringify(dragContext.fromLocation) != JSON.stringify(toLocation)) {
+      if (fromLocation.party != toLocation.party || fromLocation.slot != toLocation.slot) {
         addEvents(gameEventQueue, {
           party,
           type: GAME_EVENT_TYPE_CHANGE_LOADOUT,
@@ -793,7 +782,7 @@ onload = async () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (entity && entity != dragContext?.entity) {
       slotsToEntities.set(canvas, entity);
-      const thumbnail = entity.renderables.frames[0][0].thumbnail;
+      const thumbnail = entity.renderables.thumbnail;
       const scale = Math.min(canvas.width*.6/thumbnail.width, canvas.height*.8/thumbnail.height);
       ctx.drawImage(
           thumbnail,
@@ -916,7 +905,8 @@ onload = async () => {
           }
 
           const {
-            frames,
+            depthTexture,
+            renderTexture,
             surfaceRotationsBuffer,
             textureBoundsBuffer,
             textureCoordinatesBuffer,
@@ -924,11 +914,7 @@ onload = async () => {
             vertexPositionBuffer,
             staticTransform,
           } = partyMember.entity.renderables;
-          const {
-            depthTexture,
-            renderTexture,
-          } = frames[0][0];
-        
+
           const position = partyMember.position;
           const rotation = partyMember.zRotation;
           const modelPositionMatrix = matrix4Translate(...position);
