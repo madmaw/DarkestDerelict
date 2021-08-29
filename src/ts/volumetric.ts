@@ -45,7 +45,7 @@ const TYPE_MATERIAL_OUT_OF_BOUNDS = '?';
 const UNSCALED_VOLUME_DIMENSION = 32;
 const UNSCALED_VOLUME_MIDPOINT = UNSCALED_VOLUME_DIMENSION/2;
 
-const VOLUME_DIMENSION = parseInt(window.location.hash?.substr(1) || '16');
+const VOLUME_DIMENSION = FLAG_CONFIGURABLE_QUALITY ? parseInt(window.location.hash?.substr(1) || '32') : 32;
 const VOLUME_MIDPOINT = VOLUME_DIMENSION/2;
 const OFFSET_VOLUME_MIDPOINT = (VOLUME_DIMENSION-1)/2;
 const VOLUME_DEPTH_OFFSET = 4;
@@ -54,7 +54,7 @@ const VOLUME_DEPTH_PROPORTION = VOLUME_DEPTH_OFFSET/256;
 //const VOLUME_SCALE = VOLUME_DIMENSION/256;
 const VOLUME_SCALE = VOLUME_DIMENSION/UNSCALED_VOLUME_DIMENSION;
 // should be at least (VOLUME_DIMENSION+TEXTURE_PADDING*2) * 6 in area and a power-of-two
-const TEXTURE_DIMENSION = 256 * VOLUME_SCALE;
+const TEXTURE_DIMENSION = 256 * VOLUME_SCALE * (FLAG_NO_WRAP_TEXTURES ? 2 : 1);
 // it appears that, without a 1 pixel gap, you can get textures interfering with eachother at the
 // boundaries
 const TEXTURE_PADDING = 1;
@@ -194,10 +194,11 @@ const convertVolumetricDrawCommands = (commands: readonly VolumetricDrawCommand[
 
 const processVolumetricDrawCommandString = (
     commandString: string,
-    params: string,
+    params: string = '',
     transform: Matrix4 = matrix4Multiply(VOLUME_MIDPOINT_MATRIX, matrix4Scale(VOLUME_SCALE)), 
 ) => {
-  const commands: string[] = [...commandString].map(s => params[s]?params[s]:s);
+  const ps = [...params];
+  const commands: string[] = [...commandString].map(s => ps[s]?ps[s]:s);
 
   const contexts: {
     volume: Volume<Voxel>,
@@ -372,7 +373,8 @@ const processVolumetricDrawCommandString = (
         canvas.width = canvasDimension;
         canvas.height = canvasDimension;
         const ctx = canvas.getContext('2d');
-        const baseline = VOLUME_MIDPOINT + letterHeight/2;
+        // center to maximise chance of not overflowing
+        const baseline = (VOLUME_DIMENSION + letterHeight)/2;
         ctx.font = `${letterHeight}px serif`;
         ctx.textAlign = 'center';
         ctx.fillText(symbol, VOLUME_MIDPOINT, baseline);
@@ -539,7 +541,7 @@ const volumeMap = <T>(volume: Volume<T>, f: (t: T | Falseish, position: Vector3)
   } else {
     volume.forEach((az, z) => {
       az.forEach((ay, y) => {
-        ay.map((v, x) => f(v, [x, y, z]));
+        ay.forEach((v, x) => ay[x] = f(v, [x, y, z]));
       })
     })
   }
@@ -676,7 +678,7 @@ const volumeToTexture = (
     if (FLAG_CHECK_VOLUME_BOUNDS && (minx<0 || miny < 0 || minz < 0 || maxx >= VOLUME_DIMENSION || maxy >= VOLUME_DIMENSION || maxz >= VOLUME_DIMENSION)) {
       console.log(`[${minx},${miny},${minz}][${maxx},${maxy},${maxz}] out of bounds`);
     }
-    if (x + width + TEXTURE_PADDING > TEXTURE_DIMENSION) {
+    if (FLAG_NO_WRAP_TEXTURES && x + width + TEXTURE_PADDING > TEXTURE_DIMENSION) {
       y += rowHeight;
       x = 0;
       rowHeight = 0;

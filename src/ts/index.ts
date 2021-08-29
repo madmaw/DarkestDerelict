@@ -181,7 +181,7 @@ const VERTEX_SHADER = `
       //float ${L_LIGHTING} = 0.5 + 0.5 * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(vec3(1., 1., 1.))), -0.),color.a*4.);
       vec3 ${L_LIGHTING} = ${U_AMBIENT_LIGHT}.xyz;
       vec3 pixelPosition = ${V_WORLD_POSITION}.xyz + pixelDepth * cameraNormal;
-      for(${PRECISION} int i=0;i<${C_MAX_NUM_LIGHTS};i++){
+      for(int i=0;i<${C_MAX_NUM_LIGHTS};i++){
         if (float(i)<${U_AMBIENT_LIGHT}.w) {
           vec4 light = ${U_LIGHTS}[i];
           mat4 transform = ${U_LIGHT_TRANSFORMS}[i];
@@ -193,24 +193,22 @@ const VERTEX_SHADER = `
             vec3 lightDelta = lightPosition.xyz - pixelPosition;
             if (reach > length(lightDelta)) {
               ${L_LIGHTING} += light.xyz
-                  * (1.-pow(length(lightDelta)/reach, 2.))*reach
-                  * max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(lightDelta)), 0.)
-                  * max(pow(dot(normalize(lightDirection.xyz), normalize(lightDelta)), light.w), 0.)
-                  * brightness;
+                  * (pow(1.-length(lightDelta)/reach, 2.))*reach
+                  * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(lightDelta)), 0.),0.1/color.a)
+                  * max(pow(dot(normalize(lightDirection.xyz), normalize(lightDelta)), light.w), 0.);
             }
           } else {
             vec4 rotatedLight = transform * vec4(pixelPosition, 1.);
             if (reach > rotatedLight.x && rotatedLight.x > 0.) {
               float p = rotatedLight.x/reach;
               ${L_LIGHTING} += light.xyz
-                  * (1.-pow(p, 2.))*reach
-                  * max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(lightDirection.xyz)), pow(1.-p, abs(light.w)))
-                  * brightness;
+                  * (pow(1.-p, 2.))*reach
+                  * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(lightDirection.xyz)), pow(1.-p, abs(light.w))),0.1/color.a);
             }
           }
         }
       }
-      gl_FragColor = vec4(color.rgb*(${L_LIGHTING}), 1.);
+      gl_FragColor = vec4(color.xyz*(color.a>=1.?vec3(1.):${L_LIGHTING}), 1.);
     } else {
       discard;
     }
@@ -261,26 +259,28 @@ onload = async () => {
 
 
 
-  const TEXTURE_RED_SHINY: Texel[][][] = [[[[128, 92, 92, 255]]]];
-  const TEXTURE_GREEN: Texel[][][] = [[[[92, 128, 92, 128]]]];
-  const TEXTURE_BLUE_DULL: Texel[][][] = [[[[118, 118, 128, 32]]]];
-  const TEXTURE_REDDISH: Texel[][][] = [[[[128, 110, 118, 64]]]];
-  const TEXTURE_GUNMETAL: Texel[][][] = [[[[118, 118, 128, 200]]]];
-  const TEXTURE_WHITE_SHINY: Texel[][][] = [[[[255, 255, 255, 255]]]];
-  const TEXTURE_BLACK: Texel[][][] = [[[[0, 0, 0, 24]]]];
-  const TEXTURE_YELLOW: Texel[][][] = [[[[128, 128, 32, 24]]]];
-  const TEXTURE_PURPLE: Texel[][][] = [[[[128, 32, 128, 24]]]];
+  const TEXTURE_RED_SHINY: Texel[][][] = [[[[92, 48, 48, 12]]]];
+  const TEXTURE_RED_GLOWING: Texel[][][] = [[[[255, 32, 32, 255]]]];
+  const TEXTURE_RED_CARPET: Texel[][][] = [[[[92, 32, 32, 99]]]];
+  const TEXTURE_GREEN_SHINY: Texel[][][] = [[[[92, 128, 92, 12]]]];
+  const TEXTURE_GREEN: Texel[][][] = [[[[92, 128, 92, 25]]]];
+  const TEXTURE_BLUE_CARPET: Texel[][][] = [[[[44, 44, 66, 99]]]];
+  const TEXTURE_GUNMETAL: Texel[][][] = [[[[118, 118, 128, 9]]]];
+  const TEXTURE_WHITE_SHINY: Texel[][][] = [[[[255, 255, 255, 12]]]];
+  const TEXTURE_BLACK: Texel[][][] = [[[[0, 0, 0, 254]]]];
+  const TEXTURE_YELLOW_SHUNY: Texel[][][] = [[[[128, 128, 64, 12]]]];
+  const TEXTURE_PURPLE_SHINY: Texel[][][] = [[[[128, 64, 128, 12]]]];
 
   const TEXTURE_SPECKLED: Texel[][][] = [[
     [[0, 0, 0, 128], [255, 255, 255, 128]],
     [[255, 255, 255, 128], [0, 0, 0, 128]],
   ]];
 
-  type LoadingEvent = [string, VolumetricDrawCommand[], Matrix4, [Volume<Texel>[], string[]?][]];
+  type LoadingEvent = [VolumetricDrawCommand[] | string, Matrix4, [Volume<Texel>[], ((NumericValue<ValueRange> | CharValue)[] | string)?][],  string];
 
   const SURFACE_TEXELS: [Volume<Texel>[]][] = [
-    [[TEXTURE_BLUE_DULL, TEXTURE_WHITE_SHINY]],
-    [[TEXTURE_REDDISH, TEXTURE_RED_SHINY]],
+    [[TEXTURE_RED_SHINY, TEXTURE_RED_CARPET]],
+    [[TEXTURE_GUNMETAL, TEXTURE_BLUE_CARPET]],
   ];
 
   // slightly scale up to hide wall-gaps
@@ -288,33 +288,53 @@ onload = async () => {
   const MODEL_SCALE_MATRIX = matrix4Scale(MODEL_SCALE);
   
   const COMMANDS: readonly LoadingEvent[] = [
-    ['wall', VOLUMETRIC_COMMANDS_WALL, MODEL_SCALE_MATRIX, SURFACE_TEXELS],
-    ['floor', VOLUMETRIC_COMMANDS_FLOOR,  MODEL_SCALE_MATRIX, SURFACE_TEXELS],
-    ['marine', VOLUMETRIC_COMMANDS_MARINE, matrix4Scale(MODEL_SCALE * .5), [
-      [[TEXTURE_GREEN, TEXTURE_WHITE_SHINY]],
+    [VOLUMETRIC_WALL, MODEL_SCALE_MATRIX, SURFACE_TEXELS, 'wall'],
+    [VOLUMETRIC_FLOOR,  MODEL_SCALE_MATRIX, SURFACE_TEXELS, 'floor'],
+    [VOLUMETRIC_MARINE, matrix4Scale(MODEL_SCALE * .5), [
+      [[TEXTURE_GREEN_SHINY, TEXTURE_WHITE_SHINY]],
       [[TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY]],
-      [[TEXTURE_REDDISH, TEXTURE_WHITE_SHINY]],
-      [[TEXTURE_YELLOW, TEXTURE_BLACK]],
-      [[TEXTURE_PURPLE, TEXTURE_WHITE_SHINY]],
-    ]],
-    ['pistol', VOLUMETRIC_COMMANDS_PISTOL, matrix4Scale(MODEL_SCALE * .2), [
+      [[TEXTURE_WHITE_SHINY, TEXTURE_BLACK]],
+      [[TEXTURE_YELLOW_SHUNY, TEXTURE_BLACK]],
+      [[TEXTURE_PURPLE_SHINY, TEXTURE_WHITE_SHINY]],
+    ], 'marine'],
+    [VOLUMETRIC_PISTOL, matrix4Scale(MODEL_SCALE * .2), [
       [[TEXTURE_GUNMETAL, TEXTURE_BLACK]],
-    ]],
-    ['cathead', VOLUMETRIC_COMMANDS_SYMBOL, MODEL_SCALE_MATRIX, [
-      [[TEXTURE_RED_SHINY]],
-    ]],
+    ], 'pistol'],
+    [VOLUMETRIC_SYMBOL, matrix4Scale(MODEL_SCALE * .2), [
+      [
+        [TEXTURE_YELLOW_SHUNY], 
+        FLAG_USE_VOLUME_COMMANDS 
+            ? [{
+              type: 'char',
+              value: '🐱'
+            }] : '🐱'
+      ],
+      [
+        [TEXTURE_RED_GLOWING], 
+        FLAG_USE_VOLUME_COMMANDS 
+            ? [{
+              type: 'char',
+              value: '🔥'
+            }]: '🔥'
+      ],
+    ], 'symbol'],
   ];
 
   const loadingEventQueue: EventQueue<LoadingEvent, EntityRenderables[]> = {
     events: [],
     handler: async (c) => {
-      const [name, commands, staticTransform, variations] = c;
+      const [commands, staticTransform, variations, name] = c;
       Y.innerText = `${(COMMANDS.length-loadingEventQueue.events.length)/COMMANDS.length*100 | 0}%`
       // allow rendering of progress
       await delay();
 
-      return variations.map(([renderTextures, params = []]) => {
-        const volume = processSpriteCommands(name, commands, params);
+      return variations.map(([renderTextures, params], i) => {
+        let volume: Volume<Voxel>;
+        if (FLAG_USE_VOLUME_COMMANDS) {
+          volume = processSpriteCommands(name, i, commands as any as VolumetricDrawCommand[], params as (NumericValue<ValueRange> | CharValue)[]);
+        } else {
+          volume = processVolumetricDrawCommandString(commands as string, params as string).volume;
+        }
         const bounds = calculateVolumeBounds(volume);
 
         
@@ -497,7 +517,6 @@ onload = async () => {
           renderTexture,
           thumbnail,
           bounds,
-          frames,
           vertexPositionBuffer,
           vertexIndexBuffer,
           surfaceRotationsBuffer,
@@ -811,7 +830,7 @@ onload = async () => {
 
   let targetRotation = cameraRotation;
   let targetPosition = [...cameraPosition];
-  let numLights = 2;
+  let light = 1;
   
   onkeydown = (e: KeyboardEvent) => {
     const actionMultiplier = e.shiftKey ? 0.125 : 1;
@@ -832,7 +851,7 @@ onload = async () => {
         targetPosition[1] += sin * positionMultiplier;
         break;
       case 32: // space
-        numLights = (numLights + 1)%4;
+        light = (light + 1)%3;
         break;
     } 
     //console.log(targetRotation, targetPosition);
@@ -860,17 +879,17 @@ onload = async () => {
         matrix4Rotate(-cameraRotation, 0, 0, 1),
     );
 
-    const ambientLight = [.2, .2, .2, numLights];
+    const ambientLight = [.1, .1, .1, 1];
     const lights = [
-      .3, .3, .3, 0,
-      .5, .5, .5, 3,
-      .49, .49, .5, -9,
-    ];
+      [.5, .1, .1, 0],
+      [.6, .6, .5, 3],
+      [.5, .5, .55, -9],
+    ].slice(light, light+1).flat();;
     const lightTransforms = [
-      ...matrix4Translate(...cameraPosition), 
-      ...matrix4Multiply(matrix4Translate(...cameraPosition), matrix4Rotate(cameraRotation, 0, 0, 1), matrix4Rotate(Math.PI/13, 0, 1, 0), matrix4Translate(.2, -.3, 0)),
-      ...matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Translate(0, 0, -2.1)),
-    ];
+      matrix4Translate(...cameraPosition), 
+      matrix4Multiply(matrix4Translate(...cameraPosition), matrix4Rotate(cameraRotation, 0, 0, 1), matrix4Rotate(Math.PI/13, 0, 1, 0), matrix4Translate(.2, -.3, 0)),
+      matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Translate(0, 0, -2)),
+    ].slice(light, light+1).flat();
 
     gl.uniformMatrix4fv(
         uniforms[U_PROJECTION_MATRIX_INDEX],

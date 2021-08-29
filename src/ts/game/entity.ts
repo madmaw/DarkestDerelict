@@ -2,16 +2,18 @@ type EntityTypeWall = 0;
 type EntityTypeFloor = 1;
 type EntityTypeMarine = 2;
 type EntityTypePistol = 3;
+type EntityTypeSymbol = 4;
 type EntityType = EntityTypeWall
     | EntityTypeFloor
     | EntityTypeMarine
-    | EntityTypePistol;
+    | EntityTypePistol
+    | EntityTypeSymbol;
 
 const ENTITY_TYPE_WALL: EntityTypeWall = 0;
 const ENTITY_TYPE_FLOOR: EntityTypeFloor = 1;
 const ENTITY_TYPE_MARINE: EntityTypeMarine = 2;
 const ENTITY_TYPE_PISTOL: EntityTypePistol = 3;
-
+const ENTITY_TYPE_SYMBOL: EntityTypeSymbol = 4;
 
 type EntityPurposeUseless = 0;
 type EntityPurposeWeapon = 1;
@@ -31,6 +33,7 @@ const ENTITY_TYPES_TO_PURPOSES: Partial<Record<EntityType, EntityPurpose>> = {
   // [ENTITY_TYPE_FLOOR]: ENTITY_PURPOSE_USELESS,
   [ENTITY_TYPE_MARINE]: ENTITY_PURPOSE_CHARACTER,
   [ENTITY_TYPE_PISTOL]: ENTITY_PURPOSE_WEAPON,
+  //[ENTITY_TYPE_SYMBOL]: ENTITY_PURPOSE_WEAPON,
 }
 
 type EntityRenderables = {

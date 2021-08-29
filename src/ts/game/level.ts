@@ -84,8 +84,8 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
         }],
       });
       if (Math.random()>.5) {
-        const type = (ENTITY_TYPE_MARINE + c%2) as EntityType;
-        if (c < 5) {
+        const type = (ENTITY_TYPE_MARINE + c%3) as EntityType;
+        if (c < 12) {
           c++;
         } else {
           return t;

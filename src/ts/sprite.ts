@@ -1,11 +1,8 @@
 
-// TODO represent params in a nicer/safer way 
-const processSpriteCommands = (name: string, volumeCommands: readonly VolumetricDrawCommand[], params: string[]) => {
+const processSpriteCommands = (name: string, i: number, volumeCommands: readonly VolumetricDrawCommand[], params: (NumericValue<ValueRange> | CharValue)[] = []) => {
   const volumeTemplate = convertVolumetricDrawCommands(volumeCommands);
-  console.log(`volume for ${name}`, volumeTemplate);
-  return processSpriteSequencesString(volumeTemplate, params.join(''));
-};
-
-const processSpriteSequencesString = (volumeTemplate: string, params: string):Volume<Voxel> => {
-  return processVolumetricDrawCommandString(volumeTemplate, params).volume;
+  console.log(`volume for ${name}`, `"${volumeTemplate}"`);
+  const paramsString = params.map(numericOrCharValueToBase64).join('');
+  console.log('params', i, `"${paramsString}"`);
+  return processVolumetricDrawCommandString(volumeTemplate, paramsString).volume;
 };

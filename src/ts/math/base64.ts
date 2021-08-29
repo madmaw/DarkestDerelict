@@ -2,7 +2,13 @@ const OFFSET = 58; // character after '9'
 // positive floats can be 0 -> 2 in value
 const FLOAT_DIVISOR = 32;
 
-const integerToBase64 = (i: number) => String.fromCharCode(i + OFFSET + 32);
+const integerToBase64 = (i: number) => {
+  const code = i + OFFSET + 32;
+  if (code == 92) {
+    return '\\\\';
+  }
+  return String.fromCharCode(code);
+};
 const angleToBase64 = (a: number) => integerToBase64(Math.round(a * 32 / Math.PI));
 const positiveIntegerToBase64 = (i: number) => String.fromCharCode(i + OFFSET);
 const positiveFloatToBase64 = (f: number) => positiveIntegerToBase64(Math.round(f * FLOAT_DIVISOR));
