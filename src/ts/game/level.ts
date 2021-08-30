@@ -5,11 +5,9 @@ type Tile = {
   parties: Party[],
 };
 
-type Level = {
-  tiles: Volume<Tile>,
-};
+type Level = Volume<Tile>;
 
-const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
+const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderables[][]): Level => {
   const walls = entityRenderables[ENTITY_TYPE_WALL];
   const tiles = createEmptyVolume<Tile>(LEVEL_DIMENSION);
   volumeMap(tiles, (t, position) => {
@@ -23,11 +21,13 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
       parties: [{
         orientation: ORIENTATION_EAST,
         type: PARTY_TYPE_OBSTACLE,
+        tile: position,
         members: [{
           position,
           zRotation: Math.PI/2 * (Math.random()*4|0),
           staticTransform: matrix4Identity(),
-          animationQueue: undefined,
+          animationQueue: createAnimationEventQueue(timeHolder),
+          anims: [],
           entity: {
             renderables: wallRenderables,
             type: ENTITY_TYPE_WALL,
@@ -74,9 +74,12 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
       t.parties.push({
         orientation: ORIENTATION_EAST,
         type: PARTY_TYPE_FLOOR,
+        tile: position,
         members: [{
           position,
           zRotation: 0,
+          animationQueue: createAnimationEventQueue(timeHolder),
+          anims: [],
           entity: {
             renderables: floors[position[2]%floors.length],
             type: ENTITY_TYPE_FLOOR,
@@ -95,8 +98,11 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
         t.parties.push({
           type: PARTY_TYPE_ITEM,
           orientation: ORIENTATION_EAST,
+          tile: position,
           members: [{
             position: [position[0], position[1], position[2] + FLOOR_DEPTH/WALL_DIMENSION],
+            animationQueue: createAnimationEventQueue(timeHolder),
+            anims: [],
             zRotation: Math.random() * Math.PI*2,
             entity: {
               renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
@@ -122,7 +128,5 @@ const generateLevel = (entityRenderables: EntityRenderables[][]): Level => {
     console.log(s.join(''));
   }
 
-  return {
-    tiles,
-  };
+  return tiles;
 }

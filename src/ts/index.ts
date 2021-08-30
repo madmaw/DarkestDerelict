@@ -589,47 +589,130 @@ onload = async () => {
     handler: async (e: GameEvent) => {
       switch (e.type) {
         case GAME_EVENT_TYPE_MOVE:
-          break;
-        case GAME_EVENT_TYPE_CHANGE_LOADOUT:
-          let replacementEntity: Entity | Falseish;
-          let replacementMember: PartyMember | Falseish;
-          let success: Booleanish;
-          const purpose = ENTITY_TYPES_TO_PURPOSES[e.entity.type];
-          const toSlot = e.to.party.members[e.to.slot];
-          const fromSlot = e.from.party.members[e.from.slot] as PartyMember;
-          if (purpose == ENTITY_PURPOSE_CHARACTER) {
-            replacementMember = e.to.party.members[e.to.slot];
-            success = 1;
-            e.to.party.members[e.to.slot] = e.from.party.members[e.from.slot];
-          } else if (purpose == ENTITY_PURPOSE_WEAPON && toSlot) {
-            replacementEntity = toSlot.weapon;
-            success = toSlot.weapon = e.entity;
-          }
-          if (success) {
-            if (replacementMember || e.entity == fromSlot.entity) {
-              e.from.party.members[e.from.slot] = replacementMember;
+          {
+            const { unrotatedDeltaPosition, party } = e;
+            const a = party.orientation * Math.PI/2;
+
+            const deltaPosition = vector2Rotate(a, unrotatedDeltaPosition.slice(0, 2) as Vector2).concat(unrotatedDeltaPosition[2]);
+            const from = party.tile;
+            const to = from.map((v, i) => Math.round(v + deltaPosition[i])) as Vector3;
+            const toTile = game.level[to[2]][to[1]][to[0]] as Tile;
+            if (toTile.parties.some(p => p.type == PARTY_TYPE_OBSTACLE)) {
+              if (party == playerParty) {
+                // just animate the camera in and out
+                const toCameraPosition = from.map((v, i) => v + deltaPosition[i]/6) as Vector3;
+                toCameraPosition[2] += .6;
+                const toAnimationFactory = createTweenAnimationFactory(game, 'cameraPosition', toCameraPosition, easeInQuad, 99);
+                const returnAnimationFactory = createTweenAnimationFactory(game, 'cameraPosition', game.cameraPosition, easeOutQuad, 99);
+                await addEvents(game.cameraAnimationQueue, toAnimationFactory, returnAnimationFactory); 
+              }
             } else {
-              fromSlot.weapon = replacementEntity;
+              const fromTile = game.level[from[2]][from[1]][from[0]] as Tile;
+              fromTile.parties.splice(fromTile.parties.indexOf(party), 1);
+              toTile.parties.push(party);
+              party.tile = to;
+              let cameraMovePromise: Promise<any>;
+              if (party == playerParty) {
+                // move the camera too
+                const toCameraPosition = [...to] as Vector3;
+                toCameraPosition[2] += .6;
+                const animationFactory = createTweenAnimationFactory(game, 'cameraPosition', toCameraPosition, easeInQuad, 300);
+                cameraMovePromise = addEvents(game.cameraAnimationQueue, animationFactory); 
+              }
+              // animate
+              await Promise.all(party.members.map(async (member, i) => {
+                if (member) {
+                  const ox = (i % 2 - .5)/2;
+                  const oy = (i / 2 | 0 - .5)/2;
+                  const a = party.orientation * Math.PI/2;
+                  const [dx, dy] = vector2Rotate(a, [ox, oy]);
+                  const targetPosition: Vector3 = [to[0] + dx, to[1] + dy, to[2]];
+                  const animationFactory = createTweenAnimationFactory(member, 'position', targetPosition, easeLinear, 200);
+                  await addEvents(member.animationQueue, animationFactory);
+                }
+              }).concat(cameraMovePromise));  
             }
           }
-          updateInventory();
-          // TODO animate repositioning of party members
+          break;
+        case GAME_EVENT_TYPE_TURN:
+          {
+            const { deltaOrientation, party } = e;
+            const toOrientation = (party.orientation + deltaOrientation + 4)%4;
+            const toAngle = toOrientation * Math.PI/2;
+            const tile = party.tile;
+            party.orientation = toOrientation as Orientation;
+            let cameraRotationPromise: Promise<any>;
+            if(party == playerParty) {
+              const cameraAnimationFactory = createTweenAnimationFactory(game, 'cameraZRotation', game.cameraZRotation + deltaOrientation * Math.PI/2, easeInQuad, 300);
+              cameraRotationPromise = addEvents(game.cameraAnimationQueue, cameraAnimationFactory);
+            }
+
+            await Promise.all(party.members.map(async (member, i) => {
+              if (member) {
+                const ox = (i % 2 - .5)/2;
+                const oy = (i / 2 | 0 - .5)/2;
+                const [dx, dy] = vector2Rotate(toAngle, [ox, oy]);
+                const targetPosition: Vector3 = [tile[0] + dx, tile[1] + dy, tile[2]];
+                const walkAngle = Math.atan2(targetPosition[1] - member.position[1], targetPosition[0] - member.position[0]);
+                const turnAnimationFactory1 = createTweenAnimationFactory(member, 'zRotation', walkAngle, easeLinear, 99);
+                const moveAnimationFactory = createTweenAnimationFactory(member, 'position', targetPosition, easeLinear, 99);
+                const turnAnimationFactory2 = createTweenAnimationFactory(member, 'zRotation', walkAngle + deltaOrientation * Math.PI/2, easeLinear, 99);
+                await addEvents(member.animationQueue, turnAnimationFactory1, moveAnimationFactory, turnAnimationFactory2);  
+              }
+            }).concat(cameraRotationPromise));
+          }
+          break;
+        case GAME_EVENT_TYPE_CHANGE_LOADOUT:
+          {
+            let replacementEntity: Entity | Falseish;
+            let replacementMember: PartyMember | Falseish;
+            let success: Booleanish;
+            const purpose = ENTITY_TYPES_TO_PURPOSES[e.entity.type];
+            const toSlot = e.to.party.members[e.to.slot];
+            const fromSlot = e.from.party.members[e.from.slot] as PartyMember;
+            if (purpose == ENTITY_PURPOSE_CHARACTER) {
+              replacementMember = e.to.party.members[e.to.slot];
+              success = 1;
+              e.to.party.members[e.to.slot] = e.from.party.members[e.from.slot];
+            } else if (purpose == ENTITY_PURPOSE_WEAPON && toSlot) {
+              replacementEntity = toSlot.weapon;
+              success = toSlot.weapon = e.entity;
+            }
+            if (success) {
+              if (replacementMember || e.entity == fromSlot.entity) {
+                e.from.party.members[e.from.slot] = replacementMember;
+              } else {
+                fromSlot.weapon = replacementEntity;
+              }
+            }
+            updateInventory();
+            // TODO animate repositioning of party members  
+          }
           break;
       }
     },
   };
 
-  let cameraPosition: Vector3 = [LEVEL_DIMENSION/2 | 0, 1, 1.6];
-  let cameraRotation: number = Math.PI/2;
-  const level = generateLevel(entityRenderables);
-  const party: Party = {
+  const game: Game = {
+    time: 0,
+    cameraPosition: [LEVEL_DIMENSION/2 | 0, 1, 1.6],
+    cameraZRotation: Math.PI/2,
+    anims: [],
+  };
+  game.level = generateLevel(game, entityRenderables);
+  game.cameraAnimationQueue = createAnimationEventQueue(game);
+  const partyPosition: Vector3 = [LEVEL_DIMENSION/2 | 0, 1, 1];
+  const playerParty: Party = {
     members: new Array(4).fill(0),
     orientation: ORIENTATION_NORTH,
     type: PARTY_TYPE_PLAYER,
+    tile: partyPosition,
   };
-  party.members[0] = {
-    position: cameraPosition,
+  playerParty.members[0] = {
+    position: partyPosition,
     zRotation: Math.PI/2,
+    animationQueue: createAnimationEventQueue(game),
+    anims: [],
     entity: {
       renderables: entityRenderables[ENTITY_TYPE_MARINE][0],
       type: ENTITY_TYPE_MARINE,
@@ -639,6 +722,7 @@ onload = async () => {
       type: ENTITY_TYPE_PISTOL,
     }
   };
+  (game.level[partyPosition[2]][partyPosition[1]][partyPosition[0]] as Tile).parties.push(playerParty);
 
   let slotsToEntities: Map<EventTarget, Entity> | undefined;
 
@@ -660,13 +744,13 @@ onload = async () => {
     const targetsWorld = target == Z;
     if (equipmentIndex >= 0) {
       return [{
-        party,
+        party: playerParty,
         slot: equipmentIndex,
       }, entity];
     }
     if (inventoryIndex >= 0) {
       return [{
-        party,
+        party: playerParty,
         slot: inventoryIndex,
       }, entity];
     }
@@ -674,9 +758,9 @@ onload = async () => {
       // attempt to find the entity in the world
       const projectionMatrix = matrix4Multiply(
           perspectiveMatrix,
-          matrix4Rotate(-cameraRotation, 0, 0, 1),
+          matrix4Rotate(-game.cameraZRotation, 0, 0, 1),
           // NOTE: the shader usually does this for us
-          matrix4Translate(...vectorNDivide(cameraPosition, -1)),
+          matrix4Translate(...vectorNDivide(game.cameraPosition, -1)),
       );
       let minParty: Party | undefined;
       let minSlot: number | undefined;
@@ -685,7 +769,7 @@ onload = async () => {
       const sx = p.clientX*2/Z.clientWidth - 1;
       // flip y coordinates so screen coordinates = world coordinates
       const sy = 1 - p.clientY*2/Z.clientHeight;
-      volumeMap(level.tiles, (t) => {
+      volumeMap(game.level, (t) => {
         // get screen position
         (t as Tile).parties.forEach(party => party.type == PARTY_TYPE_ITEM && party.members.forEach((partyMember, slot) => {
           if (partyMember) {
@@ -776,7 +860,7 @@ onload = async () => {
       const [toLocation] = location;
       if (fromLocation.party != toLocation.party || fromLocation.slot != toLocation.slot) {
         addEvents(gameEventQueue, {
-          party,
+          party: playerParty,
           type: GAME_EVENT_TYPE_CHANGE_LOADOUT,
           entity: dragContext.entity,
           from: dragContext.fromLocation,
@@ -826,7 +910,7 @@ onload = async () => {
 
   const updateInventory = () => {
     slotsToEntities = new Map();
-    party.members.forEach((m, i) => {
+    playerParty.members.forEach((m, i) => {
       const el = X.children.item(i) as HTMLElement;
       const entityElement: HTMLCanvasElement = el.querySelector('.a');
       const weaponElement: HTMLCanvasElement = el.querySelector('.b');
@@ -839,8 +923,6 @@ onload = async () => {
   };
   updateInventory();
 
-  let targetRotation = cameraRotation;
-  let targetPosition = [...cameraPosition];
   let light = 1;
   
   onkeydown = (e: KeyboardEvent) => {
@@ -848,18 +930,21 @@ onload = async () => {
     let positionMultiplier = 1;
     switch (e.keyCode) {
       case 37: // left
-        targetRotation += Math.PI/2 * actionMultiplier;
-        break;
       case 39: // right
-        targetRotation -= Math.PI/2 * actionMultiplier;
+        addEvents(gameEventQueue, {
+          type: GAME_EVENT_TYPE_TURN,
+          party: playerParty,
+          deltaOrientation: 38 - e.keyCode,
+        })
         break;
       case 40: // down
         positionMultiplier = -1;
       case 38: // up
-        const cos = Math.cos(targetRotation) * actionMultiplier;
-        const sin = Math.sin(targetRotation) * actionMultiplier;
-        targetPosition[0] += cos * positionMultiplier;
-        targetPosition[1] += sin * positionMultiplier;
+        addEvents(gameEventQueue, {
+          type: GAME_EVENT_TYPE_MOVE,
+          party: playerParty,
+          unrotatedDeltaPosition: [positionMultiplier, 0, 0],
+        })
         break;
       case 32: // space
         light = (light + 1)%3;
@@ -868,26 +953,18 @@ onload = async () => {
     //console.log(targetRotation, targetPosition);
   }
 
-  let previous = 0;
   const f = (now: number) => {
     requestAnimationFrame(f);
 
     gl.clear(CONST_GL_COLOR_BUFFER_BIT | CONST_GL_DEPTH_BUFFER_BIT);
     
-    let delta = now - previous;
-    previous = now;
+    game.time = now;
+    game.anims = game.anims.filter(a => !a(now));
 
-    cameraRotation += (targetRotation - cameraRotation)*delta/200;
-    const deltaPosition = vectorNSubtract(targetPosition, cameraPosition);
-    const deltaPositionLength = vectorNLength(deltaPosition);
-    if (deltaPositionLength > 0) {
-      const movementScale = Math.min(deltaPositionLength, 0.002*delta)/deltaPositionLength;
-      cameraPosition = cameraPosition.map((v, i) => v + deltaPosition[i]*movementScale) as Vector3;
-    }
 
     const projectionMatrix = matrix4Multiply(
         perspectiveMatrix,
-        matrix4Rotate(-cameraRotation, 0, 0, 1),
+        matrix4Rotate(-game.cameraZRotation, 0, 0, 1),
     );
 
     const ambientLight = [.1, .1, .1, 1];
@@ -897,8 +974,8 @@ onload = async () => {
       [.45, .45, .5, -1],
     ].slice(light, light+1).flat();;
     const lightTransforms = [
-      matrix4Translate(...cameraPosition), 
-      matrix4Multiply(matrix4Translate(...cameraPosition), matrix4Rotate(cameraRotation, 0, 0, 1), matrix4Rotate(Math.PI/20, 0, 1, 0), matrix4Translate(-.3, .1, 0)),
+      matrix4Translate(...game.cameraPosition), 
+      matrix4Multiply(matrix4Translate(...game.cameraPosition), matrix4Rotate(game.cameraZRotation, 0, 0, 1), matrix4Rotate(Math.PI/20, 0, 1, 0), matrix4Translate(-.3, .1, 0)),
       matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Translate(0, 0, -2)),
     ].slice(light, light+1).flat();
 
@@ -909,7 +986,7 @@ onload = async () => {
     );
     gl.uniform3fv(
         uniforms[U_CAMERA_POSITIION_INDEX],
-        cameraPosition,
+        game.cameraPosition,
     );
     gl.uniform4fv(
         uniforms[U_AMBIENT_LIGHT_INDEX],
@@ -926,11 +1003,16 @@ onload = async () => {
     );
 
 
-    volumeMap(level.tiles, (tile: Tile) => {
+    volumeMap(game.level, (tile: Tile) => {
 
       tile.parties.forEach(party => {
         party.members.forEach(partyMember => {
-          if (!partyMember || dragContext && dragContext.entity == partyMember.entity) {
+
+          if (!partyMember) {
+            return;
+          }
+          partyMember.anims = partyMember.anims.filter(a => !a(now));
+          if (dragContext && dragContext.entity == partyMember.entity || party == playerParty) {
             return;
           }
 

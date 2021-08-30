@@ -49,13 +49,6 @@ type EntityRenderables = {
   staticTransform: Matrix4,
 };
 
-type EntityAnimation = {
-  animationId: number,
-  easing: Easing,
-  duration: number,
-  onComplete: () => void,
-}
-
 type Entity = {
   type: EntityType,
   renderables: EntityRenderables,

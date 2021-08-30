@@ -23,6 +23,7 @@ const PARTY_TYPE_FLOOR: PartyTypeFloor = 4;
 type Party = {
   members: (PartyMember | Falseish)[],
   orientation: Orientation,
+  tile: Vector3,
   type: PartyType,
 };
 
@@ -32,4 +33,5 @@ type PartyMember = {
   entity: Entity,
   weapon?: Entity | Falseish,
   secondary?: Entity | Falseish,
-}
+  animationQueue: EventQueue<AnimationFactory, void>,
+} & AnimationHolder;
