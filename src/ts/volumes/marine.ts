@@ -687,7 +687,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         {
           type: 'numeric',
           range: 'positive-integer',
-          value: 3,
+          value: 4,
         },
       ],
       // left fore arm
@@ -725,7 +725,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         {
           type: 'numeric',
           range: 'positive-integer',
-          value: 3,
+          value: 4,
         },
         {
           type: 'numeric',
@@ -738,7 +738,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         TYPE_TRANSLATE_X, 
         {
           type: 'numeric',
-          value: -4,
+          value: -3,
           range: 'integer'
         },
       ],
@@ -791,12 +791,12 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         {
           type: 'numeric',
           range: 'positive-integer',
-          value: 5,
+          value: 4,
         },
         {
           type: 'numeric',
           range: 'positive-integer',
-          value: 3,
+          value: 4,
         },
       ],
       // right fore arm
@@ -834,7 +834,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         {
           type: 'numeric',
           range: 'positive-integer',
-          value: 3,
+          value: 4,
         },
         {
           type: 'numeric',
@@ -847,7 +847,7 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
         TYPE_TRANSLATE_X, 
         {
           type: 'numeric',
-          value: -4,
+          value: -3,
           range: 'integer'
         },
       ],

@@ -123,7 +123,7 @@ const VERTEX_SHADER = `
   const DEPTH_SCALE = 256/VOLUME_DIMENSION*MAX_DEPTH;
   const C_DEPTH_SCALE = `${DEPTH_SCALE}${DEPTH_SCALE==Math.round(DEPTH_SCALE)?'.':''}`;
   const C_MAX_NUM_LIGHTS = 4;
-  const C_MAX_LIGHT_REACH = `10.`;
+  const C_MAX_LIGHT_REACH = `6.`;
 
   const FRAGMENT_SHADER = `
   precision ${PRECISION}  float;
@@ -179,31 +179,40 @@ const VERTEX_SHADER = `
       ${L_SURFACE_NORMAL} = vec3(${L_SURFACE_NORMAL}.xy, sqrt(1. - pow(length(${L_SURFACE_NORMAL}), 2.)));
       /*${L_SURFACE_NORMAL} = ${V_SURFACE_ROTATION} * vec3(0., 0., 1.);*/
       //float ${L_LIGHTING} = 0.5 + 0.5 * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(vec3(1., 1., 1.))), -0.),color.a*4.);
-      vec3 ${L_LIGHTING} = ${U_AMBIENT_LIGHT}.xyz;
       vec3 pixelPosition = ${V_WORLD_POSITION}.xyz + pixelDepth * cameraNormal;
+      float cameraDistance = length(pixelPosition-${U_CAMERA_POSITION});
+      float fog = 1.-min(pow(cameraDistance/7., 2.), 1.);
+      vec3 ${L_LIGHTING} = ${U_AMBIENT_LIGHT}.xyz * fog;
       for(int i=0;i<${C_MAX_NUM_LIGHTS};i++){
         if (float(i)<${U_AMBIENT_LIGHT}.w) {
           vec4 light = ${U_LIGHTS}[i];
           mat4 transform = ${U_LIGHT_TRANSFORMS}[i];
-          float brightness = length(light.xyz)/sqrt(3.);
+          float brightness = length(light.xyz)/2.;
           vec4 lightPosition = transform*vec4(0., 0., 0., 1.);
-          vec4 lightDirection = transform*vec4(1., 0., 0., 1.)-lightPosition;
-          float reach = brightness * ${C_MAX_LIGHT_REACH};
-          if (light.w>=0.) {
-            vec3 lightDelta = lightPosition.xyz - pixelPosition;
-            if (reach > length(lightDelta)) {
-              ${L_LIGHTING} += light.xyz
-                  * (pow(1.-length(lightDelta)/reach, 2.))*reach
-                  * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(lightDelta)), 0.),0.1/color.a)
-                  * max(pow(dot(normalize(lightDirection.xyz), normalize(lightDelta)), light.w), 0.);
-            }
-          } else {
-            vec4 rotatedLight = transform * vec4(pixelPosition, 1.);
-            if (reach > rotatedLight.x && rotatedLight.x > 0.) {
-              float p = rotatedLight.x/reach;
-              ${L_LIGHTING} += light.xyz
-                  * (pow(1.-p, 2.))*reach
-                  * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(lightDirection.xyz)), pow(1.-p, abs(light.w))),0.1/color.a);
+          vec3 lightDirection = normalize((transform*vec4(1., 0., 0., 1.)-lightPosition).xyz);
+          float reach = brightness*${C_MAX_LIGHT_REACH};
+          vec3 lightDelta = lightPosition.xyz - pixelPosition;
+          for (float i=0.; i<2.; i++) {
+            if (light.w>=0.) {
+              if (reach > length(lightDelta)) {
+                ${L_LIGHTING} += light.xyz
+                    /* distance */
+                    * (pow(1.-length(lightDelta)/reach, 2.))*reach
+                    /* angle */
+                    * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(normalize(lightDelta)-i*cameraNormal)), 0.),0.1/color.a) * fog * (i>0.?1.-color.a:color.a)
+                    /* cone */
+                    * max(pow(dot(lightDirection, normalize(lightDelta)), light.w), 0.);
+              }
+            } else {
+              float dp = dot(${L_SURFACE_NORMAL}, normalize(${V_SURFACE_ROTATION} * (lightDirection-i*cameraNormal)));
+              if (dp > 0.) {
+                float d = (transform * vec4(pixelPosition, 1.)).x/dp;
+                if (reach > d && d > 0.) {
+                  float p = d/reach;
+                  ${L_LIGHTING} += light.xyz * pow(pow(1.-p, 2.)*reach,0.1/color.a) * fog * (i>0.?1.-color.a:color.a);
+                }  
+              }
+              ${L_LIGHTING}+=light.xyz*i*abs(light.w)*fog;
             }
           }
         }
@@ -261,11 +270,13 @@ onload = async () => {
 
   const TEXTURE_RED_SHINY: Texel[][][] = [[[[92, 48, 48, 12]]]];
   const TEXTURE_RED_GLOWING: Texel[][][] = [[[[255, 32, 32, 255]]]];
-  const TEXTURE_RED_CARPET: Texel[][][] = [[[[92, 32, 32, 99]]]];
+  const TEXTURE_RED_CARPET: Texel[][][] = [[[[92, 48, 52, 99]]]];
   const TEXTURE_GREEN_SHINY: Texel[][][] = [[[[92, 128, 92, 12]]]];
   const TEXTURE_GREEN: Texel[][][] = [[[[92, 128, 92, 25]]]];
   const TEXTURE_BLUE_CARPET: Texel[][][] = [[[[44, 44, 66, 99]]]];
   const TEXTURE_GUNMETAL: Texel[][][] = [[[[118, 118, 128, 9]]]];
+  const TEXTURE_DULLMETAL: Texel[][][] = [[[[118, 118, 128, 18]]]];
+  const TEXTURE_GUNCARPET: Texel[][][] = [[[[118, 118, 128, 99]]]];
   const TEXTURE_WHITE_SHINY: Texel[][][] = [[[[255, 255, 255, 12]]]];
   const TEXTURE_BLACK: Texel[][][] = [[[[0, 0, 0, 254]]]];
   const TEXTURE_YELLOW_SHUNY: Texel[][][] = [[[[128, 128, 64, 12]]]];
@@ -279,8 +290,8 @@ onload = async () => {
   type LoadingEvent = [VolumetricDrawCommand[] | string, Matrix4, [Volume<Texel>[], ((NumericValue<ValueRange> | CharValue)[] | string)?][],  string];
 
   const SURFACE_TEXELS: [Volume<Texel>[]][] = [
-    [[TEXTURE_RED_SHINY, TEXTURE_RED_CARPET]],
-    [[TEXTURE_GUNMETAL, TEXTURE_BLUE_CARPET]],
+    [[TEXTURE_GUNMETAL, TEXTURE_RED_CARPET]],
+    [[TEXTURE_DULLMETAL, TEXTURE_BLUE_CARPET]],
   ];
 
   // slightly scale up to hide wall-gaps
@@ -881,13 +892,13 @@ onload = async () => {
 
     const ambientLight = [.1, .1, .1, 1];
     const lights = [
-      [.5, .1, .1, 0],
-      [.6, .6, .5, 3],
-      [.5, .5, .55, -9],
+      [.8, .6, .2, 0],
+      [.85, .85, .75, 4],
+      [.45, .45, .5, -1],
     ].slice(light, light+1).flat();;
     const lightTransforms = [
       matrix4Translate(...cameraPosition), 
-      matrix4Multiply(matrix4Translate(...cameraPosition), matrix4Rotate(cameraRotation, 0, 0, 1), matrix4Rotate(Math.PI/13, 0, 1, 0), matrix4Translate(.2, -.3, 0)),
+      matrix4Multiply(matrix4Translate(...cameraPosition), matrix4Rotate(cameraRotation, 0, 0, 1), matrix4Rotate(Math.PI/20, 0, 1, 0), matrix4Translate(-.3, .1, 0)),
       matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Translate(0, 0, -2)),
     ].slice(light, light+1).flat();
 
