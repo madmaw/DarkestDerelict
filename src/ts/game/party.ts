@@ -25,7 +25,10 @@ type Party = {
   orientation: Orientation,
   tile: Vector3,
   type: PartyType,
-};
+  cameraPosition?: Vector3;
+  cameraZRotation?: number;
+  cameraAnimationQueue?: EventQueue<AnimationFactory, void>,
+} & AnimationHolder;
 
 type PartyMember = {
   position: Vector3,
@@ -35,3 +38,29 @@ type PartyMember = {
   secondary?: Entity | Falseish,
   animationQueue: EventQueue<AnimationFactory, void>,
 } & AnimationHolder;
+
+const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
+  const tile = party.tile;
+  const partyMember = party.members[memberSlot] as PartyMember;
+  const ox = (.5 - (memberSlot / 2 | 0))/2;
+  const oy = (.5 - (memberSlot % 2))/2;
+  let toAngle = party.orientation * Math.PI/2;
+  // find the minimum turning angle for toAngle
+  const [dx, dy] = vector2Rotate(toAngle, [ox, oy]);
+  const targetPosition: Vector3 = [tile[0] + dx, tile[1] + dy, tile[2]];
+  let walkAngle = Math.atan2(targetPosition[1] - partyMember.position[1], targetPosition[0] - partyMember.position[0]);
+  while (walkAngle > partyMember.zRotation + Math.PI) {
+    walkAngle -= Math.PI*2;
+  }
+  while (walkAngle < partyMember.zRotation - Math.PI) {
+    walkAngle += Math.PI*2;
+  }
+  while (toAngle > walkAngle + Math.PI) {
+    toAngle -= Math.PI*2;
+  }
+  while (toAngle < walkAngle - Math.PI) {
+    toAngle += Math.PI*2;
+  }
+
+  return [targetPosition, walkAngle, toAngle] as const;
+}

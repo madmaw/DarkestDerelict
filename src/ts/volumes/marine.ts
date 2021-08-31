@@ -584,6 +584,63 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
           value: 7,
         },
       ],
+        // light
+        [
+          TYPE_CONTEXT_START,
+        ],
+          [
+            TYPE_MATERIAL_ID,
+            {
+              type: 'numeric',
+              value: 2,
+              range: 'positive-integer',
+            }
+          ],
+          [
+            TYPE_TRANSLATE_Y, 
+            {
+              type: 'numeric',
+              value: 2,
+              range: 'integer'
+            },
+          ],  
+          [
+            TYPE_TRANSLATE_Z, 
+            {
+              type: 'numeric',
+              value: -6,
+              range: 'integer'
+            },
+          ],  
+          [
+            TYPE_TRANSLATE_X, 
+            {
+              type: 'numeric',
+              value: 3,
+              range: 'integer'
+            },
+          ],  
+          [
+            TYPE_SHAPE_BOX,
+            {
+              type: 'numeric',
+              range: 'positive-integer',
+              value: 1,
+            },
+            {
+              type: 'numeric',
+              range: 'positive-integer',
+              value: 2,
+            },
+            {
+              type: 'numeric',
+              range: 'positive-integer',
+              value: 12,
+            },
+          ],       
+        [
+          TYPE_CONTEXT_END_REMATERIAL,
+        ],                    
     [
       TYPE_CONTEXT_END_UNION,
     ],

@@ -175,14 +175,14 @@ const VERTEX_SHADER = `
     */
     if (${L_DEPTH_TEXTURE}.a>0.) {
       vec4 color = texture2D(${U_RENDER_TEXTURE_SAMPLER}, surfacePosition);
-      vec3 ${L_SURFACE_NORMAL} = vec3(${L_DEPTH_TEXTURE}.x, ${L_DEPTH_TEXTURE}.y, 0.5)*2.-1.;
+      vec3 ${L_SURFACE_NORMAL} = vec3(${L_DEPTH_TEXTURE}.x, ${L_DEPTH_TEXTURE}.y, .5)*2.-1.;
       ${L_SURFACE_NORMAL} = vec3(${L_SURFACE_NORMAL}.xy, sqrt(1. - pow(length(${L_SURFACE_NORMAL}), 2.)));
       /*${L_SURFACE_NORMAL} = ${V_SURFACE_ROTATION} * vec3(0., 0., 1.);*/
-      //float ${L_LIGHTING} = 0.5 + 0.5 * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(vec3(1., 1., 1.))), -0.),color.a*4.);
+      //float ${L_LIGHTING} = .5 + .5 * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(vec3(1., 1., 1.))), -0.),color.a*4.);
       vec3 pixelPosition = ${V_WORLD_POSITION}.xyz + pixelDepth * cameraNormal;
       float cameraDistance = length(pixelPosition-${U_CAMERA_POSITION});
-      float fog = 1.-min(pow(cameraDistance/7., 2.), 1.);
-      vec3 ${L_LIGHTING} = ${U_AMBIENT_LIGHT}.xyz * fog;
+      float fog = 1.-min(pow(cameraDistance/5., 2.), 1.);
+      vec3 ${L_LIGHTING} = ${U_AMBIENT_LIGHT}.xyz;
       for(int i=0;i<${C_MAX_NUM_LIGHTS};i++){
         if (float(i)<${U_AMBIENT_LIGHT}.w) {
           vec4 light = ${U_LIGHTS}[i];
@@ -194,14 +194,15 @@ const VERTEX_SHADER = `
           vec3 lightDelta = lightPosition.xyz - pixelPosition;
           for (float i=0.; i<2.; i++) {
             if (light.w>=0.) {
+              float ld = max(dot(lightDirection, normalize(lightDelta)), 0.);
               if (reach > length(lightDelta)) {
                 ${L_LIGHTING} += light.xyz
                     /* distance */
                     * (pow(1.-length(lightDelta)/reach, 2.))*reach
                     /* angle */
-                    * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(normalize(lightDelta)-i*cameraNormal)), 0.),0.1/color.a) * fog * (i>0.?1.-color.a:color.a)
+                    * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(normalize(lightDelta)-i*cameraNormal)), 0.),.1/color.a) * (i>0.?1.-color.a:color.a)
                     /* cone */
-                    * max(pow(dot(lightDirection, normalize(lightDelta)), light.w), 0.);
+                    * max(pow(ld, light.w), pow(clamp((brightness-length(lightDelta))/brightness, 0., 1.), 2.));
               }
             } else {
               float dp = dot(${L_SURFACE_NORMAL}, normalize(${V_SURFACE_ROTATION} * (lightDirection-i*cameraNormal)));
@@ -209,15 +210,15 @@ const VERTEX_SHADER = `
                 float d = (transform * vec4(pixelPosition, 1.)).x/dp;
                 if (reach > d && d > 0.) {
                   float p = d/reach;
-                  ${L_LIGHTING} += light.xyz * pow(pow(1.-p, 2.)*reach,0.1/color.a) * fog * (i>0.?1.-color.a:color.a);
+                  ${L_LIGHTING} += light.xyz * pow(pow(1.-p, 2.)*reach,0.1/color.a) * (i>0.?1.-color.a:color.a);
                 }  
               }
-              ${L_LIGHTING}+=light.xyz*i*abs(light.w)*fog;
+              ${L_LIGHTING}+=light.xyz*i*abs(light.w);
             }
           }
         }
       }
-      gl_FragColor = vec4(color.xyz*(color.a>=1.?vec3(1.):${L_LIGHTING}), 1.);
+      gl_FragColor = vec4(mix(vec3(fog), color.xyz, fog)*(color.a>=1.?vec3(1.):${L_LIGHTING}), 1.);
     } else {
       discard;
     }
@@ -278,6 +279,7 @@ onload = async () => {
   const TEXTURE_DULLMETAL: Texel[][][] = [[[[118, 118, 128, 18]]]];
   const TEXTURE_GUNCARPET: Texel[][][] = [[[[118, 118, 128, 99]]]];
   const TEXTURE_WHITE_SHINY: Texel[][][] = [[[[255, 255, 255, 12]]]];
+  const TEXTURE_WHITE_GLOWING: Texel[][][] = [[[[255, 255, 255, 255]]]];
   const TEXTURE_BLACK: Texel[][][] = [[[[0, 0, 0, 254]]]];
   const TEXTURE_YELLOW_SHUNY: Texel[][][] = [[[[128, 128, 64, 12]]]];
   const TEXTURE_PURPLE_SHINY: Texel[][][] = [[[[128, 64, 128, 12]]]];
@@ -302,11 +304,10 @@ onload = async () => {
     [VOLUMETRIC_WALL, MODEL_SCALE_MATRIX, SURFACE_TEXELS, 'wall'],
     [VOLUMETRIC_FLOOR,  MODEL_SCALE_MATRIX, SURFACE_TEXELS, 'floor'],
     [VOLUMETRIC_MARINE, matrix4Scale(MODEL_SCALE * .5), [
-      [[TEXTURE_GREEN_SHINY, TEXTURE_WHITE_SHINY]],
-      [[TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY]],
-      [[TEXTURE_WHITE_SHINY, TEXTURE_BLACK]],
-      [[TEXTURE_YELLOW_SHUNY, TEXTURE_BLACK]],
-      [[TEXTURE_PURPLE_SHINY, TEXTURE_WHITE_SHINY]],
+      [[TEXTURE_GREEN_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_WHITE_GLOWING]],
+      [[TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_WHITE_GLOWING]],
+      [[TEXTURE_YELLOW_SHUNY, TEXTURE_BLACK, TEXTURE_WHITE_GLOWING]],
+      [[TEXTURE_PURPLE_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_WHITE_GLOWING]],
     ], 'marine'],
     [VOLUMETRIC_PISTOL, matrix4Scale(MODEL_SCALE * .2), [
       [[TEXTURE_GUNMETAL, TEXTURE_BLACK]],
@@ -400,7 +401,8 @@ onload = async () => {
             const sx = y;
             const sourceOffset = sy*TEXTURE_DIMENSION*4 + sx*4;
             const c = renderTextureData.slice(sourceOffset, sourceOffset+4);
-            imageData.data.set(c.map((c, i) => (i+1)%4 ? c : c ? 255 : 0), y*w*4+x*4);
+            const n = 1 - (depthTextureData[sourceOffset] + depthTextureData[sourceOffset+1])/510;
+            imageData.data.set(c.map((c, i) => (i+1)%4 ? c * n : c ? 255 : 0), y*w*4+x*4);
           }
         }
         ctx.putImageData(imageData, 0, 0);
@@ -570,11 +572,11 @@ onload = async () => {
   const perspectiveMatrix = matrix4Multiply(
       matrix4InfinitePerspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, zNear),
       //matrix4Perspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .35, 10),
-      matrix4Rotate(Math.PI/18, 1, 0, 0),
-      matrix4Translate(0, 0, -.2),
       matrix4Rotate(-Math.PI/2, 1, 0, 0),
       matrix4Rotate(Math.PI/2, 0, 0, 1),
+      matrix4Rotate(-Math.PI/12, 0, 1, 0),
   );
+  const negatedCameraOffsetPosition: Vector3 = [.4, 0, -.6];
 
   const entityRenderables = await addEvents(loadingEventQueue, ...COMMANDS);
   
@@ -601,10 +603,9 @@ onload = async () => {
               if (party == playerParty) {
                 // just animate the camera in and out
                 const toCameraPosition = from.map((v, i) => v + deltaPosition[i]/6) as Vector3;
-                toCameraPosition[2] += .6;
-                const toAnimationFactory = createTweenAnimationFactory(game, 'cameraPosition', toCameraPosition, easeInQuad, 99);
-                const returnAnimationFactory = createTweenAnimationFactory(game, 'cameraPosition', game.cameraPosition, easeOutQuad, 99);
-                await addEvents(game.cameraAnimationQueue, toAnimationFactory, returnAnimationFactory); 
+                const toAnimationFactory = createTweenAnimationFactory(party, 'cameraPosition', toCameraPosition, easeInQuad, 99);
+                const returnAnimationFactory = createTweenAnimationFactory(party, 'cameraPosition', party.cameraPosition, easeOutQuad, 99);
+                await addEvents(party.cameraAnimationQueue, toAnimationFactory, returnAnimationFactory); 
               }
             } else {
               const fromTile = game.level[from[2]][from[1]][from[0]] as Tile;
@@ -615,19 +616,15 @@ onload = async () => {
               if (party == playerParty) {
                 // move the camera too
                 const toCameraPosition = [...to] as Vector3;
-                toCameraPosition[2] += .6;
-                const animationFactory = createTweenAnimationFactory(game, 'cameraPosition', toCameraPosition, easeInQuad, 300);
-                cameraMovePromise = addEvents(game.cameraAnimationQueue, animationFactory); 
+                const animationFactory = createTweenAnimationFactory(party, 'cameraPosition', toCameraPosition, easeInQuad, 300);
+                cameraMovePromise = addEvents(party.cameraAnimationQueue, animationFactory); 
               }
               // animate
               await Promise.all(party.members.map(async (member, i) => {
                 if (member) {
-                  const ox = (i % 2 - .5)/2;
-                  const oy = (i / 2 | 0 - .5)/2;
-                  const a = party.orientation * Math.PI/2;
-                  const [dx, dy] = vector2Rotate(a, [ox, oy]);
-                  const targetPosition: Vector3 = [to[0] + dx, to[1] + dy, to[2]];
-                  const animationFactory = createTweenAnimationFactory(member, 'position', targetPosition, easeLinear, 200);
+                  const [targetPosition] = getTargetPositionAndRotations(party, i);
+
+                  const animationFactory = createTweenAnimationFactory(member, 'position', targetPosition, easeInQuad, 200);
                   await addEvents(member.animationQueue, animationFactory);
                 }
               }).concat(cameraMovePromise));  
@@ -638,25 +635,19 @@ onload = async () => {
           {
             const { deltaOrientation, party } = e;
             const toOrientation = (party.orientation + deltaOrientation + 4)%4;
-            const toAngle = toOrientation * Math.PI/2;
-            const tile = party.tile;
             party.orientation = toOrientation as Orientation;
             let cameraRotationPromise: Promise<any>;
             if(party == playerParty) {
-              const cameraAnimationFactory = createTweenAnimationFactory(game, 'cameraZRotation', game.cameraZRotation + deltaOrientation * Math.PI/2, easeInQuad, 300);
-              cameraRotationPromise = addEvents(game.cameraAnimationQueue, cameraAnimationFactory);
+              const cameraAnimationFactory = createTweenAnimationFactory(party, 'cameraZRotation', party.cameraZRotation + deltaOrientation * Math.PI/2, easeInQuad, 300);
+              cameraRotationPromise = addEvents(party.cameraAnimationQueue, cameraAnimationFactory);
             }
 
             await Promise.all(party.members.map(async (member, i) => {
               if (member) {
-                const ox = (i % 2 - .5)/2;
-                const oy = (i / 2 | 0 - .5)/2;
-                const [dx, dy] = vector2Rotate(toAngle, [ox, oy]);
-                const targetPosition: Vector3 = [tile[0] + dx, tile[1] + dy, tile[2]];
-                const walkAngle = Math.atan2(targetPosition[1] - member.position[1], targetPosition[0] - member.position[0]);
-                const turnAnimationFactory1 = createTweenAnimationFactory(member, 'zRotation', walkAngle, easeLinear, 99);
-                const moveAnimationFactory = createTweenAnimationFactory(member, 'position', targetPosition, easeLinear, 99);
-                const turnAnimationFactory2 = createTweenAnimationFactory(member, 'zRotation', walkAngle + deltaOrientation * Math.PI/2, easeLinear, 99);
+                const [targetPosition, walkAngle, toAngle] = getTargetPositionAndRotations(party, i);
+                const turnAnimationFactory1 = createTweenAnimationFactory(member, 'zRotation', walkAngle, easeInQuad, 150);
+                const moveAnimationFactory = createTweenAnimationFactory(member, 'position', targetPosition, easeInQuad, 200);
+                const turnAnimationFactory2 = createTweenAnimationFactory(member, 'zRotation', toAngle, easeInQuad, 150);
                 await addEvents(member.animationQueue, turnAnimationFactory1, moveAnimationFactory, turnAnimationFactory2);  
               }
             }).concat(cameraRotationPromise));
@@ -671,12 +662,29 @@ onload = async () => {
             const toSlot = e.to.party.members[e.to.slot];
             const fromSlot = e.from.party.members[e.from.slot] as PartyMember;
             if (purpose == ENTITY_PURPOSE_CHARACTER) {
-              replacementMember = e.to.party.members[e.to.slot];
+              replacementMember = toSlot;
               success = 1;
               e.to.party.members[e.to.slot] = e.from.party.members[e.from.slot];
-            } else if (purpose == ENTITY_PURPOSE_WEAPON && toSlot) {
-              replacementEntity = toSlot.weapon;
-              success = toSlot.weapon = e.entity;
+            } else if (purpose == ENTITY_PURPOSE_WEAPON) {
+              if (toSlot) {
+                switch (ENTITY_TYPES_TO_PURPOSES[toSlot.entity.type]) {
+                  case ENTITY_PURPOSE_CHARACTER:
+                    replacementEntity = toSlot.weapon;
+                    success = toSlot.weapon = e.entity;    
+                    break;
+                  case ENTITY_PURPOSE_WEAPON:
+                    success = replacementEntity = toSlot.entity;
+                    break;
+                }
+              } else {
+                success = e.to.party.members[e.to.slot] = {
+                  animationQueue: createAnimationEventQueue(game),
+                  anims: [],
+                  entity: e.entity,
+                  position: e.to.party.tile,
+                  zRotation: e.party.orientation * Math.PI/2,
+                };
+              }
             }
             if (success) {
               if (replacementMember || e.entity == fromSlot.entity) {
@@ -686,7 +694,24 @@ onload = async () => {
               }
             }
             updateInventory();
-            // TODO animate repositioning of party members  
+            // animate
+            if (purpose == ENTITY_PURPOSE_CHARACTER) {
+              let toSlotPromise: Promise<any>;
+              if (replacementMember) {
+                const [targetPosition, walkAngle, toAngle] = getTargetPositionAndRotations(e.from.party, e.from.slot);
+                const turnAnimationFactory1 = createTweenAnimationFactory(replacementMember, 'zRotation', walkAngle, easeLinear, 99);
+                const moveAnimationFactory = createTweenAnimationFactory(replacementMember, 'position', targetPosition, easeLinear, 99);
+                const turnAnimationFactory2 = createTweenAnimationFactory(replacementMember, 'zRotation', toAngle, easeLinear, 99);
+                toSlotPromise = addEvents(replacementMember.animationQueue, turnAnimationFactory1, moveAnimationFactory, turnAnimationFactory2);  
+              }
+              const [targetPosition, walkAngle, toAngle] = getTargetPositionAndRotations(e.to.party, e.to.slot);
+              const turnAnimationFactory1 = createTweenAnimationFactory(fromSlot, 'zRotation', walkAngle, easeLinear, 99);
+              const moveAnimationFactory = createTweenAnimationFactory(fromSlot, 'position', targetPosition, easeLinear, 99);
+              const turnAnimationFactory2 = createTweenAnimationFactory(fromSlot, 'zRotation', toAngle, easeLinear, 99);
+              await Promise.all([
+                addEvents(fromSlot.animationQueue, turnAnimationFactory1, moveAnimationFactory, turnAnimationFactory2),
+              ].concat(toSlotPromise));  
+            }
           }
           break;
       }
@@ -695,19 +720,19 @@ onload = async () => {
 
   const game: Game = {
     time: 0,
-    cameraPosition: [LEVEL_DIMENSION/2 | 0, 1, 1.6],
-    cameraZRotation: Math.PI/2,
-    anims: [],
   };
   game.level = generateLevel(game, entityRenderables);
-  game.cameraAnimationQueue = createAnimationEventQueue(game);
   const partyPosition: Vector3 = [LEVEL_DIMENSION/2 | 0, 1, 1];
   const playerParty: Party = {
     members: new Array(4).fill(0),
     orientation: ORIENTATION_NORTH,
     type: PARTY_TYPE_PLAYER,
     tile: partyPosition,
+    cameraPosition: [LEVEL_DIMENSION/2 | 0, 1, 1],
+    cameraZRotation: Math.PI/2,
+    anims: [],
   };
+  playerParty.cameraAnimationQueue = createAnimationEventQueue(game);
   playerParty.members[0] = {
     position: partyPosition,
     zRotation: Math.PI/2,
@@ -758,9 +783,10 @@ onload = async () => {
       // attempt to find the entity in the world
       const projectionMatrix = matrix4Multiply(
           perspectiveMatrix,
-          matrix4Rotate(-game.cameraZRotation, 0, 0, 1),
+          matrix4Translate(...negatedCameraOffsetPosition),
+          matrix4Rotate(-playerParty.cameraZRotation, 0, 0, 1),
           // NOTE: the shader usually does this for us
-          matrix4Translate(...vectorNDivide(game.cameraPosition, -1)),
+          matrix4Translate(...vectorNDivide(playerParty.cameraPosition, -1)),
       );
       let minParty: Party | undefined;
       let minSlot: number | undefined;
@@ -806,7 +832,28 @@ onload = async () => {
           slot: minSlot,
         }, minEntity];  
       } else {
-        // TODO return some reference to an empty slot in the current tile
+        // return some reference to an empty slot in the current tile
+        const currentPosition = playerParty.tile;
+        const tile = game.level[currentPosition[2]][currentPosition[1]][currentPosition[0]] as Tile;
+        let items = tile.parties.find(p => p.type == PARTY_TYPE_ITEM);
+        if (!items) {
+          items = {
+            anims: [],
+            members: [],
+            orientation: ORIENTATION_EAST,
+            tile: currentPosition,
+            type: PARTY_TYPE_ITEM,
+          }
+          tile.parties.push(items);
+        }
+        let index = items.members.findIndex(m => !m);
+        if (index < 0) {
+          index = items.members.length;
+        }
+        return [{
+          party: items,
+          slot: index,
+        }];
       }
     }
   }
@@ -923,8 +970,6 @@ onload = async () => {
   };
   updateInventory();
 
-  let light = 1;
-  
   onkeydown = (e: KeyboardEvent) => {
     const actionMultiplier = e.shiftKey ? 0.125 : 1;
     let positionMultiplier = 1;
@@ -946,9 +991,6 @@ onload = async () => {
           unrotatedDeltaPosition: [positionMultiplier, 0, 0],
         })
         break;
-      case 32: // space
-        light = (light + 1)%3;
-        break;
     } 
     //console.log(targetRotation, targetPosition);
   }
@@ -959,25 +1001,45 @@ onload = async () => {
     gl.clear(CONST_GL_COLOR_BUFFER_BIT | CONST_GL_DEPTH_BUFFER_BIT);
     
     game.time = now;
-    game.anims = game.anims.filter(a => !a(now));
 
+
+    const cameraRotationMatrix = matrix4Rotate(playerParty.cameraZRotation, 0, 0, 1);
+    const negatedCameraRotationMatrix = matrix4Rotate(-playerParty.cameraZRotation, 0, 0, 1);
+    const rotatedNegatedOffsetMatrix = vector3TransformMatrix4(cameraRotationMatrix, ...negatedCameraOffsetPosition);
+    
+    const cameraPosition = vectorNSubtract(playerParty.cameraPosition, rotatedNegatedOffsetMatrix);
 
     const projectionMatrix = matrix4Multiply(
         perspectiveMatrix,
-        matrix4Rotate(-game.cameraZRotation, 0, 0, 1),
+        negatedCameraRotationMatrix,
     );
 
-    const ambientLight = [.1, .1, .1, 1];
-    const lights = [
-      [.8, .6, .2, 0],
-      [.85, .85, .75, 4],
-      [.45, .45, .5, -1],
-    ].slice(light, light+1).flat();;
-    const lightTransforms = [
-      matrix4Translate(...game.cameraPosition), 
-      matrix4Multiply(matrix4Translate(...game.cameraPosition), matrix4Rotate(game.cameraZRotation, 0, 0, 1), matrix4Rotate(Math.PI/20, 0, 1, 0), matrix4Translate(-.3, .1, 0)),
-      matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Translate(0, 0, -2)),
-    ].slice(light, light+1).flat();
+    const usableLights = (game.previousLights || []).sort((a, b) => {
+      return vectorNLength(vectorNSubtract(a.position, cameraPosition)) - vectorNLength(vectorNSubtract(b.position, cameraPosition));
+    }).slice(0, C_MAX_NUM_LIGHTS);
+    const lights = usableLights.map(l => l.light).flat();
+    const lightTransforms = usableLights.map(l => l.lightTransform).flat();
+    game.previousLights = [];
+
+    const ambientLight = [.1, .1, .1, usableLights.length];
+    // global lighting
+    // const lights = [
+    //   [.45, .45, .5, -1],
+    //   ,
+    //   ,
+    // ].slice(light, light+1).flat();;
+    // const lightTransforms = [
+    //   , 
+    //   matrix4Multiply(
+    //       matrix4Translate(
+    //           torchBearer.position[0],
+    //           torchBearer.position[1],
+    //           torchBearer.position[2] + .5,
+    //       ),
+    //       cameraRotationMatrix,
+    //   ),
+    //   matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Translate(0, 0, -2)),
+    // ].slice(light, light+1).flat();
 
     gl.uniformMatrix4fv(
         uniforms[U_PROJECTION_MATRIX_INDEX],
@@ -986,7 +1048,7 @@ onload = async () => {
     );
     gl.uniform3fv(
         uniforms[U_CAMERA_POSITIION_INDEX],
-        game.cameraPosition,
+        cameraPosition,
     );
     gl.uniform4fv(
         uniforms[U_AMBIENT_LIGHT_INDEX],
@@ -1006,12 +1068,39 @@ onload = async () => {
     volumeMap(game.level, (tile: Tile) => {
 
       tile.parties.forEach(party => {
-        party.members.forEach(partyMember => {
+        party.anims = party.anims.filter(a => !a(now));
 
+        party.members.forEach((partyMember, i) => {
           if (!partyMember) {
             return;
           }
           partyMember.anims = partyMember.anims.filter(a => !a(now));
+          if (partyMember.entity.type == ENTITY_TYPE_MARINE) {
+            if (!i && party.type == PARTY_TYPE_PLAYER) {
+              game.previousLights.push({
+                position: partyMember.position,
+                light: [.8, .8, .75, 2],
+                lightTransform: matrix4Multiply(
+                    matrix4Translate(...partyMember.position),
+                    matrix4Rotate(party.cameraZRotation + Math.PI, 0, 0, 1),
+                    matrix4Translate(.2, 0, .5),
+                    matrix4Rotate(-Math.PI/9, 0, 1, 0),
+                )
+              });
+            } else {
+              game.previousLights.push({
+                position: partyMember.position,
+                light: [.5, .5, .5, 1],
+                lightTransform: matrix4Multiply(
+                    matrix4Translate(...partyMember.position),
+                    matrix4Rotate(partyMember.zRotation + Math.PI, 0, 0, 1),
+                    matrix4Translate(-.2, 0, .3),
+                    matrix4Rotate(-Math.PI/4, 0, 1, 0),
+                )
+              })
+            }
+          }
+
           if (dragContext && dragContext.entity == partyMember.entity || party == playerParty) {
             return;
           }

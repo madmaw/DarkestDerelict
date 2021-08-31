@@ -22,8 +22,9 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         orientation: ORIENTATION_EAST,
         type: PARTY_TYPE_OBSTACLE,
         tile: position,
+        anims: [],
         members: [{
-          position,
+          position: [position[0], position[1], position[2] - FLOOR_DEPTH/WALL_DIMENSION] as Vector3,
           zRotation: Math.PI/2 * (Math.random()*4|0),
           staticTransform: matrix4Identity(),
           animationQueue: createAnimationEventQueue(timeHolder),
@@ -75,8 +76,9 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         orientation: ORIENTATION_EAST,
         type: PARTY_TYPE_FLOOR,
         tile: position,
+        anims: [],
         members: [{
-          position,
+          position: [position[0], position[1], position[2] - FLOOR_DEPTH/WALL_DIMENSION],
           zRotation: 0,
           animationQueue: createAnimationEventQueue(timeHolder),
           anims: [],
@@ -99,8 +101,9 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
           type: PARTY_TYPE_ITEM,
           orientation: ORIENTATION_EAST,
           tile: position,
+          anims: [],
           members: [{
-            position: [position[0], position[1], position[2] + FLOOR_DEPTH/WALL_DIMENSION],
+            position,
             animationQueue: createAnimationEventQueue(timeHolder),
             anims: [],
             zRotation: Math.random() * Math.PI*2,

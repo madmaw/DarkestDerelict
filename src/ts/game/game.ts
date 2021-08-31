@@ -34,8 +34,10 @@ type GameEvent = GameEventMove | GameEventTurn | GameEventChangeLoadout;
 type Game = {
   time: number,
   level?: Level,
-  cameraPosition: Vector3;
-  cameraZRotation: number;
-  cameraAnimationQueue?: EventQueue<AnimationFactory, void>,
-} & AnimationHolder;
+  previousLights?: {
+    position: Vector3,
+    light: Vector4,
+    lightTransform: Matrix4,
+  }[];
+};
 
