@@ -22,14 +22,20 @@ type GameEventTurn = {
 type GameEventTypeChangeLoadout = 2;
 const GAME_EVENT_TYPE_CHANGE_LOADOUT: GameEventTypeChangeLoadout = 2;
 type GameEventChangeLoadout = {
-  party: Party,
   type: GameEventTypeChangeLoadout,
   entity: Entity,
   from: EntityLocation,
   to: EntityLocation,
 };
 
-type GameEvent = GameEventMove | GameEventTurn | GameEventChangeLoadout;
+type GameEventTypeAttack = 3;
+const GAME_EVENT_TYPE_ATTACK: GameEventTypeAttack = 3;
+type GameEventAttack = {
+  type: GameEventTypeAttack,
+  attackerLocation: EntityLocation,
+}
+
+type GameEvent = GameEventMove | GameEventTurn | GameEventChangeLoadout | GameEventAttack;
 
 type Game = {
   time: number,

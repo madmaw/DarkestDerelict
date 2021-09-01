@@ -46,14 +46,17 @@ const U_DEPTH_TEXTURE_SAMPLER = FLAG_LONG_SHADER_NAMES ? 'uDepthTextureSampler' 
 const U_RENDER_TEXTURE_SAMPLER_INDEX = 5;
 const U_RENDER_TEXTURE_SAMPLER = FLAG_LONG_SHADER_NAMES ? 'uRenderTextureSampler' : 'F';
 
-const U_LIGHTS_INDEX = 6;
-const U_LIGHTS = FLAG_LONG_SHADER_NAMES ? 'uLights' : 'G';
+const U_STATUS_TEXTURE_SAMPLER_INDEX = 6;
+const U_STATUS_TEXTURE_SAMPLER = FLAG_LONG_SHADER_NAMES ? 'uStatusTextureSampler' : 'G';
 
-const U_LIGHT_TRANSFORMS_INDEX = 7;
-const U_LIGHT_TRANSFORMS = FLAG_LONG_SHADER_NAMES ? 'uLightTransforms': 'H';
+const U_LIGHTS_INDEX = 7;
+const U_LIGHTS = FLAG_LONG_SHADER_NAMES ? 'uLights' : 'H';
 
-const U_AMBIENT_LIGHT_INDEX = 8;
-const U_AMBIENT_LIGHT = FLAG_LONG_SHADER_NAMES ? 'uAmbientLight' : 'I';
+const U_LIGHT_TRANSFORMS_INDEX = 8;
+const U_LIGHT_TRANSFORMS = FLAG_LONG_SHADER_NAMES ? 'uLightTransforms': 'I';
+
+const U_AMBIENT_LIGHT_INDEX = 9;
+const U_AMBIENT_LIGHT = FLAG_LONG_SHADER_NAMES ? 'uAmbientLight' : 'J';
 
 const UNIFORM_NAMES = FLAG_LONG_SHADER_NAMES
     ? [
@@ -63,11 +66,12 @@ const UNIFORM_NAMES = FLAG_LONG_SHADER_NAMES
       U_CAMERA_POSITION,
       U_DEPTH_TEXTURE_SAMPLER,
       U_RENDER_TEXTURE_SAMPLER,
+      U_STATUS_TEXTURE_SAMPLER,
       U_LIGHTS,
       U_LIGHT_TRANSFORMS,
       U_AMBIENT_LIGHT,
     ]
-    : [...'ABCDEFGHI'];
+    : [...'ABCDEFGHIJ'];
 
 const V_SURFACE_TEXTURE_COORD = FLAG_LONG_SHADER_NAMES ? 'vSurfaceTextureCoord' : 'Z';
 const V_SURFACE_TEXTURE_BOUNDS = FLAG_LONG_SHADER_NAMES ? 'vSurfaceTextureBounds' : 'Y';
@@ -124,12 +128,15 @@ const VERTEX_SHADER = `
   const C_DEPTH_SCALE = `${DEPTH_SCALE}${DEPTH_SCALE==Math.round(DEPTH_SCALE)?'.':''}`;
   const C_MAX_NUM_LIGHTS = 4;
   const C_MAX_LIGHT_REACH = `6.`;
+  const STATUS_SCALE = 10;
+  const C_STATUS_SCALE = `${STATUS_SCALE}.`;
 
   const FRAGMENT_SHADER = `
   precision ${PRECISION}  float;
 
   uniform sampler2D ${U_DEPTH_TEXTURE_SAMPLER};
   uniform sampler2D ${U_RENDER_TEXTURE_SAMPLER};
+  uniform sampler2D ${U_STATUS_TEXTURE_SAMPLER};
   uniform vec3 ${U_CAMERA_POSITION};
 
   uniform vec4 ${U_AMBIENT_LIGHT};
@@ -173,12 +180,14 @@ const VERTEX_SHADER = `
     surfacePosition = ${V_SURFACE_TEXTURE_COORD};
     pixelDepth = 0.;
     */
+    vec4 statusColor = all(equal(${V_SURFACE_TEXTURE_BOUNDS}.xy, vec2(0.))) ? texture2D(${U_STATUS_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD}*${C_STATUS_SCALE}) : vec4(0.);
     if (${L_DEPTH_TEXTURE}.a>0.) {
       vec4 color = texture2D(${U_RENDER_TEXTURE_SAMPLER}, surfacePosition);
+      //vec2 v = ${V_SURFACE_TEXTURE_COORD}/${V_SURFACE_TEXTURE_BOUNDS}.zw;
+      //vec4 statusColor = all(equal(${V_SURFACE_TEXTURE_BOUNDS}.xy, vec2(0.))) ? vec4(v.x, v.y, 0., 1.) : vec4(0.);
       vec3 ${L_SURFACE_NORMAL} = vec3(${L_DEPTH_TEXTURE}.x, ${L_DEPTH_TEXTURE}.y, .5)*2.-1.;
       ${L_SURFACE_NORMAL} = vec3(${L_SURFACE_NORMAL}.xy, sqrt(1. - pow(length(${L_SURFACE_NORMAL}), 2.)));
       /*${L_SURFACE_NORMAL} = ${V_SURFACE_ROTATION} * vec3(0., 0., 1.);*/
-      //float ${L_LIGHTING} = .5 + .5 * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(vec3(1., 1., 1.))), -0.),color.a*4.);
       vec3 pixelPosition = ${V_WORLD_POSITION}.xyz + pixelDepth * cameraNormal;
       float cameraDistance = length(pixelPosition-${U_CAMERA_POSITION});
       float fog = 1.-min(pow(cameraDistance/5., 2.), 1.);
@@ -218,7 +227,10 @@ const VERTEX_SHADER = `
           }
         }
       }
-      gl_FragColor = vec4(mix(vec3(fog), color.xyz, fog)*(color.a>=1.?vec3(1.):${L_LIGHTING}), 1.);
+      //gl_FragColor = vec4(mix(statusColor.xyz, mix(vec3(fog), color.xyz, fog)*(color.a<1.?${L_LIGHTING}:vec3(1.)), statusColor.w), 1.);
+      gl_FragColor = vec4(mix(mix(vec3(fog), color.xyz, fog)*(color.a<1.?${L_LIGHTING}:vec3(1.)), statusColor.xyz, statusColor.w), 1.);
+    } else if (statusColor.w > .1) {
+      gl_FragColor = vec4(statusColor.xyz, 1.);
     } else {
       discard;
     }
@@ -281,6 +293,7 @@ onload = async () => {
   const TEXTURE_WHITE_SHINY: Texel[][][] = [[[[255, 255, 255, 12]]]];
   const TEXTURE_WHITE_GLOWING: Texel[][][] = [[[[255, 255, 255, 255]]]];
   const TEXTURE_BLACK: Texel[][][] = [[[[0, 0, 0, 254]]]];
+  const TEXTURE_CHITIN: Texel[][][] = [[[[32, 32, 32, 9]]]];
   const TEXTURE_YELLOW_SHUNY: Texel[][][] = [[[[128, 128, 64, 12]]]];
   const TEXTURE_PURPLE_SHINY: Texel[][][] = [[[[128, 64, 128, 12]]]];
 
@@ -289,7 +302,7 @@ onload = async () => {
     [[255, 255, 255, 128], [0, 0, 0, 128]],
   ]];
 
-  type LoadingEvent = [VolumetricDrawCommand[] | string, Matrix4, [Volume<Texel>[], ((NumericValue<ValueRange> | CharValue)[] | string)?][],  string];
+  type LoadingEvent = [VolumetricDrawCommand[] | string, Matrix4, [Volume<Texel>[], ((NumericValue<ValueRange> | CharValue)[] | string)?][],  EntityType];
 
   const SURFACE_TEXELS: [Volume<Texel>[]][] = [
     [[TEXTURE_GUNMETAL, TEXTURE_RED_CARPET]],
@@ -301,17 +314,17 @@ onload = async () => {
   const MODEL_SCALE_MATRIX = matrix4Scale(MODEL_SCALE);
   
   const COMMANDS: readonly LoadingEvent[] = [
-    [VOLUMETRIC_WALL, MODEL_SCALE_MATRIX, SURFACE_TEXELS, 'wall'],
-    [VOLUMETRIC_FLOOR,  MODEL_SCALE_MATRIX, SURFACE_TEXELS, 'floor'],
+    [VOLUMETRIC_WALL, MODEL_SCALE_MATRIX, SURFACE_TEXELS, ENTITY_TYPE_WALL],
+    [VOLUMETRIC_FLOOR,  MODEL_SCALE_MATRIX, SURFACE_TEXELS, ENTITY_TYPE_FLOOR],
     [VOLUMETRIC_MARINE, matrix4Scale(MODEL_SCALE * .5), [
       [[TEXTURE_GREEN_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_WHITE_GLOWING]],
       [[TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_WHITE_GLOWING]],
       [[TEXTURE_YELLOW_SHUNY, TEXTURE_BLACK, TEXTURE_WHITE_GLOWING]],
       [[TEXTURE_PURPLE_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_WHITE_GLOWING]],
-    ], 'marine'],
+    ], ENTITY_TYPE_MARINE],
     [VOLUMETRIC_PISTOL, matrix4Scale(MODEL_SCALE * .2), [
       [[TEXTURE_GUNMETAL, TEXTURE_BLACK]],
-    ], 'pistol'],
+    ], ENTITY_TYPE_PISTOL],
     [VOLUMETRIC_SYMBOL, matrix4Scale(MODEL_SCALE * .2), [
       [
         [TEXTURE_YELLOW_SHUNY], 
@@ -329,13 +342,16 @@ onload = async () => {
               value: '🔥'
             }]: '🔥'
       ],
-    ], 'symbol'],
+    ], ENTITY_TYPE_SYMBOL],
+    [VOLUMETRIC_SPIDER, matrix4Scale(MODEL_SCALE * .5), [
+      [[TEXTURE_CHITIN, TEXTURE_RED_GLOWING, TEXTURE_RED_SHINY]],
+    ], ENTITY_TYPE_SPIDER],
   ];
 
   const loadingEventQueue: EventQueue<LoadingEvent, EntityRenderables[]> = {
     events: [],
     handler: async (c) => {
-      const [commands, staticTransform, variations, name] = c;
+      const [commands, staticTransform, variations, entityType] = c;
       Y.innerText = `${(COMMANDS.length-loadingEventQueue.events.length)/COMMANDS.length*100 | 0}%`
       // allow rendering of progress
       await delay();
@@ -343,12 +359,15 @@ onload = async () => {
       return variations.map(([renderTextures, params], i) => {
         let volume: Volume<Voxel>;
         if (FLAG_USE_VOLUME_COMMANDS) {
+          const name = ENTITY_NAMES[entityType];
           volume = processSpriteCommands(name, i, commands as any as VolumetricDrawCommand[], params as (NumericValue<ValueRange> | CharValue)[]);
         } else {
           volume = processVolumetricDrawCommandString(commands as string, params as string).volume;
         }
         const bounds = calculateVolumeBounds(volume);
-
+        // add on some depth to the bounds so we have somewhere to display status information
+        
+        bounds[1][2] += (ENTITY_Z_PADDINGS[entityType] || 0) * VOLUME_SCALE;
         
         // render/depth bounds should be the same
         const [depthTextureData, depthTextureBounds] = volumeToDepthTexture(volume, bounds);
@@ -386,6 +405,24 @@ onload = async () => {
         );
         gl.generateMipmap(CONST_GL_TEXTURE_2D);
 
+        // status canvas and texture
+        const statusCanvas = document.createElement('canvas');
+        statusCanvas.width = TEXTURE_DIMENSION;
+        statusCanvas.height = TEXTURE_DIMENSION;
+        
+        const statusTexture = gl.createTexture();
+        gl.bindTexture(CONST_GL_TEXTURE_2D, statusTexture);
+        gl.texImage2D(
+            CONST_GL_TEXTURE_2D,
+            0,
+            CONST_GL_RGBA,
+            CONST_GL_RGBA,
+            CONST_GL_UNSIGNED_BYTE,
+            statusCanvas,
+        );
+        gl.generateMipmap(CONST_GL_TEXTURE_2D);
+
+        // thumbnail
         const thumbnailCanvas = document.createElement('canvas');
         // because the model faces down the x axis, the image is laying on its side
         const w = bounds[1][1] - bounds[0][1]+1;
@@ -397,8 +434,8 @@ onload = async () => {
         const imageData = ctx.createImageData(w, h);
         for (let x=0; x<w; x++) {
           for (let y=0; y<h; y++) {
-            const sy = x;
-            const sx = y;
+            const sx = w - x - 1;
+            const sy = y;
             const sourceOffset = sy*TEXTURE_DIMENSION*4 + sx*4;
             const c = renderTextureData.slice(sourceOffset, sourceOffset+4);
             const n = 1 - (depthTextureData[sourceOffset] + depthTextureData[sourceOffset+1])/510;
@@ -529,6 +566,8 @@ onload = async () => {
           depthTexture,
           renderTexture,
           thumbnail,
+          statusCanvas,
+          statusTexture,
           bounds,
           vertexPositionBuffer,
           vertexIndexBuffer,
@@ -536,7 +575,7 @@ onload = async () => {
           textureBoundsBuffer,
           textureCoordinatesBuffer,
           staticTransform,
-        } as EntityRenderables;
+        };
       });
     },
   }
@@ -581,14 +620,13 @@ onload = async () => {
   const entityRenderables = await addEvents(loadingEventQueue, ...COMMANDS);
   
   X.innerHTML = new Array(4).fill(X.innerHTML).join('');
-  V.innerHTML = new Array(4).fill(V.innerHTML).join('');  
   Y.hidden = true;
 
   const equipmentSlots: Element[] = new Array(X.children.length).fill(0).map((_, i) => X.children.item(i));
-  const inventorySlots: Element[] = new Array(V.children.length).fill(0).map((_, i) => V.children.item(i));
   const gameEventQueue: EventQueue<GameEvent, void> = {
     events: [],
     handler: async (e: GameEvent) => {
+      let aiMove: Booleanish;
       switch (e.type) {
         case GAME_EVENT_TYPE_MOVE:
           {
@@ -613,7 +651,7 @@ onload = async () => {
               toTile.parties.push(party);
               party.tile = to;
               let cameraMovePromise: Promise<any>;
-              if (party == playerParty) {
+              if (aiMove = party == playerParty) {
                 // move the camera too
                 const toCameraPosition = [...to] as Vector3;
                 const animationFactory = createTweenAnimationFactory(party, 'cameraPosition', toCameraPosition, easeInQuad, 300);
@@ -637,83 +675,99 @@ onload = async () => {
             const toOrientation = (party.orientation + deltaOrientation + 4)%4;
             party.orientation = toOrientation as Orientation;
             let cameraRotationPromise: Promise<any>;
-            if(party == playerParty) {
+            if(aiMove = party == playerParty) {
               const cameraAnimationFactory = createTweenAnimationFactory(party, 'cameraZRotation', party.cameraZRotation + deltaOrientation * Math.PI/2, easeInQuad, 300);
               cameraRotationPromise = addEvents(party.cameraAnimationQueue, cameraAnimationFactory);
             }
 
             await Promise.all(party.members.map(async (member, i) => {
-              if (member) {
-                const [targetPosition, walkAngle, toAngle] = getTargetPositionAndRotations(party, i);
-                const turnAnimationFactory1 = createTweenAnimationFactory(member, 'zRotation', walkAngle, easeInQuad, 150);
-                const moveAnimationFactory = createTweenAnimationFactory(member, 'position', targetPosition, easeInQuad, 200);
-                const turnAnimationFactory2 = createTweenAnimationFactory(member, 'zRotation', toAngle, easeInQuad, 150);
-                await addEvents(member.animationQueue, turnAnimationFactory1, moveAnimationFactory, turnAnimationFactory2);  
-              }
+              return member && moveNaturallyToTargetPosition(party, member, i);
             }).concat(cameraRotationPromise));
           }
           break;
         case GAME_EVENT_TYPE_CHANGE_LOADOUT:
           {
-            let replacementEntity: Entity | Falseish;
-            let replacementMember: PartyMember | Falseish;
-            let success: Booleanish;
-            const purpose = ENTITY_TYPES_TO_PURPOSES[e.entity.type];
             const toSlot = e.to.party.members[e.to.slot];
             const fromSlot = e.from.party.members[e.from.slot] as PartyMember;
-            if (purpose == ENTITY_PURPOSE_CHARACTER) {
-              replacementMember = toSlot;
-              success = 1;
-              e.to.party.members[e.to.slot] = e.from.party.members[e.from.slot];
-            } else if (purpose == ENTITY_PURPOSE_WEAPON) {
-              if (toSlot) {
-                switch (ENTITY_TYPES_TO_PURPOSES[toSlot.entity.type]) {
-                  case ENTITY_PURPOSE_CHARACTER:
-                    replacementEntity = toSlot.weapon;
-                    success = toSlot.weapon = e.entity;    
-                    break;
-                  case ENTITY_PURPOSE_WEAPON:
-                    success = replacementEntity = toSlot.entity;
-                    break;
+            let reciprocalMoveEntity: Entity | Falseish = 0;
+            let moveMember: PartyMember | Falseish = 0;
+            let reciprocalMoveMember: PartyMember | Falseish = 0;
+            let success: Booleanish;
+            const purpose = e.entity.purpose;
+            
+            if (toSlot) {
+              const toSlotPurpose = toSlot.entity.purpose;
+              switch (purpose) {
+                case ENTITY_PURPOSE_ACTOR:
+                  reciprocalMoveMember = toSlot;
+                  success = e.to.party.members[e.to.slot] = fromSlot;
+                  break;
+                case ENTITY_PURPOSE_WEAPON:
+                  if (toSlotPurpose == ENTITY_PURPOSE_ACTOR) {
+                    reciprocalMoveEntity = toSlot.weapon;
+                    success = toSlot.weapon = e.entity;
+                  }
+                  break;
                 }
-              } else {
-                success = e.to.party.members[e.to.slot] = {
-                  animationQueue: createAnimationEventQueue(game),
-                  anims: [],
-                  entity: e.entity,
-                  position: e.to.party.tile,
-                  zRotation: e.party.orientation * Math.PI/2,
-                };
+            } else {
+              if (e.to.party.type == PARTY_TYPE_ITEM || purpose == ENTITY_PURPOSE_ACTOR) {
+                success = moveMember = e.to.party.members[e.to.slot] = fromSlot.entity == e.entity
+                    ? fromSlot
+                    : {
+                      ...BASE_PARTY_MEMBER,
+                      animationQueue: createAnimationEventQueue(game),
+                      entity: e.entity,
+                      position: fromSlot.position,
+                      zRotation: e.from.party.orientation * Math.PI/2,
+                    };  
               }
             }
+
             if (success) {
-              if (replacementMember || e.entity == fromSlot.entity) {
-                e.from.party.members[e.from.slot] = replacementMember;
-              } else {
-                fromSlot.weapon = replacementEntity;
-              }
-            }
-            updateInventory();
-            // animate
-            if (purpose == ENTITY_PURPOSE_CHARACTER) {
+              aiMove = e.to.party == playerParty;
+              if (fromSlot.entity == e.entity) {
+                if (reciprocalMoveEntity) {
+                  fromSlot.entity = reciprocalMoveEntity;
+                } else {
+                  e.from.party.members[e.from.slot] = reciprocalMoveMember;
+                }
+              } else if (fromSlot.weapon == e.entity){
+                fromSlot.weapon = reciprocalMoveEntity;
+              }  
+
+              updateInventory();
+
               let toSlotPromise: Promise<any>;
-              if (replacementMember) {
-                const [targetPosition, walkAngle, toAngle] = getTargetPositionAndRotations(e.from.party, e.from.slot);
-                const turnAnimationFactory1 = createTweenAnimationFactory(replacementMember, 'zRotation', walkAngle, easeLinear, 99);
-                const moveAnimationFactory = createTweenAnimationFactory(replacementMember, 'position', targetPosition, easeLinear, 99);
-                const turnAnimationFactory2 = createTweenAnimationFactory(replacementMember, 'zRotation', toAngle, easeLinear, 99);
-                toSlotPromise = addEvents(replacementMember.animationQueue, turnAnimationFactory1, moveAnimationFactory, turnAnimationFactory2);  
+              if (reciprocalMoveMember) {
+                toSlotPromise = moveNaturallyToTargetPosition(e.from.party, reciprocalMoveMember, e.from.slot);
               }
-              const [targetPosition, walkAngle, toAngle] = getTargetPositionAndRotations(e.to.party, e.to.slot);
-              const turnAnimationFactory1 = createTweenAnimationFactory(fromSlot, 'zRotation', walkAngle, easeLinear, 99);
-              const moveAnimationFactory = createTweenAnimationFactory(fromSlot, 'position', targetPosition, easeLinear, 99);
-              const turnAnimationFactory2 = createTweenAnimationFactory(fromSlot, 'zRotation', toAngle, easeLinear, 99);
-              await Promise.all([
-                addEvents(fromSlot.animationQueue, turnAnimationFactory1, moveAnimationFactory, turnAnimationFactory2),
-              ].concat(toSlotPromise));  
+              let fromSlotPromise: Promise<any>;
+              if (moveMember) {
+                fromSlotPromise = moveNaturallyToTargetPosition(e.to.party, moveMember, e.to.slot);
+              }
+              await Promise.all([toSlotPromise, fromSlotPromise]);  
             }
           }
           break;
+        case GAME_EVENT_TYPE_ATTACK:
+
+          break;
+      }
+      if (aiMove) {
+        volumeMap(game.level, (t: Tile) => {
+          t.parties.forEach(party => {
+            if (party.type != PARTY_TYPE_PLAYER) {
+              const orientation = getFavorableOrientation(party, game.level);
+              if (orientation != party.orientation) {
+                party.members.forEach((m, slot) => {
+                  if (m) {
+                    
+                  }
+                })
+              }
+            }
+          })
+        });
       }
     },
   };
@@ -734,17 +788,25 @@ onload = async () => {
   };
   playerParty.cameraAnimationQueue = createAnimationEventQueue(game);
   playerParty.members[0] = {
+    ...BASE_PARTY_MEMBER,
     position: partyPosition,
     zRotation: Math.PI/2,
     animationQueue: createAnimationEventQueue(game),
-    anims: [],
     entity: {
       renderables: entityRenderables[ENTITY_TYPE_MARINE][0],
       type: ENTITY_TYPE_MARINE,
+      purpose: ENTITY_PURPOSE_ACTOR,
+      health: 3,
+      power: 0,
+      maxHealth: 3,
+      maxPower: 2,
+      side: 0,
+      armor: 1,
     },
     weapon: {
       renderables: entityRenderables[ENTITY_TYPE_PISTOL][0],
       type: ENTITY_TYPE_PISTOL,
+      purpose: ENTITY_PURPOSE_WEAPON,
     }
   };
   (game.level[partyPosition[2]][partyPosition[1]][partyPosition[0]] as Tile).parties.push(playerParty);
@@ -756,6 +818,8 @@ onload = async () => {
     fromLocation: EntityLocation,
     dragImage: HTMLElement,
     currentTarget?: EventTarget,
+    moved?: Booleanish,
+    startTime: number,
     lastPosition?: {
       clientX: number,
       clientY: number,
@@ -765,18 +829,11 @@ onload = async () => {
   const getLocationAndMaybeEntity = (target: EventTarget, p: { clientX: number, clientY: number }): [EntityLocation, Entity?] | undefined => {
     const entity = slotsToEntities?.get(target);
     const equipmentIndex = equipmentSlots.findIndex(v => v == target || v == (target as HTMLElement).parentElement);
-    const inventoryIndex = inventorySlots.findIndex(v => v == target);
     const targetsWorld = target == Z;
     if (equipmentIndex >= 0) {
       return [{
         party: playerParty,
         slot: equipmentIndex,
-      }, entity];
-    }
-    if (inventoryIndex >= 0) {
-      return [{
-        party: playerParty,
-        slot: inventoryIndex,
       }, entity];
     }
     if (targetsWorld) {
@@ -824,7 +881,6 @@ onload = async () => {
             }
           }
         }))
-        return t;
       });
       if (minParty) {
         return [{
@@ -864,11 +920,11 @@ onload = async () => {
       const [fromLocation, entity] = locationAndEntity;
       const dragImage = entity.renderables.thumbnail;
       dragContext = {
+        startTime: game.time,
         fromLocation,
         entity,
         dragImage,
       };
-      O.appendChild(dragImage);
       onDrag(p);
     }
   };
@@ -880,11 +936,15 @@ onload = async () => {
   }
 
 
-  const onDrag = (p: { clientX: number, clientY: number }) => {
+  const onDrag = (p: { clientX: number, clientY: number }, moved?: Booleanish) => {
     const target = document.elementFromPoint(p.clientX, p.clientY);
     if (dragContext) {
       dragContext.currentTarget = target;
       dragContext.lastPosition = p;
+      if (!dragContext.moved && moved) {
+        O.appendChild(dragContext.dragImage);
+        dragContext.moved = 1;
+      }
       updateInventory();
       const dragImage = dragContext.dragImage;
       dragImage.style.left = p.clientX - dragImage.clientWidth/2 as any;
@@ -893,26 +953,32 @@ onload = async () => {
     return target;
   };
   onmousemove = (e: MouseEvent) => {
-    onDrag(e);
+    onDrag(e, 1);
   }
   ontouchmove = (e: TouchEvent) => {
-    onDrag(e.targetTouches[0]);
+    onDrag(e.targetTouches[0], 1);
   }
 
   const onDragEnd = (p: { clientX: number, clientY: number }) => {
     const target = onDrag(p);
     const location = getLocationAndMaybeEntity(target, p);
     if (dragContext && location) {
-      const fromLocation = dragContext.fromLocation;
+      const { fromLocation, moved, startTime, entity } = dragContext;
       const [toLocation] = location;
-      if (fromLocation.party != toLocation.party || fromLocation.slot != toLocation.slot) {
+      if (moved) {
+        if (fromLocation.party != toLocation.party || fromLocation.slot != toLocation.slot) {
+          addEvents(gameEventQueue, {
+            type: GAME_EVENT_TYPE_CHANGE_LOADOUT,
+            entity,
+            from: fromLocation,
+            to: toLocation,
+          });  
+        }  
+      } else if (game.time - startTime < CONST_CLICK_DURATION) {
         addEvents(gameEventQueue, {
-          party: playerParty,
-          type: GAME_EVENT_TYPE_CHANGE_LOADOUT,
-          entity: dragContext.entity,
-          from: dragContext.fromLocation,
-          to: toLocation,
-        });  
+          type: GAME_EVENT_TYPE_ATTACK,
+          attackerLocation: fromLocation,
+        })
       }
     }
     cleanUpDrag();
@@ -928,7 +994,9 @@ onload = async () => {
 
   const cleanUpDrag = () => {
     if (dragContext) {
-      O.removeChild(dragContext.dragImage);
+      if (dragContext.moved) {
+        O.removeChild(dragContext.dragImage);
+      }
       dragContext = null;  
       updateInventory();
     }
@@ -936,22 +1004,72 @@ onload = async () => {
 
   onmouseleave = ontouchcancel = cleanUpDrag;
 
-  const renderEntityToCanvas = (entity: Entity | Falseish, canvas: HTMLCanvasElement) => {
+  const renderEntityToContext = (entity: Entity, ctx: CanvasRenderingContext2D, width: number, height: number) => {
+      // render status
+      if (entity.purpose == ENTITY_PURPOSE_ACTOR) {
+        const values: [number, string][][] = [
+          [
+            [entity.health, '◼'],
+            [entity.maxHealth - entity.health, '◻'],
+            [entity.armor || 0, '▣'],
+          ],
+          [
+            [entity.power, '●'], 
+            [entity.maxPower - entity.power, '○'],
+            // ⦿ - temporary power
+          ],
+        ];
+        const textHeight = width/5.7;
+        ctx.font = `${textHeight}px serif`;
+        let y = textHeight/6;
+        ctx.strokeStyle = '#AFF';
+        ctx.fillStyle = '#133';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = textHeight/15;
+        ctx.save();
+        ctx.globalAlpha = .5;
+        ctx.globalCompositeOperation = 'destination-over'
+        ctx.fillRect(textHeight/3, y + textHeight/6, width - textHeight/3, textHeight * values.length);
+        ctx.strokeRect(textHeight/3, y + textHeight/6, width - textHeight/3, textHeight * values.length);
+        ctx.restore();
+
+        values.forEach(row => {
+          y += textHeight;
+          let x = textHeight/2;
+          row.forEach(([value, symbol]) => {
+            ctx.fillStyle = '#AFF';
+            new Array(Math.max(value, 0)).fill(symbol).forEach(s => {
+              ctx.fillText(s, x + textHeight/2, y);
+              x += textHeight;
+            });
+          });
+        });
+      }
+
+  }
+
+  const renderEntityToCanvas = (entity: Entity | Falseish, canvas: HTMLCanvasElement, renderThumbnail?: Booleanish) => {
     canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
+    canvas.height = canvas.clientHeight;  
     const ctx = canvas.getContext('2d');
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (entity && entity != dragContext?.entity) {
-      slotsToEntities.set(canvas, entity);
-      const thumbnail = entity.renderables.thumbnail;
-      const scale = Math.min(canvas.width*.6/thumbnail.width, canvas.height*.8/thumbnail.height);
-      ctx.drawImage(
-          thumbnail,
-          (canvas.width - thumbnail.width*scale)/2,
-          (canvas.height - thumbnail.height*scale)/2,
-          thumbnail.width*scale,
-          thumbnail.height*scale,
-      );
+
+    if (entity) {
+      if ((!dragContext?.moved || entity != dragContext?.entity) && renderThumbnail) {
+        slotsToEntities.set(canvas, entity);
+        const thumbnail = entity.renderables.thumbnail;
+        const scale = Math.min(canvas.width*.9/thumbnail.width, canvas.height*.8/thumbnail.height);
+        ctx.drawImage(
+            thumbnail,
+            (canvas.width - thumbnail.width*scale)/2,
+            (canvas.height - thumbnail.height*scale),
+            thumbnail.width*scale,
+            thumbnail.height*scale,
+        );
+      }
+
+      renderEntityToContext(entity, ctx, canvas.width, canvas.height);
     }
   }
 
@@ -964,8 +1082,8 @@ onload = async () => {
       el.className = [entityElement, weaponElement, el].some(e => e == dragContext?.currentTarget)
           ? 'x o'
           : 'x';
-      renderEntityToCanvas(m && m.entity, entityElement);
-      renderEntityToCanvas(m && m.weapon, weaponElement);
+      renderEntityToCanvas(m && m.entity, entityElement, 1);
+      renderEntityToCanvas(m && m.weapon, weaponElement, 1);
     });
   };
   updateInventory();
@@ -1016,31 +1134,18 @@ onload = async () => {
 
     const usableLights = (game.previousLights || []).sort((a, b) => {
       return vectorNLength(vectorNSubtract(a.position, cameraPosition)) - vectorNLength(vectorNSubtract(b.position, cameraPosition));
-    }).slice(0, C_MAX_NUM_LIGHTS);
-    const lights = usableLights.map(l => l.light).flat();
+    });
+    // usableLights.unshift({
+    //   position: cameraPosition,
+    //   light: [.45, .45, .5, -1],
+    //   lightTransform: matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Translate(0, 0, -2)),
+    // });
+    const lights = usableLights.map(l => l.light).slice(0, C_MAX_NUM_LIGHTS).flat();
     const lightTransforms = usableLights.map(l => l.lightTransform).flat();
     game.previousLights = [];
 
-    const ambientLight = [.1, .1, .1, usableLights.length];
-    // global lighting
-    // const lights = [
-    //   [.45, .45, .5, -1],
-    //   ,
-    //   ,
-    // ].slice(light, light+1).flat();;
-    // const lightTransforms = [
-    //   , 
-    //   matrix4Multiply(
-    //       matrix4Translate(
-    //           torchBearer.position[0],
-    //           torchBearer.position[1],
-    //           torchBearer.position[2] + .5,
-    //       ),
-    //       cameraRotationMatrix,
-    //   ),
-    //   matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Translate(0, 0, -2)),
-    // ].slice(light, light+1).flat();
-
+    const ambientLight = [.2, .2, .2, usableLights.length];
+    
     gl.uniformMatrix4fv(
         uniforms[U_PROJECTION_MATRIX_INDEX],
         false,
@@ -1101,13 +1206,16 @@ onload = async () => {
             }
           }
 
-          if (dragContext && dragContext.entity == partyMember.entity || party == playerParty) {
+          if (dragContext?.moved && dragContext.entity == partyMember.entity || party == playerParty) {
             return;
           }
 
           const {
+            bounds,
             depthTexture,
             renderTexture,
+            statusTexture,
+            statusCanvas,
             surfaceRotationsBuffer,
             textureBoundsBuffer,
             textureCoordinatesBuffer,
@@ -1116,13 +1224,48 @@ onload = async () => {
             staticTransform,
           } = partyMember.entity.renderables;
 
+          // update animations
+          if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
+            if (!partyMember.anims.length) {
+              if (Math.random() > .1) {
+                partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zScale', partyMember.entity.side ? 1.05 : .97, easeSinBackToStart, 3000));
+              } else {
+                partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zRotation', partyMember.zRotation + (Math.random() - .5) * Math.PI/2, easeSquareBackToStart, 2000));
+              }
+            }
+            const ctx = statusCanvas.getContext('2d');
+            // note reversed because we actually are facing to the right
+            const w = (bounds[1][1] - bounds[0][1] + 1) * STATUS_SCALE;
+            const h = (bounds[1][0] - bounds[0][0] + 1) * STATUS_SCALE;
+            // const w = TEXTURE_DIMENSION;
+            // const h = TEXTURE_DIMENSION;
+            ctx.save();
+            ctx.clearRect(0, 0, w, h);
+            // const g = ctx.createLinearGradient(0, 0, TEXTURE_DIMENSION, TEXTURE_DIMENSION);
+            // g.addColorStop(0, '#f00');
+            // g.addColorStop(1, '#00f');
+            // ctx.fillStyle = g;
+            // ctx.fillRect(0, 0, TEXTURE_DIMENSION, TEXTURE_DIMENSION);
+            ctx.translate(w/2, 0);
+            ctx.scale(-1, 1/partyMember.zScale);
+            ctx.translate(-w/2, 0);
+            renderEntityToContext(partyMember.entity, ctx, w, h);
+            ctx.restore();
+    
+            // update status texture
+            gl.bindTexture(CONST_GL_TEXTURE_2D, statusTexture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, CONST_GL_RGBA, CONST_GL_RGBA, CONST_GL_UNSIGNED_BYTE, statusCanvas);
+          }
+
           const position = partyMember.position;
           const rotation = partyMember.zRotation;
           const modelPositionMatrix = matrix4Translate(...position);
           const modelRotationMatrix = matrix4Rotate(rotation, 0, 0, 1);
+          const modelScaleMatrix = matrix4Scale(1, 1, partyMember.zScale);
           const modelViewMatrix = matrix4Multiply(
               modelPositionMatrix,
               modelRotationMatrix,
+              modelScaleMatrix,
               staticTransform,
           );
         
@@ -1178,6 +1321,14 @@ onload = async () => {
           gl.bindTexture(CONST_GL_TEXTURE_2D, renderTexture)
           gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MAG_FILTER, CONST_GL_NEAREST);
           gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MIN_FILTER, CONST_GL_NEAREST);
+
+          // status texture
+          gl.uniform1i(uniforms[U_STATUS_TEXTURE_SAMPLER_INDEX], 2);
+          gl.activeTexture(CONST_GL_TEXTURE2);
+          gl.bindTexture(CONST_GL_TEXTURE_2D, statusTexture)
+          gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MAG_FILTER, CONST_GL_NEAREST);
+          gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MIN_FILTER, CONST_GL_NEAREST);
+
           
           // surface rotation
           gl.bindBuffer(CONST_GL_ARRAY_BUFFER, surfaceRotationsBuffer);
@@ -1214,8 +1365,6 @@ onload = async () => {
 
         });
       })
-    
-      return tile;
     });
   }
   f(0);

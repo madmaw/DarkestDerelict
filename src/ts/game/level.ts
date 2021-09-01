@@ -1,5 +1,7 @@
 const LEVEL_DIMENSION = 9;
 const TILE_DELTAS = [-1, 0, 1];
+// in order of orientation
+const CARDINAL_XY_DELTAS: Vector2[] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 
 type Tile = {
   parties: Party[],
@@ -24,25 +26,26 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         tile: position,
         anims: [],
         members: [{
-          position: [position[0], position[1], position[2] - FLOOR_DEPTH/WALL_DIMENSION] as Vector3,
-          zRotation: Math.PI/2 * (Math.random()*4|0),
+          ...BASE_PARTY_MEMBER,
           staticTransform: matrix4Identity(),
           animationQueue: createAnimationEventQueue(timeHolder),
-          anims: [],
           entity: {
             renderables: wallRenderables,
             type: ENTITY_TYPE_WALL,
+            purpose: ENTITY_PURPOSE_USELESS,
           }
         }],
       }],
     };
   });
-  const dig = (tiles: Tile[][], x: number, y: number, dx: number, dy: number) => {
+  const dig = (tiles: Tile[][], x: number, y: number, previousDx: number, previousDy: number) => {
     (tiles[y][x] as Tile).parties = [];
-    let validTiles: Vector2[];
+    let validDeltas: Vector2[];
     do {
-      validTiles = ([[x+1, y], [x-1, y], [x, y+1], [x, y-1], ...new Array(y).fill([x+dx, y+dy])] as Vector2[])
-        .filter(([tx, ty]) => {
+      validDeltas = ([...CARDINAL_XY_DELTAS, ...new Array(y).fill([previousDx, previousDy])] as Vector2[])
+        .filter(([dx, dy]) => {
+          const tx = x + dx;
+          const ty = y + dy;
           return tx>0
               && ty>0
               && tx<LEVEL_DIMENSION-1
@@ -55,11 +58,11 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
                   )
               ));
       });
-      if (validTiles.length) {
-        const [tx, ty] = validTiles[validTiles.length*Math.random()|0];
-        dig(tiles, tx, ty, tx-x, ty-y);
+      if (validDeltas.length) {
+        const [dx, dy] = validDeltas[validDeltas.length*Math.random()|0];
+        dig(tiles, x + dx, y + dy, dx, dy);
       }
-    } while(validTiles.length);
+    } while(validDeltas.length);
   };
 
   dig(tiles[1] as Tile[][], LEVEL_DIMENSION/2 | 0, 1, 0, 1);
@@ -78,44 +81,90 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         tile: position,
         anims: [],
         members: [{
-          position: [position[0], position[1], position[2] - FLOOR_DEPTH/WALL_DIMENSION],
-          zRotation: 0,
+          ...BASE_PARTY_MEMBER,
           animationQueue: createAnimationEventQueue(timeHolder),
-          anims: [],
           entity: {
             renderables: floors[position[2]%floors.length],
             type: ENTITY_TYPE_FLOOR,
+            purpose: ENTITY_PURPOSE_USELESS,
           }
         }],
       });
       if (Math.random()>.5) {
-        const type = (ENTITY_TYPE_MARINE + c%3) as EntityType;
+        const type = (ENTITY_TYPE_MARINE + c%4) as EntityType;
         if (c < 12) {
           c++;
         } else {
           return t;
         }
         const thingRenderables = entityRenderables[type];
-
-        t.parties.push({
-          type: PARTY_TYPE_ITEM,
-          orientation: ORIENTATION_EAST,
-          tile: position,
-          anims: [],
-          members: [{
-            position,
-            animationQueue: createAnimationEventQueue(timeHolder),
-            anims: [],
-            zRotation: Math.random() * Math.PI*2,
-            entity: {
+        let entity: Entity;
+        let purpose: EntityPurposeWeapon | EntityPurposeUseless = ENTITY_PURPOSE_USELESS;
+        switch (type) {
+          case ENTITY_TYPE_PISTOL:
+            purpose = ENTITY_PURPOSE_WEAPON;
+          case ENTITY_TYPE_SYMBOL:
+            entity = {
               renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
               type,
-            }
-          }]
-        })
+              purpose,
+            };
+            break;
+          case ENTITY_TYPE_SPIDER:
+            entity = {
+              health: 3,
+              maxHealth: 5,
+              power: 0,
+              maxPower: 2,
+              purpose: ENTITY_PURPOSE_ACTOR,
+              side: 1,
+              renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
+              type,
+            };
+            break;
+          case ENTITY_TYPE_MARINE:
+            entity = {
+              health: 3,
+              maxHealth: 3,
+              power: 0,
+              maxPower: 3,
+              purpose: ENTITY_PURPOSE_ACTOR,
+              side: 0,
+              renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
+              type,
+            };
+            break;
+        }
+
+        if (entity) {
+          t.parties.push({
+            type: PARTY_TYPE_ITEM,
+            tile: position,
+            anims: [],
+            members: [{
+              ...BASE_PARTY_MEMBER,
+              animationQueue: createAnimationEventQueue(timeHolder),
+              entity
+            }]
+          });  
+        }
       }
     }
     return t;
+  });
+  // set orientations
+  volumeMap(tiles, (t: Tile) => {
+    t.parties.forEach(p => {
+      const orientation = getFavorableOrientation(p, tiles);
+      p.orientation = orientation;
+      p.members.forEach((m, i) => {
+        if (m) {
+          const [position, rotation] = getTargetPositionAndRotations(p, i);
+          m.zRotation = rotation;
+          m.position = position;
+        }
+      })
+    });
   });
 
   if (FLAG_DEBUG_LEVEL_GENERATION) {
@@ -132,4 +181,30 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
   }
 
   return tiles;
+}
+
+const getFavorableOrientation = (party: Party, level: Level): Orientation | undefined => {
+  const [x, y, tz]  = party.tile;
+
+  // look around
+  const options = CARDINAL_XY_DELTAS.map<[number, Orientation]>(([dx, dy], orientation: Orientation) => {
+    const tx = x + dx;
+    const ty = y + dy;
+    if(tx>=0
+        && ty>=0
+        && tx<LEVEL_DIMENSION
+        && ty<LEVEL_DIMENSION
+        && (party.type == PARTY_TYPE_HOSTILE || party.type == PARTY_TYPE_ITEM) 
+    ) {
+      const comparisonTile = level[tz][ty][tx];
+      // lower appeal is higher
+      const appeal = comparisonTile && comparisonTile.parties.reduce((a, p) => a + p.type == party.type ? 5 : p.type, 0); 
+      return [
+        appeal,
+        orientation,
+      ];
+    }
+    return [9, orientation];
+  }).sort(([appeal1], [appeal2]) => appeal1 - appeal2);
+  return options.length ? options[0][1] : (party.orientation || ORIENTATION_EAST);
 }

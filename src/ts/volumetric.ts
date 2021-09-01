@@ -67,7 +67,7 @@ type Rect3 = [Vector3, Vector3];
 
 const CARDINAL_PROJECTIONS: Matrix4[] = [
   // front
-  matrix4Rotate(Math.PI/2, 0, 1, 0),
+  matrix4Multiply(matrix4Rotate(Math.PI/2, 0, 1, 0), matrix4Rotate(-Math.PI/2, 0, 0, 1)),
   // back
   matrix4Rotate(-Math.PI/2, 0, 1, 0),
   // right
@@ -524,7 +524,7 @@ const createEmptyVolume = <T>(d: number): Volume<T> => (
     )
 );
 
-const volumeMap = <T>(volume: Volume<T>, f: (t: T | Falseish, position: Vector3) => T | Falseish): Volume<T> => {
+const volumeMap = <T>(volume: Volume<T>, f: (t: T | Falseish, position: Vector3) => T | Falseish | void): Volume<T> => {
   if (FLAG_FAST_VOLUME_ITERATION) {
     for (let z=volume.length; z; ) {
       z--;
@@ -534,14 +534,22 @@ const volumeMap = <T>(volume: Volume<T>, f: (t: T | Falseish, position: Vector3)
         const ay = az[y];
         for (let x=ay.length; x; ) {
           x--;
-          ay[x] = f(ay[x], [x, y, z]);
+          const r = f(ay[x], [x, y, z]);
+          if (r != null) {
+            ay[x] = r as T;
+          }
         }
       }
     }  
   } else {
     volume.forEach((az, z) => {
       az.forEach((ay, y) => {
-        ay.forEach((v, x) => ay[x] = f(v, [x, y, z]));
+        ay.forEach((v, x) => {
+          const r = f(v, [x, y, z]);
+          if (r != null) {
+            ay[x] = r as T;
+          }
+        });
       })
     })
   }
@@ -615,7 +623,6 @@ const calculateVolumeBounds = <T>(volume: Volume<T>): Rect3 => {
       max = max.map((v, i) => Math.max(position[i], v)) as Vector3;
       min = min.map((v, i) => Math.min(position[i], v)) as Vector3;
     }
-    return t;
   });
   return [min, max];
 }
@@ -675,7 +682,7 @@ const volumeToTexture = (
     const transformedBounds: Rect3 = [min, max];
     const width = maxx - minx + 1;
     const height = maxy - miny + 1;
-    if (FLAG_CHECK_VOLUME_BOUNDS && (minx<0 || miny < 0 || minz < 0 || maxx >= VOLUME_DIMENSION || maxy >= VOLUME_DIMENSION || maxz >= VOLUME_DIMENSION)) {
+    if (FLAG_WARN_VOLUME_BOUNDS && (minx<0 || miny < 0 || minz < 0 || maxx >= VOLUME_DIMENSION || maxy >= VOLUME_DIMENSION || maxz >= VOLUME_DIMENSION)) {
       console.log(`[${minx},${miny},${minz}][${maxx},${maxy},${maxz}] out of bounds`);
     }
     if (FLAG_NO_WRAP_TEXTURES && x + width + TEXTURE_PADDING > TEXTURE_DIMENSION) {
@@ -691,15 +698,17 @@ const volumeToTexture = (
         for (let vz=VOLUME_DIMENSION; vz>0; ) {
           vz--;
           const v = vector3TransformMatrix4(transform, vx, vy, vz).map(Math.round);
-          const voxel = volume[v[2]][v[1]][v[0]];
-          if (voxel) {
-            if (!firstVoxel) {
-              firstVoxel = voxel;
-              firstZ = vz;
-            }
-            lastZ = vz;
-          } else if (firstVoxel) {
-            break;
+          if (!FLAG_CHECK_VOLUME_BOUNDS || v[2] >=0 && v[2] < VOLUME_DIMENSION && v[1] >= 0 && v[1] < VOLUME_DIMENSION && v[0] >= 0 && v[0] < VOLUME_DIMENSION) {
+            const voxel = volume[v[2]][v[1]][v[0]];
+            if (voxel) {
+              if (!firstVoxel) {
+                firstVoxel = voxel;
+                firstZ = vz;
+              }
+              lastZ = vz;
+            } else if (firstVoxel) {
+              break;
+            }  
           }
         } 
         let index = (y+vy-miny) * TEXTURE_DIMENSION * 4 + (x+vx-minx) * 4;

@@ -1,5 +1,6 @@
 const CONST_MAX_DELTA = 60;
 const CONST_MAX_REACH = 1.5;
+const CONST_CLICK_DURATION = 400;
 
 const CONST_DEFAULT_TAN_FOV_ON_2 = .8;
 

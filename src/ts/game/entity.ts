@@ -3,43 +3,56 @@ type EntityTypeFloor = 1;
 type EntityTypeMarine = 2;
 type EntityTypePistol = 3;
 type EntityTypeSymbol = 4;
+type EntityTypeSpider= 5;
 type EntityType = EntityTypeWall
     | EntityTypeFloor
     | EntityTypeMarine
     | EntityTypePistol
-    | EntityTypeSymbol;
+    | EntityTypeSymbol
+    | EntityTypeSpider;
 
 const ENTITY_TYPE_WALL: EntityTypeWall = 0;
 const ENTITY_TYPE_FLOOR: EntityTypeFloor = 1;
 const ENTITY_TYPE_MARINE: EntityTypeMarine = 2;
 const ENTITY_TYPE_PISTOL: EntityTypePistol = 3;
 const ENTITY_TYPE_SYMBOL: EntityTypeSymbol = 4;
+const ENTITY_TYPE_SPIDER: EntityTypeSpider = 5;
+
+const ENTITY_NAMES = [
+  'wall',
+  'floor',
+  'marine',
+  'pistol',
+  'symbol',
+  'spider',  
+];
+
+const ENTITY_Z_PADDINGS: Partial<{[k in EntityType]: number}> = {
+  [ENTITY_TYPE_MARINE]: 8,
+  [ENTITY_TYPE_SPIDER]: 8,
+}
+
 
 type EntityPurposeUseless = 0;
 type EntityPurposeWeapon = 1;
 type EntityPurposeSecondary = 2;
-type EntityPurposeCharacter = 3;
+type EntityPurposeActor = 3;
 type EntityPurpose = EntityPurposeUseless
     | EntityPurposeWeapon
     | EntityPurposeSecondary
-    | EntityPurposeCharacter;
+    | EntityPurposeActor;
 const ENTITY_PURPOSE_USELESS: EntityPurposeUseless = 0;
 const ENTITY_PURPOSE_WEAPON: EntityPurposeWeapon = 1;
 const ENTITY_PURPOSE_SECONDARY: EntityPurposeSecondary = 2;
-const ENTITY_PURPOSE_CHARACTER: EntityPurposeCharacter = 3;
+const ENTITY_PURPOSE_ACTOR: EntityPurposeActor = 3;
 
-const ENTITY_TYPES_TO_PURPOSES: Partial<Record<EntityType, EntityPurpose>> = {
-  // [ENTITY_TYPE_WALL]: ENTITY_PURPOSE_USELESS,
-  // [ENTITY_TYPE_FLOOR]: ENTITY_PURPOSE_USELESS,
-  [ENTITY_TYPE_MARINE]: ENTITY_PURPOSE_CHARACTER,
-  [ENTITY_TYPE_PISTOL]: ENTITY_PURPOSE_WEAPON,
-  //[ENTITY_TYPE_SYMBOL]: ENTITY_PURPOSE_WEAPON,
-}
 
 type EntityRenderables = {
   depthTexture: WebGLTexture,
   renderTexture: WebGLTexture,
-  thumbnail: HTMLCanvasElement | HTMLImageElement,  
+  thumbnail: HTMLCanvasElement | HTMLImageElement,
+  statusCanvas: HTMLCanvasElement,
+  statusTexture: WebGLTexture,
   vertexPositionBuffer: WebGLBuffer,
   vertexIndexBuffer: WebGLBuffer,
   textureCoordinatesBuffer: WebGLBuffer,
@@ -49,7 +62,27 @@ type EntityRenderables = {
   staticTransform: Matrix4,
 };
 
-type Entity = {
+type EntityBase = {
   type: EntityType,
   renderables: EntityRenderables,
-}
+};
+
+type ActorEntity = {
+  purpose: EntityPurposeActor,
+  side: number,
+  health: number,
+  power: number,
+  armor?: number,
+  pendingHealthDelta?: number,
+  pendingPowerDelta?: number,
+  pendingArmorDelta?: number,
+  maxHealth: number,
+  maxPower: number,
+} & EntityBase;
+
+type OtherEntity = {
+  purpose: EntityPurposeSecondary | EntityPurposeUseless | EntityPurposeWeapon;
+} & EntityBase;
+
+type Entity = ActorEntity | OtherEntity;
+

@@ -1,7 +1,6 @@
 var Y;
 var Z;
 var X;
-var V;
 var O;
 var innerWidth;
 var innerHeight;
