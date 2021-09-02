@@ -114,10 +114,15 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
             break;
           case ENTITY_TYPE_SPIDER:
             entity = {
-              health: 3,
-              maxHealth: 5,
-              power: 0,
-              maxPower: 2,
+              resources: [
+                {
+                  quantity: 2,
+                  maximum: 2,
+                }, {
+                  quantity: 0,
+                  maximum: 2,
+                },
+              ],
               purpose: ENTITY_PURPOSE_ACTOR,
               side: 1,
               renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
@@ -126,10 +131,16 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
             break;
           case ENTITY_TYPE_MARINE:
             entity = {
-              health: 3,
-              maxHealth: 3,
-              power: 0,
-              maxPower: 3,
+              resources: [
+                {
+                  quantity: 3,
+                  maximum: 3,
+                  temporary: 1,
+                }, {
+                  quantity: 0,
+                  maximum: 2,
+                },
+              ],
               purpose: ENTITY_PURPOSE_ACTOR,
               side: 0,
               renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
@@ -163,7 +174,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
       p.members.forEach((m, i) => {
         if (m) {
           const [position, rotation] = getTargetPositionAndRotations(p, i);
-          m.zRotation = rotation;
+          m['zr'] = rotation;
           m.position = position as Vector3;
         }
       })

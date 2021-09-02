@@ -115,11 +115,11 @@ module.exports = function (grunt) {
               }, {
                 from: "let ",
                 to: "var "
-              }, {
+              }/*, {
                 //from: /\[(\d+)\]\:/,
                 from: /\[(\d+)\]:/g,
                 to: "$1:"
-              }/*, {
+              }, {
                 from: /const (([a-zA-Z_$][a-zA-Z0-9_$]*=Math(\.|\w)*,?)+);/g,
                 to: ';with(Math){$1}'
               }, {

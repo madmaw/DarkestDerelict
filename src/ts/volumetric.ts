@@ -685,7 +685,7 @@ const volumeToTexture = (
     if (FLAG_WARN_VOLUME_BOUNDS && (minx<0 || miny < 0 || minz < 0 || maxx >= VOLUME_DIMENSION || maxy >= VOLUME_DIMENSION || maxz >= VOLUME_DIMENSION)) {
       console.log(`[${minx},${miny},${minz}][${maxx},${maxy},${maxz}] out of bounds`);
     }
-    if (FLAG_NO_WRAP_TEXTURES && x + width + TEXTURE_PADDING > TEXTURE_DIMENSION) {
+    if (!FLAG_NO_WRAP_TEXTURES && x + width + TEXTURE_PADDING > TEXTURE_DIMENSION) {
       y += rowHeight;
       x = 0;
       rowHeight = 0;

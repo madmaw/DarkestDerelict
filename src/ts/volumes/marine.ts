@@ -924,5 +924,5 @@ const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
   ],
 ];
 
-const VOLUMETRIC_TEMPLATE_MARINE = '.x[ZjC=>>+.y[X^YJxWC>@?xVZ^Y\\xXC>?>xWYJxXhjC>=<+.yYXVYJxWC>@?xVZVY\\xXC>?>xWYJxXhjC>=<+.zb.ZjCC??+.z^x[.d`S@+.#;dMx\\S?%+.zVwPYJC?EA+.yUYLxXC>>=xVYOxXC>=<xVS=+.y_YLxXC>?=xVYOxXC>=<xVS='
+const VOLUMETRIC_TEMPLATE_MARINE = '.x[ZjC=>>+.y[X^YJxWC>@?xVZ^Y\\xXC>?>xWYJxXhjC>=<+.yYXVYJxWC>@?xVZVY\\xXC>?>xWYJxXhjC>=<+.zb.ZjCC??+.z^x[.d`S@+.#;dMx\\S?%+.zVwPYJC?EA.#<y\\zTx]B;<F%+.yUYLxXC>>>xVYOxXC>><xWS=+.y_YLxXC>>>xVYOxXC>><xWS='
 const VOLUMETRIC_MARINE = FLAG_USE_VOLUME_COMMANDS ? VOLUMETRIC_COMMANDS_MARINE : VOLUMETRIC_TEMPLATE_MARINE;

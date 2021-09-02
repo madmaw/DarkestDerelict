@@ -70,15 +70,24 @@ type EntityBase = {
 type ActorEntity = {
   purpose: EntityPurposeActor,
   side: number,
-  health: number,
-  power: number,
-  armor?: number,
-  pendingHealthDelta?: number,
-  pendingPowerDelta?: number,
-  pendingArmorDelta?: number,
-  maxHealth: number,
-  maxPower: number,
+  resources: ActorEntityResourceValues[],
 } & EntityBase;
+
+type ActorEntityResourceTypeHealth = 0;
+type ActorEntityResourceTypePower = 1;
+type ActorEntityResourceType = ActorEntityResourceTypeHealth | ActorEntityResourceTypePower;
+
+const ENTITY_RESOURCE_SYMBOLS: string[] = [
+  '■□▣⧈',
+  '●○⦿⦾',
+];
+
+type ActorEntityResourceValues = {
+  quantity: number,
+  maximum?: number,
+  pending?: number,
+  temporary?: number,  
+}
 
 type OtherEntity = {
   purpose: EntityPurposeSecondary | EntityPurposeUseless | EntityPurposeWeapon;

@@ -25,37 +25,41 @@ type Party = {
   orientation?: Orientation,
   tile: Vector3,
   type: PartyType,
-  cameraPosition?: Vector3;
-  cameraZRotation?: number;
+  // camera position
+  ['cpos']?: Vector3;
+  // camera z rotation
+  ['czr']?: number;
   animationQueue: EventQueue<AnimationFactory, void>,
-  statusDisplayScale?: number,
+  ['sds']?: number, // status display scale
 } & AnimationHolder;
 
 type PartyMember = {
   position?: Vector3,
-  zRotation?: number,
-  zScale: number,
+  // z-rotation
+  ['zr']?: number,
+  // z-scale
+  ['zs']: number,
   entity: Entity,
   weapon?: Entity | Falseish,
   secondary?: Entity | Falseish,
   animationQueue: EventQueue<AnimationFactory, void>,
 } & AnimationHolder;
 
-const BASE_PARTY_MEMBER: Pick<PartyMember, 'zRotation' | 'zScale' | 'anims'> = {
+const BASE_PARTY_MEMBER: Pick<PartyMember, 'zr' | 'zs' | 'anims'> = {
   anims: [],
-  zScale: 1,
+  ['zs']: 1,
 };
 
 const moveNaturallyToSlotPosition = (party: Party, member: PartyMember, toSlot: number) => {
   const [targetPosition, toAngle, walkAngle] = getTargetPositionAndRotations(party, toSlot);
-  const turnAnimationFactory2 = createTweenAnimationFactory(member, 'zRotation', toAngle, easeLinear, 99);  
+  const turnAnimationFactory2 = createTweenAnimationFactory(member, 'zr', toAngle, easeLinear, 99);  
   let stepAnimationFactories: AnimationFactory[] = [];
   if (targetPosition) {
-    const turnAnimationFactory1 = createTweenAnimationFactory(member, 'zRotation', walkAngle, easeLinear, 99);
+    const turnAnimationFactory1 = createTweenAnimationFactory(member, 'zr', walkAngle, easeLinear, 99);
     const moveAnimationFactory = createTweenAnimationFactory(member, 'position', targetPosition, easeLinear, 99);  
     stepAnimationFactories = [turnAnimationFactory1, moveAnimationFactory];
   }
-  if (targetPosition || toAngle != member.zRotation) {
+  if (targetPosition || toAngle != member['zr']) {
     // force completion of the existing animations
     member.anims.forEach(a => a());
     member.anims = [];  
@@ -66,7 +70,7 @@ const moveNaturallyToSlotPosition = (party: Party, member: PartyMember, toSlot: 
 const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
   const tile = party.tile;
   const partyMember = party.members[memberSlot] as PartyMember;
-  let toAngle = partyMember.zRotation || 0;
+  let toAngle = partyMember['zr'] || 0;
   let targetPosition: Vector3 | Falseish = tile;
   switch (party.type) {
     case PARTY_TYPE_HOSTILE:
@@ -96,14 +100,14 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
   if (!partyMember.position || diff > .01) {
     walkAngle = Math.atan2(targetPosition[1] - sourcePosition[1], targetPosition[0] - sourcePosition[0])
   } else {
-    walkAngle = partyMember.zRotation || 0;
+    walkAngle = partyMember['zr'] || 0;
     targetPosition = 0;
   }
 
-  while (walkAngle > partyMember.zRotation + Math.PI) {
+  while (walkAngle > partyMember['zr'] + Math.PI) {
     walkAngle -= Math.PI*2;
   }
-  while (walkAngle < partyMember.zRotation - Math.PI) {
+  while (walkAngle < partyMember['zr'] - Math.PI) {
     walkAngle += Math.PI*2;
   }
   while (toAngle > walkAngle + Math.PI) {

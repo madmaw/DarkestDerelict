@@ -128,7 +128,8 @@ const VERTEX_SHADER = `
   const C_DEPTH_SCALE = `${DEPTH_SCALE}${DEPTH_SCALE==Math.round(DEPTH_SCALE)?'.':''}`;
   const C_MAX_NUM_LIGHTS = 4;
   const C_MAX_LIGHT_REACH = `6.`;
-  const STATUS_SCALE = 10;
+  // need to ensure that we will actually have enough space on the texture
+  const STATUS_SCALE = TEXTURE_DIMENSION/(VOLUME_DIMENSION*2); 
   const C_STATUS_SCALE = `${STATUS_SCALE}.`;
 
   const FRAGMENT_SHADER = `
@@ -623,6 +624,23 @@ onload = async () => {
   Y.hidden = true;
 
   const equipmentSlots: Element[] = new Array(X.children.length).fill(0).map((_, i) => X.children.item(i));
+  // const addEventsAndCancelAnimations = FLAG_ALLOWS_SKIP_ANIMATIONS 
+  //     ? (eventQueue: EventQueue<GameEvent, void>, ...events: GameEvent[]) => {
+  //       volumeMap(game.level, (t: Tile) => {
+  //         t.parties.forEach(p => {
+  //           p.anims.forEach(a => a());
+  //           p.anims = [];
+  //           p.members.forEach(m => {
+  //             if (m) {
+  //               m.anims.forEach(a => a());
+  //               m.anims = [];
+  //             }
+  //           });
+  //         });
+  //       });
+  //       return addEvents(eventQueue, ...events);
+  //     }
+  //     : addEvents;
   const gameEventQueue: EventQueue<GameEvent, void> = {
     events: [],
     handler: async (e: GameEvent) => {
@@ -641,8 +659,8 @@ onload = async () => {
               if (party == playerParty) {
                 // just animate the camera in and out
                 const toCameraPosition = from.map((v, i) => v + deltaPosition[i]/6) as Vector3;
-                const toAnimationFactory = createTweenAnimationFactory(party, 'cameraPosition', toCameraPosition, easeInQuad, 99);
-                const returnAnimationFactory = createTweenAnimationFactory(party, 'cameraPosition', party.cameraPosition, easeOutQuad, 99);
+                const toAnimationFactory = createTweenAnimationFactory(party, 'cpos', toCameraPosition, easeInQuad, 99);
+                const returnAnimationFactory = createTweenAnimationFactory(party, 'cpos', party['cpos'], easeOutQuad, 99);
                 await addEvents(party.animationQueue, toAnimationFactory, returnAnimationFactory); 
               }
             } else {
@@ -654,7 +672,7 @@ onload = async () => {
               if (aiMove = party == playerParty) {
                 // move the camera too
                 const toCameraPosition = [...to] as Vector3;
-                const animationFactory = createTweenAnimationFactory(party, 'cameraPosition', toCameraPosition, easeInQuad, 300);
+                const animationFactory = createTweenAnimationFactory(party, 'cpos', toCameraPosition, easeInQuad, 300);
                 cameraMovePromise = addEvents(party.animationQueue, animationFactory); 
               }
               // animate
@@ -676,7 +694,7 @@ onload = async () => {
             party.orientation = toOrientation as Orientation;
             let cameraRotationPromise: Promise<any>;
             if(aiMove = party == playerParty) {
-              const cameraAnimationFactory = createTweenAnimationFactory(party, 'cameraZRotation', party.cameraZRotation + deltaOrientation * Math.PI/2, easeInQuad, 300);
+              const cameraAnimationFactory = createTweenAnimationFactory(party, 'czr', party['czr'] + deltaOrientation * Math.PI/2, easeInQuad, 300);
               cameraRotationPromise = addEvents(party.animationQueue, cameraAnimationFactory);
             }
 
@@ -718,7 +736,7 @@ onload = async () => {
                       animationQueue: createAnimationEventQueue(game),
                       entity: e.entity,
                       position: fromSlot.position,
-                      zRotation: e.from.party.orientation * Math.PI/2,
+                      ['zr']: e.from.party.orientation * Math.PI/2,
                     };  
               }
             }
@@ -785,11 +803,11 @@ onload = async () => {
           const lookingAtZ = party.tile[2];
           
           if (lookingAtX == playerParty.tile[0] && lookingAtY == playerParty.tile[1] && lookingAtZ == playerParty.tile[2]) {
-            if (!party.statusDisplayScale) {
-              await addEvents(party.animationQueue, createTweenAnimationFactory(party, 'statusDisplayScale', 1, easeInQuad, 99, 0));
+            if (!party['sds']) {
+              await addEvents(party.animationQueue, createTweenAnimationFactory(party, 'sds', 1, easeInQuad, 99, 0));
             }
-          } else if (party.statusDisplayScale) {
-            await addEvents(party.animationQueue, createTweenAnimationFactory(party, 'statusDisplayScale', 0, easeInQuad, 99));
+          } else if (party['sds']) {
+            await addEvents(party.animationQueue, createTweenAnimationFactory(party, 'sds', 0, easeInQuad, 99));
           }
         }
       }
@@ -806,26 +824,31 @@ onload = async () => {
     orientation: ORIENTATION_NORTH,
     type: PARTY_TYPE_PLAYER,
     tile: partyPosition,
-    cameraPosition: [LEVEL_DIMENSION/2 | 0, 1, 1],
-    cameraZRotation: Math.PI/2,
+    ['cpos']: [LEVEL_DIMENSION/2 | 0, 1, 1],
+    ['czr']: Math.PI/2,
     anims: [],
     animationQueue: createAnimationEventQueue(game),
   };
   playerParty.members[0] = {
     ...BASE_PARTY_MEMBER,
     position: partyPosition,
-    zRotation: Math.PI/2,
+    ['zr']: Math.PI/2,
     animationQueue: createAnimationEventQueue(game),
     entity: {
       renderables: entityRenderables[ENTITY_TYPE_MARINE][0],
       type: ENTITY_TYPE_MARINE,
       purpose: ENTITY_PURPOSE_ACTOR,
-      health: 3,
-      power: 0,
-      maxHealth: 3,
-      maxPower: 2,
+      resources: [
+        {
+          quantity: 2,
+          maximum: 3,
+        },
+        {
+          quantity: 1,
+          maximum: 2,
+        },
+      ],
       side: 0,
-      armor: 1,
     },
     weapon: {
       renderables: entityRenderables[ENTITY_TYPE_PISTOL][0],
@@ -868,9 +891,9 @@ onload = async () => {
       const projectionMatrix = matrix4Multiply(
           perspectiveMatrix,
           matrix4Translate(...negatedCameraOffsetPosition),
-          matrix4Rotate(-playerParty.cameraZRotation, 0, 0, 1),
+          matrix4Rotate(-playerParty['czr'], 0, 0, 1),
           // NOTE: the shader usually does this for us
-          matrix4Translate(...vectorNDivide(playerParty.cameraPosition, -1)),
+          matrix4Translate(...vectorNDivide(playerParty['cpos'], -1)),
       );
       let minParty: Party | undefined;
       let minSlot: number | undefined;
@@ -1066,47 +1089,49 @@ onload = async () => {
   onmouseleave = ontouchcancel = cleanUpDrag;
 
   const renderEntityToContext = (entity: Entity, ctx: CanvasRenderingContext2D, width: number, height: number) => {
-      // render status
-      if (entity.purpose == ENTITY_PURPOSE_ACTOR) {
-        const values: [number, string][][] = [
-          [
-            [entity.health, '◼'],
-            [entity.maxHealth - entity.health, '◻'],
-            [entity.armor || 0, '▣'],
-          ],
-          [
-            [entity.power, '●'], 
-            [entity.maxPower - entity.power, '○'],
-            // ⦿ - temporary power
-          ],
-        ];
-        const textHeight = width/5.7;
-        ctx.font = `${textHeight}px serif`;
-        let y = textHeight/6;
-        ctx.strokeStyle = '#AFF';
-        ctx.fillStyle = '#133';
-        ctx.textAlign = 'center';
-        ctx.lineWidth = textHeight/15;
-        ctx.save();
-        ctx.globalAlpha = .5;
-        ctx.globalCompositeOperation = 'destination-over'
-        ctx.fillRect(textHeight/3, y + textHeight/6, width - textHeight/3, textHeight * values.length);
-        ctx.strokeRect(textHeight/3, y + textHeight/6, width - textHeight/3, textHeight * values.length);
-        ctx.restore();
+    // render status
+    if (entity.purpose == ENTITY_PURPOSE_ACTOR) {
+      const textHeight = width/5.7;
+      ctx.font = `${textHeight}px serif`;
+      const startingY = textHeight/6;
+      let y = startingY;
+      ctx.strokeStyle = '#AFF';
+      ctx.fillStyle = '#133';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = textHeight/15;
 
-        values.forEach(row => {
-          y += textHeight;
-          let x = textHeight/2;
-          row.forEach(([value, symbol]) => {
-            ctx.fillStyle = '#AFF';
-            new Array(Math.max(value, 0)).fill(symbol).forEach(s => {
-              ctx.fillText(s, x + textHeight/2, y);
-              x += textHeight;
-            });
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-over';
+      ctx.beginPath(); // required to prevent weirdness with clearRect
+      ctx.rect(textHeight/3, startingY + textHeight/6, width - textHeight/3, entity.resources.length * textHeight);
+      //ctx.closePath();
+      ctx.stroke();
+      ctx.globalAlpha = .5;
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = '#AFF';
+
+      entity.resources.forEach((v, i) => {
+        const {
+          quantity,
+          maximum = quantity,
+          pending = 0,
+          temporary = 0,
+        } = v;
+        const symbolsString = [...ENTITY_RESOURCE_SYMBOLS[i]];
+        y += textHeight;
+        let x = textHeight/2;
+        // TODO calculate temporary better
+        [quantity, maximum - quantity, temporary].forEach((value, i) => {
+          new Array(Math.max(value, 0)).fill(symbolsString[i]).forEach(s => {
+            ctx.fillText(s, x + textHeight/2, y);
+            x += textHeight;  
           });
         });
-      }
+      });
 
+    }
   }
 
   const renderEntityToCanvas = (entity: Entity | Falseish, canvas: HTMLCanvasElement, renderThumbnail?: Booleanish) => {
@@ -1150,7 +1175,6 @@ onload = async () => {
   updateInventory();
 
   onkeydown = (e: KeyboardEvent) => {
-    const actionMultiplier = e.shiftKey ? 0.125 : 1;
     let positionMultiplier = 1;
     switch (e.keyCode) {
       case 37: // left
@@ -1170,8 +1194,7 @@ onload = async () => {
           unrotatedDeltaPosition: [positionMultiplier, 0, 0],
         })
         break;
-    } 
-    //console.log(targetRotation, targetPosition);
+    }
   }
 
   const f = (now: number) => {
@@ -1182,11 +1205,11 @@ onload = async () => {
     game.time = now;
 
 
-    const cameraRotationMatrix = matrix4Rotate(playerParty.cameraZRotation, 0, 0, 1);
-    const negatedCameraRotationMatrix = matrix4Rotate(-playerParty.cameraZRotation, 0, 0, 1);
+    const cameraRotationMatrix = matrix4Rotate(playerParty['czr'], 0, 0, 1);
+    const negatedCameraRotationMatrix = matrix4Rotate(-playerParty['czr'], 0, 0, 1);
     const rotatedNegatedOffsetMatrix = vector3TransformMatrix4(cameraRotationMatrix, ...negatedCameraOffsetPosition);
     
-    const cameraPosition = vectorNSubtract(playerParty.cameraPosition, rotatedNegatedOffsetMatrix);
+    const cameraPosition = vectorNSubtract(playerParty['cpos'], rotatedNegatedOffsetMatrix);
 
     const projectionMatrix = matrix4Multiply(
         perspectiveMatrix,
@@ -1248,7 +1271,7 @@ onload = async () => {
                 light: [.8, .8, .75, 2],
                 lightTransform: matrix4Multiply(
                     matrix4Translate(...partyMember.position),
-                    matrix4Rotate(party.cameraZRotation + Math.PI, 0, 0, 1),
+                    matrix4Rotate(party['czr'] + Math.PI, 0, 0, 1),
                     matrix4Translate(.2, 0, .5),
                     matrix4Rotate(-Math.PI/9, 0, 1, 0),
                 )
@@ -1259,7 +1282,7 @@ onload = async () => {
                 light: [.5, .5, .5, 1],
                 lightTransform: matrix4Multiply(
                     matrix4Translate(...partyMember.position),
-                    matrix4Rotate(partyMember.zRotation + Math.PI, 0, 0, 1),
+                    matrix4Rotate(partyMember['zr'] + Math.PI, 0, 0, 1),
                     matrix4Translate(-.2, 0, .3),
                     matrix4Rotate(-Math.PI/4, 0, 1, 0),
                 )
@@ -1289,25 +1312,25 @@ onload = async () => {
           if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
             if (!partyMember.anims.length) {
               if (Math.random() > .1) {
-                partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zScale', partyMember.entity.side ? 1.05 : .97, easeSinBackToStart, 3000));
+                partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zs', partyMember.entity.side ? 1.05 : .97, easeSinBackToStart, 3000));
               } else {
-                partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zRotation', partyMember.zRotation + (Math.random() - .5) * Math.PI/3, easeSquareBackToStart, 2000));
+                partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr', partyMember['zr'] + (Math.random() - .5) * Math.PI/3, easeSquareBackToStart, 2000));
               }
             }
             const ctx = statusCanvas.getContext('2d');
             // note reversed because we actually are facing to the right
             const w = (bounds[1][1] - bounds[0][1] + 1) * STATUS_SCALE;
-            const h = (bounds[1][0] - bounds[0][0] + 1) * STATUS_SCALE;
-            ctx.save();
+            const h = (bounds[1][2] - bounds[0][2] + 1) * STATUS_SCALE;
             ctx.clearRect(0, 0, w, h);
-            if (party.statusDisplayScale > 0) {
-              // const g = ctx.createLinearGradient(0, 0, TEXTURE_DIMENSION, TEXTURE_DIMENSION);
+            if (party['sds'] > 0) {
+              // const g = ctx.createLinearGradient(0, 0, w, h);
               // g.addColorStop(0, '#f00');
               // g.addColorStop(1, '#00f');
               // ctx.fillStyle = g;
-              // ctx.fillRect(0, 0, TEXTURE_DIMENSION, TEXTURE_DIMENSION);
+              //ctx.fillRect(0, 0, w, h);
+              ctx.save();
               ctx.translate(w/2, 0);
-              ctx.scale(-party.statusDisplayScale, party.statusDisplayScale/partyMember.zScale);
+              ctx.scale(-party['sds'], party['sds']/partyMember['zs']);
               ctx.translate(-w/2, 0);
               renderEntityToContext(partyMember.entity, ctx, w, h);
               ctx.restore();
@@ -1318,15 +1341,15 @@ onload = async () => {
           }
           if (FLAG_ROTATING_ITEMS && partyMember.entity.purpose == ENTITY_PURPOSE_WEAPON) {
             if (!partyMember.anims.length) {
-              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zRotation', partyMember.zRotation + Math.PI*2, easeLinear, 4000));
+              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr', partyMember['zr'] + Math.PI*2, easeLinear, 4000));
             }
           }
 
           const position = partyMember.position;
-          const rotation = partyMember.zRotation;
+          const rotation = partyMember['zr'];
           const modelPositionMatrix = matrix4Translate(...position);
           const modelRotationMatrix = matrix4Rotate(rotation, 0, 0, 1);
-          const modelScaleMatrix = matrix4Scale(1, 1, partyMember.zScale);
+          const modelScaleMatrix = matrix4Scale(1, 1, partyMember['zs']);
           const modelViewMatrix = matrix4Multiply(
               modelPositionMatrix,
               modelRotationMatrix,
