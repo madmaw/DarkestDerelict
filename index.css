@@ -9,8 +9,10 @@ body {
   height: min(150vw, 100vh);
   display: grid;
   grid-template-columns: 100%;
-  grid-template-rows: 55% 36% 9%;
+  grid-template-rows: 55% 45%;
   overflow: hidden;
+  background: #000;
+  color: #fff;
 }
 
 #O, #O * {
@@ -29,34 +31,23 @@ body {
   grid-template-rows: 50% 50%;
 }
 
-#V {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-}
-
 .x {
   display: grid;
-  grid-template-columns: 50% 50%;
+  grid-template-columns: 66% 34%;
   grid-template-rows: 50% 50%;
-  grid-auto-rows: 20%;
 }
 
 .a {
   grid-row: 1/3;
-}
-
-.a, .i, .b, .c {
-  width: min(25vw, 17vh);
+  width: min(33vw, 22vh);
+  height: min(33vw, 22vh);
 }
 
 .b, .c {
-  height: min(11vw, 7vh);
-}
-
-.a, .i {
-  height: min(22vw, 15vh);
+  width: min(16vw, 11vh);
+  height: min(16vw, 11vh);
 }
 
 .o {
-  outline: 1px solid black;
+  box-shadow: inset 0 0 0 min(1vh,1vw) #AFF;
 }

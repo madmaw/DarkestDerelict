@@ -1,4 +1,4 @@
-type EntityAnimation = (time: number) => Booleanish;
+type EntityAnimation = (time?: number | undefined) => Booleanish;
 
 type AnimationHolder = {
   anims: EntityAnimation[];
@@ -23,6 +23,7 @@ const createTweenAnimationFactory = <T extends AnimationHolder, V extends keyof 
     to: T[V],
     easing: Easing,
     duration: number,
+    from?: T[V],
 ): AnimationFactory => {
   return (startTime: number) => {
     return new Promise(r => {
@@ -34,6 +35,7 @@ const createTweenAnimationFactory = <T extends AnimationHolder, V extends keyof 
           easing,
           duration,
           r,
+          from,
       );
       t.anims.push(anim);
     });
@@ -47,11 +49,11 @@ const createTweenEntityAnimation = <T extends AnimationHolder, V extends keyof T
     to: T[V],
     easing: Easing,
     duration: number,
-    onComplete?: () => void
+    onComplete?: () => void,
+    from: T[V] = t[propName],
 ) => {
-  const from = t[propName];
-  return (time: number) => {
-    let p = (time - startTime)/duration;
+  return (time: number | undefined) => {
+    let p = time ? (time - startTime)/duration : 1;
     if (p >= 1) {
       onComplete?.();
       p = 1;

@@ -25,6 +25,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         type: PARTY_TYPE_OBSTACLE,
         tile: position,
         anims: [],
+        animationQueue: createAnimationEventQueue(timeHolder),
         members: [{
           ...BASE_PARTY_MEMBER,
           staticTransform: matrix4Identity(),
@@ -80,6 +81,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         type: PARTY_TYPE_FLOOR,
         tile: position,
         anims: [],
+        animationQueue: createAnimationEventQueue(timeHolder),
         members: [{
           ...BASE_PARTY_MEMBER,
           animationQueue: createAnimationEventQueue(timeHolder),
@@ -138,9 +140,10 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
 
         if (entity) {
           t.parties.push({
-            type: PARTY_TYPE_ITEM,
+            type: type == ENTITY_TYPE_SPIDER ? PARTY_TYPE_HOSTILE : PARTY_TYPE_ITEM,
             tile: position,
             anims: [],
+            animationQueue: createAnimationEventQueue(timeHolder),
             members: [{
               ...BASE_PARTY_MEMBER,
               animationQueue: createAnimationEventQueue(timeHolder),
@@ -161,7 +164,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         if (m) {
           const [position, rotation] = getTargetPositionAndRotations(p, i);
           m.zRotation = rotation;
-          m.position = position;
+          m.position = position as Vector3;
         }
       })
     });
@@ -198,7 +201,16 @@ const getFavorableOrientation = (party: Party, level: Level): Orientation | unde
     ) {
       const comparisonTile = level[tz][ty][tx];
       // lower appeal is higher
-      const appeal = comparisonTile && comparisonTile.parties.reduce((a, p) => a + p.type == party.type ? 5 : p.type, 0); 
+      const appeal = comparisonTile && comparisonTile.parties.reduce(
+          (a, p) => a + (
+              p.members.some(m => !!m)
+                  ? p.type == party.type
+                      ? 1 // slightly avoid looking at like
+                      : p.type
+                  : 0
+          ),
+          0,
+      ); 
       return [
         appeal,
         orientation,
@@ -206,5 +218,10 @@ const getFavorableOrientation = (party: Party, level: Level): Orientation | unde
     }
     return [9, orientation];
   }).sort(([appeal1], [appeal2]) => appeal1 - appeal2);
-  return options.length ? options[0][1] : (party.orientation || ORIENTATION_EAST);
+  if (options.length && (options[0][0] < PARTY_TYPE_ITEM || party.orientation == null)) {
+    let orientation = options[0][1];
+    return orientation;
+  } else {
+    return party.orientation || ORIENTATION_EAST;
+  }
 }
