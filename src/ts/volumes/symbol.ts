@@ -1,15 +1,9 @@
 ///<reference path="./constants.ts"/>
+///<reference path="./colors.ts"/>
 
 const VOLUMETRIC_COMMANDS_SYMBOL: VolumetricDrawCommand[] = [
   [
     TYPE_SHAPE_EMOJI,
-    // {
-    //   type: 'char',
-    //   value: 'C',
-    //   //value: '🐱',
-    //   //value: '🔥',
-    //   //value: '💀',
-    // },
     {
       type: 'ref',
       index: 0,
@@ -29,3 +23,123 @@ const VOLUMETRIC_COMMANDS_SYMBOL: VolumetricDrawCommand[] = [
 
 const VOLUMETRIC_TEMPLATE_SYMBOL = 'E0S<';
 const VOLUMETRIC_SYMBOL = FLAG_USE_VOLUME_COMMANDS ? VOLUMETRIC_COMMANDS_SYMBOL : VOLUMETRIC_TEMPLATE_SYMBOL;
+
+const VOLUMETRIC_PARAMS_SYMBOL: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
+  // piercing attack
+  [
+    [COLOR_RED_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '◉'
+        }] : '◉'
+  ],
+  // slashing attack
+  [
+    [COLOR_RED_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '/'
+        }] : '/'
+  ],
+  // bludgeoning attack
+  [
+    [COLOR_RED_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '💥'
+        }] : '💥'
+  ],
+  // burning
+  [
+    [COLOR_RED_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '🔥'
+        }]: '🔥'
+  ],
+  // poison 
+  [
+    [COLOR_GREEN_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '☠'
+        }]: '☠'
+  ],
+  // heal 
+  [
+    [COLOR_CYAN_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '❤️'
+        }]: '❤️'
+  ],
+  // heal temporary 
+  [
+    [COLOR_CYAN_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '🛡️'
+        }]: '🛡️'
+  ],
+  // move lateral 
+  [
+    [COLOR_CYAN_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '↔'
+        }]: '↔'
+  ],
+  // move medial 
+  [
+    [COLOR_CYAN_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '↕'
+        }]: '↕'
+  ],
+  // power drain
+  [
+    [COLOR_YELLOW_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '▼'
+        }]: '▼'
+  ],
+  // power gain
+  [
+    [COLOR_YELLOW_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '▲'
+        }]: '▲'
+  ],
+  // power gain temporary
+  [
+    [COLOR_YELLOW_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '△'
+        }]: '△'
+  ],
+  // web
+  [
+    [COLOR_YELLOW_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '🕸️'
+        }]: '🕸️'
+  ],
+];

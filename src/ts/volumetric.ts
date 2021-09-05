@@ -45,7 +45,7 @@ const TYPE_MATERIAL_OUT_OF_BOUNDS = '?';
 const UNSCALED_VOLUME_DIMENSION = 32;
 const UNSCALED_VOLUME_MIDPOINT = UNSCALED_VOLUME_DIMENSION/2;
 
-const VOLUME_DIMENSION = FLAG_CONFIGURABLE_QUALITY ? parseInt(window.location.hash?.substr(1) || '32') : 32;
+const VOLUME_DIMENSION = FLAG_CONFIGURABLE_QUALITY ? parseInt(window.location.hash?.substr(1) || '64') : 64;
 const VOLUME_MIDPOINT = VOLUME_DIMENSION/2;
 const OFFSET_VOLUME_MIDPOINT = (VOLUME_DIMENSION-1)/2;
 const VOLUME_DEPTH_OFFSET = 4;
@@ -69,11 +69,11 @@ const CARDINAL_PROJECTIONS: Matrix4[] = [
   // front
   matrix4Multiply(matrix4Rotate(Math.PI/2, 0, 1, 0), matrix4Rotate(-Math.PI/2, 0, 0, 1)),
   // back
-  matrix4Rotate(-Math.PI/2, 0, 1, 0),
+  matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Rotate(Math.PI/2, 0, 0, 1)),
   // right
   matrix4Rotate(-Math.PI/2, 1, 0, 0),
   // left
-  matrix4Rotate(Math.PI/2, 1, 0, 0),
+  matrix4Multiply(matrix4Rotate(Math.PI/2, 1, 0, 0),matrix4Rotate(Math.PI, 0, 0, 1)),
   // top
   matrix4Identity(),
   // bottom
@@ -161,8 +161,6 @@ type VolumetricDrawCommand = [
 
 // material index and normal (x, y, z )
 type Voxel = readonly [number] | readonly [number, number, number, number];
-// rgb + shininess
-type Texel = readonly [number, number, number, number];
 
 type Volume<T> = (T | Falseish)[][][];
 
@@ -201,13 +199,13 @@ const processVolumetricDrawCommandString = (
   const commands: string[] = [...commandString].map(s => ps[s]?ps[s]:s);
 
   const contexts: {
-    volume: Volume<Voxel>,
+    volum: Volume<Voxel>,
     transforms: Matrix4[],
     materialIndex: number,
     commands: string[],
     rounding?: number | undefined,
   }[] = [{
-    volume: createEmptyVolume(VOLUME_DIMENSION),
+    volum: createEmptyVolume(VOLUME_DIMENSION),
     transforms: [
       transform,
     ],
@@ -229,7 +227,7 @@ const processVolumetricDrawCommandString = (
       context.commands.push(command);
       return command;
     };
-    const { volume, transforms, materialIndex, rounding} = context;
+    const { volum: volume, transforms, materialIndex, rounding} = context;
     const effectiveRounding = rounding || 1/VOLUME_SCALE;
     const transform = matrix4Multiply(...contexts.map(c => c.transforms).reverse().flat());
     const command = nextCommand();
@@ -431,7 +429,7 @@ const processVolumetricDrawCommandString = (
         break;
       case TYPE_CONTEXT_START:
         contexts.unshift({
-          volume: createEmptyVolume(VOLUME_DIMENSION),
+          volum: createEmptyVolume(VOLUME_DIMENSION),
           transforms: [],
           materialIndex,
           commands: [],
@@ -442,7 +440,7 @@ const processVolumetricDrawCommandString = (
         nextContext();
         fixNormals(
             volumeMap(
-                contexts[0].volume,
+                contexts[0].volum,
                 (v, [x, y, z]) => v || volume[z][y][x],
             ),
         );
@@ -451,7 +449,7 @@ const processVolumetricDrawCommandString = (
         nextContext();
         fixNormals(
             volumeMap(
-                contexts[0].volume,
+                contexts[0].volum,
                 (v, [x, y, z]) => !volume[z][y][x] && v,
             ),
             ([x, y, z]: Vector3) => {
@@ -469,7 +467,7 @@ const processVolumetricDrawCommandString = (
       case TYPE_CONTEXT_END_REMATERIAL:
         nextContext();
         volumeMap(
-            contexts[0].volume,
+            contexts[0].volum,
             (v, [x, y, z]) => {
               const s = volume[z][y][x];
               return v && s
@@ -483,7 +481,7 @@ const processVolumetricDrawCommandString = (
         savedCommands = context.commands.slice(0, -1);
         break;  
       case TYPE_RESTORE_CONTEXT:
-        const savedVolume = processVolumetricDrawCommandString(savedCommands.join(''), params, transform).volume;
+        const savedVolume = processVolumetricDrawCommandString(savedCommands.join(''), params, transform).volum;
         fixNormals(
             volumeMap(
                 volume,
@@ -502,9 +500,9 @@ const processVolumetricDrawCommandString = (
   }
 
   while (contexts.length > 1) {
-    const { volume } = contexts.shift();
+    const { volum: volume } = contexts.shift();
     volumeMap(
-        contexts[0].volume,
+        contexts[0].volum,
         (v, [x, y, z]) => v || volume[z][y][x],
     );
   }
@@ -558,7 +556,8 @@ const volumeMap = <T>(volume: Volume<T>, f: (t: T | Falseish, position: Vector3)
 
 const renderShape = (volume: Volume<Voxel>, shape: Shape, transform: Matrix4, materialIndex: number) => {
   const sourceTransform = matrix4Invert(transform);
-  fixNormals(
+  // sourceTransform can be `undefined` if the shape is scaled to nothingness
+  sourceTransform && fixNormals(
       volumeMap(
           volume,
           (voxel, position) => {
@@ -643,14 +642,19 @@ const volumeToDepthTexture = (volume: Volume<Voxel>, bounds: Rect3) => {
   });
 }
 
-const volumeToRenderTexture = (volume: Volume<Voxel>, bounds: Rect3, renderTextures: readonly Volume<Texel>[]) => {
-  return volumeToTexture(volume, bounds, (voxel, x, y, _, z) => {
+const volumeToRenderTexture = (volume: Volume<Voxel>, bounds: Rect3, packedRenderTextures: readonly (Vector4 | string)[]) => {
+  const renderTextures: Vector4[] = FLAG_USE_PACKED_COLORS 
+      ? packedRenderTextures.map(colorFromBase64)
+      : packedRenderTextures as Vector4[];
+  if (!FLAG_USE_PACKED_COLORS) {
+    renderTextures.forEach(r => {
+      const packed = colorToBase64(r);
+      console.log(`${JSON.stringify(r)} => ${packed}`);
+    });
+  }
+  return volumeToTexture(volume, bounds, voxel => {
     const materialIndex = Math.abs(voxel[0]);
-    const renderTexture = renderTextures[materialIndex%renderTextures.length];
-    const col = renderTexture[x%renderTexture.length];
-    const row = col[y%col.length];
-    const texel = row[z%row.length];
-    return texel as Texel;
+    return renderTextures[materialIndex%renderTextures.length];
   });
 }
 

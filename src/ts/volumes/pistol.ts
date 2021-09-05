@@ -131,7 +131,7 @@ const VOLUMETRIC_COMMANDS_PISTOL: VolumetricDrawCommand[] = [
       {
         type: 'numeric',
         range: 'positive-integer',
-        value: 6,
+        value: 20,
       },
       {
         type: 'numeric',

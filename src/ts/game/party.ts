@@ -27,42 +27,53 @@ type Party = {
   type: PartyType,
   // camera position
   ['cpos']?: Vector3;
+  // [negated] camera offset 
+  ['coff']?: Vector3,
   // camera z rotation
   ['czr']?: number;
   animationQueue: EventQueue<AnimationFactory, void>,
-  ['sds']?: number, // status display scale
 } & AnimationHolder;
 
 type PartyMember = {
   position?: Vector3,
+  // y-rotation
+  ['yr']?: number,
   // z-rotation
   ['zr']?: number,
+  // z-rotation for ambient animations
+  ['zr2']?: number,
   // z-scale
   ['zs']: number,
+   // status display scale
+  ['sds']?: number,
   entity: Entity,
-  weapon?: Entity | Falseish,
+  weapon?: WeaponEntity | Falseish,
   secondary?: Entity | Falseish,
   animationQueue: EventQueue<AnimationFactory, void>,
+  attackAnimations?: {
+    attack: Attack,
+    x?: number,
+    y?: number,
+    scale: number,
+  }[],
+  activeAttackStartTime?: number,
 } & AnimationHolder;
 
-const BASE_PARTY_MEMBER: Pick<PartyMember, 'zr' | 'zs' | 'anims'> = {
+const BASE_PARTY_MEMBER: Pick<PartyMember, 'yr' | 'zr' | 'zs' | 'anims'> = {
   anims: [],
   ['zs']: 1,
 };
 
 const moveNaturallyToSlotPosition = (party: Party, member: PartyMember, toSlot: number) => {
   const [targetPosition, toAngle, walkAngle] = getTargetPositionAndRotations(party, toSlot);
-  const turnAnimationFactory2 = createTweenAnimationFactory(member, 'zr', toAngle, easeLinear, 99);  
+  const turnAnimationFactory2 = createTweenAnimationFactory(member, member, 'zr', toAngle, easeLinear, 99);  
   let stepAnimationFactories: AnimationFactory[] = [];
   if (targetPosition) {
-    const turnAnimationFactory1 = createTweenAnimationFactory(member, 'zr', walkAngle, easeLinear, 99);
-    const moveAnimationFactory = createTweenAnimationFactory(member, 'position', targetPosition, easeLinear, 99);  
+    const turnAnimationFactory1 = createTweenAnimationFactory(member, member, 'zr', walkAngle, easeLinear, 99);
+    const moveAnimationFactory = createTweenAnimationFactory(member, member, 'position', targetPosition, easeLinear, 99);  
     stepAnimationFactories = [turnAnimationFactory1, moveAnimationFactory];
   }
   if (targetPosition || toAngle != member['zr']) {
-    // force completion of the existing animations
-    member.anims.forEach(a => a());
-    member.anims = [];  
     return addEvents(member.animationQueue, ...stepAnimationFactories, turnAnimationFactory2);
   }
 }
@@ -118,4 +129,64 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
   }
 
   return [targetPosition, toAngle, walkAngle] as const;
+}
+
+const applyAttacks = (party: Party, slot: number): [ActorEntityResourceValues[], number] => {
+  const partyMember = party.members[slot];
+  if (partyMember) {
+    const entity = partyMember.entity as ActorEntity;
+    const attacks = partyMember.attackAnimations;
+    const [resources, newSlot] = attacks.reduce(
+        ([resources, slot], { attack }) => {
+          switch (attack) {
+            case ATTACK_BLUDGEONING:
+            case ATTACK_BURNING:
+            case ATTACK_CUTTING:
+            case ATTACK_PIERCING:
+              // TODO poison should damage over time
+            case ATTACK_POISON:
+              resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity--;
+              break;
+            case ATTACK_HEAL:
+              resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity++;
+              break;
+            case ATTACK_HEAL_TEMPORARY:
+              resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].temporary = (resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].temporary|| 0) + 1;
+              break;
+            case ATTACK_MOVE_LATERAL:
+              slot = slot + 1 - (slot%2)*2;
+              break;
+            case ATTACK_MOVE_MEDIAL:
+              slot = slot + (1 - (slot/2 | 0)*2)*2;
+              break;
+            case ATTACK_POWER_DRAIN:
+              resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity--;
+              break;
+            case ATTACK_POWER_GAIN:
+              resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity++;
+              break;
+            case ATTACK_POWER_GAIN_TEMPORARY:
+              resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary = (resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary|| 0) + 1;
+              break;
+          }
+          return [resources, slot];
+        },
+        [entity.res.map(r => ({...r})), slot], 
+    );
+    return [
+      resources.map(r => {
+        r.quantity = Math.min(Math.max(0, r.quantity), r.max || r.quantity);
+        r.temporary = Math.min(r.temporary || 0, r.max || r.quantity);
+        return r;
+      }),
+      newSlot,
+    ];
+  }
+};
+
+const isLookingAt = (party: Party, other: Party) => {
+  const lookingAtX = party.tile[0] + CARDINAL_XY_DELTAS[party.orientation][0];
+  const lookingAtY = party.tile[1] + CARDINAL_XY_DELTAS[party.orientation][1];
+  const lookingAtZ = party.tile[2];
+  return lookingAtX == other.tile[0] && lookingAtY == other.tile[1] && lookingAtZ == other.tile[2]
 }

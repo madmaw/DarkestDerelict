@@ -107,6 +107,27 @@ module.exports = function (grunt) {
                   from: "'use strict';",
                   to:""
               }, {
+                from: /\/\/([^\\])*\\n/g,
+                to:""
+              }, /*{
+                from: /\/\*(.|\\n)*\*\//g,
+                to:""
+              }, */{
+                  from: /((\\n)\s*)+/g,
+                  to:" "
+              }, {
+                  from: /(\s)+/g,
+                  to:" "
+              }, {
+                  from: /(\W)\s(\w)/g,
+                  to: "$1$2"
+              }, {
+                  from: /(\w)\s(\W)/g,
+                  to: "$1$2"
+              }, {
+                  from: /(\W)\s(\W)/g,
+                  to: "$1$2"
+              }, {
                   from: "void 0",
                   to: "null"
               }, {
@@ -119,34 +140,21 @@ module.exports = function (grunt) {
                 //from: /\[(\d+)\]\:/,
                 from: /\[(\d+)\]:/g,
                 to: "$1:"
-              }, {
-                from: /const (([a-zA-Z_$][a-zA-Z0-9_$]*=Math(\.|\w)*,?)+);/g,
-                to: ';with(Math){$1}'
-              }, {
-                from: /const (([a-zA-Z_$][a-zA-Z0-9_$]*=Math(\.|\w)*,?)+),/g,
-                to: ';with(Math){$1};var '
-              }*/
-              /*, { // turn functions into => form
-                from: /(=|:|return |\(|,)function\(([^\)]*)\)/g,
-                to:"$1($2)=>"
-              }, { // replace all function decls with lets
-                from: /function ([^\)]+)(\([^\)]*\))/g,
-                to: "let $1=$2=>"
-              },*/]
+              }*/]
           },
           js2: { // second pass for the bits that we changed above
             src: ['dist/out.min.js'],
             overwrite: true,
-            replacements: [/*{// fix up all the missing semicolons from the previous function replacement
-                from: /\}(let |for\(|\(|[^;= \(,\}]+=)/g,
-                to: "};$1"
-            }, { // compress sequential var decls
-                from: /(let ([a-zA-Z_$][a-zA-Z0-9_$]*(=([^,\[\}\(;]+|\[[^\]]*\]))*,?)*);let /g,
-                to: "$1,"
-            }*/ /*{ // should all be contained in a with block
-                from: /Math\./g,
-                to: ""
-            }*/]
+            replacements: [{
+                from: /(\W)\s(\w)/g,
+                to: "$1$2"
+            }, {
+                from: /(\w)\s(\W)/g,
+                to: "$1$2"
+            }, {
+                from: /(\W)\s(\W)/g,
+                to: "$1$2"
+            }]
         },
       },
       copy: {

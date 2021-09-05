@@ -9,6 +9,12 @@ type Tile = {
 
 type Level = Volume<Tile>;
 
+const iterateLevel = (level: Level, f: (m: PartyMember, party: Party, slotId: number) => void) => {
+  volumeMap(level, (tile: Tile) => {
+    tile.parties.forEach(party => [...party.members].forEach((partyMember, i) => partyMember && f(partyMember, party, i)));
+  });
+}
+
 const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderables[][]): Level => {
   const walls = entityRenderables[ENTITY_TYPE_WALL];
   const tiles = createEmptyVolume<Tile>(LEVEL_DIMENSION);
@@ -104,7 +110,8 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         let purpose: EntityPurposeWeapon | EntityPurposeUseless = ENTITY_PURPOSE_USELESS;
         switch (type) {
           case ENTITY_TYPE_PISTOL:
-            purpose = ENTITY_PURPOSE_WEAPON;
+            entity = createPistol(thingRenderables[0]);
+            break;
           case ENTITY_TYPE_SYMBOL:
             entity = {
               renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
@@ -114,38 +121,62 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
             break;
           case ENTITY_TYPE_SPIDER:
             entity = {
-              resources: [
+              res: [
                 {
                   quantity: 2,
-                  maximum: 2,
+                  max: 2,
                 }, {
                   quantity: 0,
-                  maximum: 2,
+                  max: 2,
                 },
               ],
               purpose: ENTITY_PURPOSE_ACTOR,
               side: 1,
               renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
               type,
+              attacks: [
+                // power level 0
+                [
+                  // attacker in front row
+                  [
+                    // dodge
+                    [ATTACK_MOVE_LATERAL, ATTACK_POWER_GAIN], // front row, same side
+                  ], 
+                  // attacker in back row
+                  [
+                    // dodge
+                    , // front row, same side
+                    , // front row, opposide side
+                    [ATTACK_MOVE_LATERAL, ATTACK_POWER_GAIN], // back row, same side
+                  ], 
+                ],
+                // power level 1
+                [
+                  // attacker in front row
+                  [
+                    // venomous bite
+                    , // front row, same side
+                    , // front row, opposide side
+                    , // back row, same side
+                    , // back row, opposite side
+                    [ATTACK_POISON], // enemy front row, same side
+                  ], 
+                  // attacker in back row
+                  [
+                    // web
+                    , // front row, same side
+                    , // front row, opposide side
+                    , // back row, same side
+                    , // back row, opposite side
+                    [ATTACK_WEBBING], // enemy front row, same side
+                    [ATTACK_WEBBING], // enemy front row, opposite side
+                  ], 
+                ],                
+              ],
             };
             break;
           case ENTITY_TYPE_MARINE:
-            entity = {
-              resources: [
-                {
-                  quantity: 3,
-                  maximum: 3,
-                  temporary: 1,
-                }, {
-                  quantity: 0,
-                  maximum: 2,
-                },
-              ],
-              purpose: ENTITY_PURPOSE_ACTOR,
-              side: 0,
-              renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
-              type,
-            };
+            entity = createMarine(thingRenderables, Math.random() * thingRenderables.length | 0);
             break;
         }
 
@@ -233,6 +264,138 @@ const getFavorableOrientation = (party: Party, level: Level): Orientation | unde
     let orientation = options[0][1];
     return orientation;
   } else {
-    return party.orientation || ORIENTATION_EAST;
+    return party.orientation;
   }
 }
+
+const createMarine = (renderables: EntityRenderables[], color: number): ActorEntity => {
+  // TODO: adjust resources and attacks based on color
+  return {
+    res: [
+      {
+        quantity: 3,
+        max: 3,
+        temporary: 0,
+      }, {
+        quantity: 0,
+        max: 2,
+      },
+    ],
+    purpose: ENTITY_PURPOSE_ACTOR,
+    side: 0,
+    renderables: renderables[color],
+    type: ENTITY_TYPE_MARINE,
+    attacks: [
+      // power level 0
+      [
+        // attacker in front row
+        [
+          // shove and retreat
+          [ATTACK_MOVE_MEDIAL], // front row, same side
+          , // front row, opposide side
+          , // back row, same side
+          , // back row, opposite side
+          [ATTACK_MOVE_MEDIAL], // enemy front row, same side
+        ], 
+        // attacker in back row
+        [
+          // move up
+          , // front row, same side
+          , // front row, opposide side
+          [ATTACK_POWER_GAIN, ATTACK_MOVE_MEDIAL], // back row, same side
+        ], 
+      ],
+      // power level 1
+      [
+        // attacker in front row
+        [
+          // punch
+          , // front row, same side
+          , // front row, opposide side
+          , // back row, same side
+          , // back row, opposite side
+          [ATTACK_BLUDGEONING], // enemy front row, same side
+        ], 
+        // attacker in back row
+        [
+          // bold move
+          , // front row, same side
+          , // front row, opposide side
+          [ATTACK_POWER_GAIN, ATTACK_MOVE_MEDIAL], // back row, same side
+        ], 
+      ],
+    ],
+  };
+}
+
+const createPistol = (renderables: EntityRenderables): WeaponEntity => {
+  return {
+    renderables,
+    type: ENTITY_TYPE_PISTOL,
+    purpose: ENTITY_PURPOSE_WEAPON,
+    attacks: [
+      // power level 0
+      [
+        // attacker in front row
+        [
+          // pistol whip
+          , // front row, same side
+          , // front row, opposide side
+          , // back row, same side
+          , // back row, opposite side
+          [ATTACK_POWER_DRAIN], // enemy front row, same side
+        ], 
+        // attacker in back row
+        [
+          // reload
+          , // front row, same side
+          , // front row, opposide side
+          [ATTACK_POWER_GAIN, ATTACK_POWER_GAIN], // back row, same side
+        ],
+      ], 
+      // power level 1
+      [
+        // attacker in front row
+        [
+          // shoot
+          , // front row, same side
+          , // front row, opposide side
+          , // back row, same side
+          , // back row, opposite side
+          [ATTACK_PIERCING], // enemy front row, same side
+        ], 
+        // attacker in back row
+        [
+          // shoot
+          , // front row, same side
+          , // front row, opposide side
+          , // back row, same side
+          , // back row, opposite side
+          [ATTACK_PIERCING], // enemy front row, same side
+        ],
+      ],
+      // power level 2
+      [
+        // attacker in front row
+        [
+          // empty clip
+          , // front row, same side
+          , // front row, opposide side
+          , // back row, same side
+          , // back row, opposite side
+          [ATTACK_PIERCING, ATTACK_PIERCING], // enemy front row, same side
+        ], 
+        // attacker in back row
+        [
+          // spray clip
+          , // front row, same side
+          , // front row, opposide side
+          , // back row, same side
+          , // back row, opposite side
+          [ATTACK_PIERCING], // enemy front row, same side
+          [ATTACK_PIERCING], // enemy front row, opposite side
+        ],
+      ],
+    ],
+  };
+};

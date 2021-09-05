@@ -11,13 +11,13 @@ type TimeHolder = {
 type AnimationFactory = (startTime: number) => Promise<void>;
 
 const createAnimationEventQueue = (timeHolder: TimeHolder): EventQueue<AnimationFactory, void> => ({
-  events: [],
   handler: (animationFactory: AnimationFactory) => {
     return animationFactory(timeHolder.time);
   },
 });
 
-const createTweenAnimationFactory = <T extends AnimationHolder, V extends keyof T>(
+const createTweenAnimationFactory = <T, V extends keyof T>(
+    a: AnimationHolder,
     t: T,
     propName: V,
     to: T[V],
@@ -34,23 +34,29 @@ const createTweenAnimationFactory = <T extends AnimationHolder, V extends keyof 
           to,
           easing,
           duration,
-          r,
           from,
+          r,
       );
-      t.anims.push(anim);
+      a.anims.push(anim);
     });
   }; 
 }
 
-const createTweenEntityAnimation = <T extends AnimationHolder, V extends keyof T>(
+const createParallelAnimationFactory = (...animationFactories: AnimationFactory[]) => {
+  return (startTime): Promise<any> => {
+    return Promise.all(animationFactories.map(animationFactory => animationFactory(startTime)));
+  }
+}
+
+const createTweenEntityAnimation = <T, V extends keyof T>(
     startTime: number,
     t: T,
     propName: V,
     to: T[V],
     easing: Easing,
     duration: number,
-    onComplete?: () => void,
     from: T[V] = t[propName],
+    onComplete?: () => void,
 ) => {
   return (time: number | undefined) => {
     let p = time ? (time - startTime)/duration : 1;

@@ -28,18 +28,26 @@ type GameEventChangeLoadout = {
   to: EntityLocation,
 };
 
-type GameEventTypeAttack = 3;
-const GAME_EVENT_TYPE_ATTACK: GameEventTypeAttack = 3;
-type GameEventAttack = {
-  type: GameEventTypeAttack,
+type GameEventTypeProposeAttack = 3;
+const GAME_EVENT_TYPE_PROPOSE_ATTACK: GameEventTypeProposeAttack = 3;
+type GameEventProposeAttack = {
+  type: GameEventTypeProposeAttack,
   attackerLocation: EntityLocation,
-}
+};
 
-type GameEvent = GameEventMove | GameEventTurn | GameEventChangeLoadout | GameEventAttack;
+type GameEventTypeConfirmAttack = 4;
+const GAME_EVENT_TYPE_CONFIRM_ATTACK: GameEventTypeConfirmAttack = 4;
+type GameEventConfirmAttack = {
+  type: GameEventTypeConfirmAttack,
+  attackerLocation: EntityLocation,
+};
+
+type GameEvent = GameEventMove | GameEventTurn | GameEventChangeLoadout | GameEventProposeAttack | GameEventConfirmAttack;
 
 type Game = {
   time: number,
   level?: Level,
+  pendingMember?: PartyMember | Falseish,
   previousLights?: {
     position: Vector3,
     light: Vector4,

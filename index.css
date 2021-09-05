@@ -25,6 +25,17 @@ body {
   height: 100%;
 }
 
+#Y {
+  height: 2vh;
+  margin: 2vh;
+  border: 1vh solid #fff;
+}
+
+#P {
+  background: #fff;
+  height: 3vh;
+}
+
 #X {
   display: grid;
   grid-template-columns: 50% 50%;

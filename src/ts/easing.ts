@@ -12,3 +12,5 @@ const easeInOutExp4BackToStart = p => 1 - Math.pow((p-.5)*2, 4);
 const easeSquareBackToStart = p => Math.min((1 - Math.abs(p - .5)*2) * 5, 1);
 
 const easeSinBackToStart = p => Math.sin(p * Math.PI);
+
+const easeOutBack = p => 1 + 2 * Math.pow(p - 1, 5) + Math.pow(p - 1, 2);

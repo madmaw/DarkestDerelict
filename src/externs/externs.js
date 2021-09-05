@@ -2,6 +2,8 @@ var Y;
 var Z;
 var X;
 var O;
+var T;
+var P;
 var innerWidth;
 var innerHeight;
 var onkeyup;

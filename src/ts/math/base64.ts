@@ -12,8 +12,11 @@ const integerToBase64 = (i: number) => {
 const angleToBase64 = (a: number) => integerToBase64(Math.round(a * 32 / Math.PI));
 const positiveIntegerToBase64 = (i: number) => String.fromCharCode(i + OFFSET);
 const positiveFloatToBase64 = (f: number) => positiveIntegerToBase64(Math.round(f * FLOAT_DIVISOR));
+const colorToBase64 = (color: Vector4) => color.map(v => positiveIntegerToBase64((v/4 | 0))).join('');
 
 const integerFromBase64 = (s: string) => s.charCodeAt(0) - OFFSET - 32;
 const angleFromBase64 = (s: string) => (integerFromBase64(s) / 32) * Math.PI;
 const positiveIntegerFromBase64 = (s: string) => s.charCodeAt(0) - OFFSET;
 const positiveFloatFromBase64 = (s: string) => positiveIntegerFromBase64(s)/FLOAT_DIVISOR;
+// multiply by 4.05 so 63 => 255, not 252
+const colorFromBase64 = (s: string) => [...s].map(c => positiveIntegerFromBase64(c)*4.05 | 0) as Vector4;

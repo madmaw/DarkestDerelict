@@ -1,5 +1,3 @@
-///<reference path="../sprite.ts"/>
-
 const VOLUMETRIC_COMMANDS_MARINE: VolumetricDrawCommand[] = [
    // hips
   [
