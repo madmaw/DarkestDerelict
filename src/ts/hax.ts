@@ -1,4 +1,3 @@
-const ERROR_MARGIN = .0001;
 const shortenMethods = <F, T extends F>(o: F): T => {
   //let dts = '';
   for(const k in o) {
@@ -24,7 +23,6 @@ type TouchOrMouseEvent = TouchEvent | MouseEvent;
 const TRUE = 1 as const;
 const FALSE = 0 as const;
 
-const mathPI = Math.PI;
 //const mathSqrt = Math.sqrt;
 const mathPow = Math.pow;
 const mathRandom = Math.random;

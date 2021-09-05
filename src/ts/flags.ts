@@ -17,9 +17,11 @@ const FLAG_ROTATING_ITEMS = true && !FLAG_PRODUCTION_MINIMAL;
 const FLAG_CENTER_TEXT_VERTICALLY = false || !FLAG_PRODUCTION_MINIMAL;
 const FLAG_USE_PACKED_COLORS = false || FLAG_PRODUCTION_MINIMAL;
 const FLAG_SQUARE_SIDES = true && !FLAG_PRODUCTION_MINIMAL; // status display is trunchated on sides otherwise
-const FLAG_SCREEN_SHAKE = true && !FLAG_PRODUCTION_MINIMAL; // screen shake on damaged
-const FLAG_DAMAGE_ANIMATION = true && !FLAG_PRODUCTION_MINIMAL; // rear up on getting damaged
-const FLAG_ATTACK_ANIMATION = true && !FLAG_PRODUCTION_MINIMAL; // rear up and attack
-const FLAG_DEATH_ANIMATION = true && !FLAG_PRODUCTION_MINIMAL; // die
+const FLAG_SCREEN_SHAKE = true || !FLAG_PRODUCTION_MINIMAL; // screen shake on damaged
+const FLAG_DAMAGE_ANIMATION = true || !FLAG_PRODUCTION_MINIMAL; // rear up on getting damaged
+const FLAG_ATTACK_ANIMATION = true || !FLAG_PRODUCTION_MINIMAL; // rear up and attack
+const FLAG_DEATH_ANIMATION = true || !FLAG_PRODUCTION_MINIMAL; // die
+const FLAG_MOBILE_SUPPORT = true || !FLAG_PRODUCTION_MINIMAL; // touch controls
+const FLAG_ROTATE_COLORS = false;
 
 

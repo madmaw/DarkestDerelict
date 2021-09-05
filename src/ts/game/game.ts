@@ -49,7 +49,7 @@ type Game = {
   level?: Level,
   pendingMember?: PartyMember | Falseish,
   previousLights?: {
-    position: Vector3,
+    ['pos']: Vector3,
     light: Vector4,
     lightTransform: Matrix4,
   }[];

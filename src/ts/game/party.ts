@@ -22,7 +22,7 @@ const PARTY_TYPE_OBSTACLE: PartyTypeObstacle = 9;
 
 type Party = {
   members: (PartyMember | Falseish)[],
-  orientation?: Orientation,
+  orientated?: Orientation,
   tile: Vector3,
   type: PartyType,
   // camera position
@@ -35,7 +35,7 @@ type Party = {
 } & AnimationHolder;
 
 type PartyMember = {
-  position?: Vector3,
+  ['pos']?: Vector3,
   // y-rotation
   ['yr']?: number,
   // z-rotation
@@ -70,7 +70,7 @@ const moveNaturallyToSlotPosition = (party: Party, member: PartyMember, toSlot: 
   let stepAnimationFactories: AnimationFactory[] = [];
   if (targetPosition) {
     const turnAnimationFactory1 = createTweenAnimationFactory(member, member, 'zr', walkAngle, easeLinear, 99);
-    const moveAnimationFactory = createTweenAnimationFactory(member, member, 'position', targetPosition, easeLinear, 99);  
+    const moveAnimationFactory = createTweenAnimationFactory(member, member, 'pos', targetPosition, easeLinear, 99);  
     stepAnimationFactories = [turnAnimationFactory1, moveAnimationFactory];
   }
   if (targetPosition || toAngle != member['zr']) {
@@ -86,7 +86,7 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
   switch (party.type) {
     case PARTY_TYPE_HOSTILE:
     case PARTY_TYPE_PLAYER:
-      toAngle = party.orientation * Math.PI/2;
+      toAngle = party.orientated * Math.PI/2;
       const ox = (.5 - (memberSlot / 2 | 0))/2;
       const oy = (.5 - (memberSlot % 2))/2;
       // find the minimum turning angle for toAngle
@@ -96,7 +96,7 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
     case PARTY_TYPE_ITEM:
       // rotate in place
       if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
-        toAngle = party.orientation * Math.PI/2;
+        toAngle = party.orientated * Math.PI/2;
       }
       break;
     case PARTY_TYPE_OBSTACLE:
@@ -105,10 +105,10 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
       break;
   }
 
-  const sourcePosition = partyMember.position || party.tile;
+  const sourcePosition = partyMember['pos'] || party.tile;
   const diff = vectorNLength(vectorNSubtract(targetPosition, sourcePosition));
   let walkAngle: number;
-  if (!partyMember.position || diff > .01) {
+  if (!partyMember['pos'] || diff > .01) {
     walkAngle = Math.atan2(targetPosition[1] - sourcePosition[1], targetPosition[0] - sourcePosition[0])
   } else {
     walkAngle = partyMember['zr'] || 0;
@@ -185,8 +185,8 @@ const applyAttacks = (party: Party, slot: number): [ActorEntityResourceValues[],
 };
 
 const isLookingAt = (party: Party, other: Party) => {
-  const lookingAtX = party.tile[0] + CARDINAL_XY_DELTAS[party.orientation][0];
-  const lookingAtY = party.tile[1] + CARDINAL_XY_DELTAS[party.orientation][1];
+  const lookingAtX = party.tile[0] + CARDINAL_XY_DELTAS[party.orientated][0];
+  const lookingAtY = party.tile[1] + CARDINAL_XY_DELTAS[party.orientated][1];
   const lookingAtZ = party.tile[2];
   return lookingAtX == other.tile[0] && lookingAtY == other.tile[1] && lookingAtZ == other.tile[2]
 }

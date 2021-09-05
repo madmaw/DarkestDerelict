@@ -116,6 +116,12 @@ const VERTEX_SHADER = `
   const L_LIGHTING = FLAG_LONG_SHADER_NAMES ? 'lLighting' : 'y';
   const L_SURFACE_NORMAL = FLAG_LONG_SHADER_NAMES ? 'lSurfaceNormal' : 'x';
   const L_CAMERA_DIRECTION = FLAG_LONG_SHADER_NAMES ? 'lCameraDirection' : 'w';
+  const L_CAMERA_NORMAL = FLAG_LONG_SHADER_NAMES ? 'lCameraNormal' : 'v';
+  const L_SURFACE_POSITION = FLAG_LONG_SHADER_NAMES ? 'lSurfacePosition' : 'u';
+  const L_TEMP_SURFACE_POSITION = FLAG_LONG_SHADER_NAMES ? 'lTempSurfacePosition' : 't';
+  const L_TEMP_TEXTURE = FLAG_LONG_SHADER_NAMES ? 'lTempTexture' : 's';
+  const L_COLOR = FLAG_LONG_SHADER_NAMES ? 'lColor' : 'r';
+  const L_PIXEL_POSITION = FLAG_LONG_SHADER_NAMES ? 'lPixelPosition' : 'q';
 
   const CONST_NUM_STEPS = 32;
   const MAX_DEPTH = VOLUME_DIMENSION/TEXTURE_DIMENSION;
@@ -149,9 +155,9 @@ const VERTEX_SHADER = `
   varying vec4 ${V_WORLD_POSITION};
 
   void main() {
-    vec3 cameraNormal = normalize(${V_WORLD_POSITION}.xyz - ${U_CAMERA_POSITION});
-    vec3 ${L_CAMERA_DIRECTION} = ${V_SURFACE_ROTATION} * cameraNormal;
-    vec2 surfacePosition = ${V_SURFACE_TEXTURE_COORD}+${C_MIN_DEPTH}*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
+    vec3 ${L_CAMERA_NORMAL} = normalize(${V_WORLD_POSITION}.xyz - ${U_CAMERA_POSITION});
+    vec3 ${L_CAMERA_DIRECTION} = ${V_SURFACE_ROTATION} * ${L_CAMERA_NORMAL};
+    vec2 ${L_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD}+${C_MIN_DEPTH}*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
     vec4 ${L_DEPTH_TEXTURE} = vec4(0.);
     
     float pixelDepth=0.;
@@ -159,13 +165,13 @@ const VERTEX_SHADER = `
     float stepDepth=${C_STEP_DEPTH};
     for (int i=0; i<${CONST_NUM_STEPS}; i++) {
       depth+=stepDepth;
-      vec2 tempSurfacePosition = ${V_SURFACE_TEXTURE_COORD}-depth*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
-      if (all(lessThanEqual(${V_SURFACE_TEXTURE_BOUNDS}.xy, tempSurfacePosition)) && all(lessThan(tempSurfacePosition, ${V_SURFACE_TEXTURE_BOUNDS}.zw))) {
-        vec4 tempTexture = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, tempSurfacePosition);
+      vec2 ${L_TEMP_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD}-depth*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
+      if (all(lessThanEqual(${V_SURFACE_TEXTURE_BOUNDS}.xy, ${L_TEMP_SURFACE_POSITION})) && all(lessThan(${L_TEMP_SURFACE_POSITION}, ${V_SURFACE_TEXTURE_BOUNDS}.zw))) {
+        vec4 ${L_TEMP_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, ${L_TEMP_SURFACE_POSITION});
 
-        if ((tempTexture.b-${VOLUME_DEPTH_PROPORTION})*${C_DEPTH_SCALE}<=depth && tempTexture.a>0. && tempTexture.a*${C_DEPTH_SCALE}>depth) {
-          ${L_DEPTH_TEXTURE} = tempTexture;
-          surfacePosition = tempSurfacePosition;
+        if ((${L_TEMP_TEXTURE}.b-${VOLUME_DEPTH_PROPORTION})*${C_DEPTH_SCALE}<=depth && ${L_TEMP_TEXTURE}.a>0. && ${L_TEMP_TEXTURE}.a*${C_DEPTH_SCALE}>depth) {
+          ${L_DEPTH_TEXTURE} = ${L_TEMP_TEXTURE};
+          ${L_SURFACE_POSITION} = ${L_TEMP_SURFACE_POSITION};
           pixelDepth=depth;
           depth-=stepDepth;
           stepDepth/=2.;
@@ -176,21 +182,20 @@ const VERTEX_SHADER = `
       }
     }
     //${L_DEPTH_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD});
-    //surfacePosition = ${V_SURFACE_TEXTURE_COORD};
+    //${L_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD};
     //pixelDepth = 0.;
 
-    //vec4 statusColor = all(equal(${V_SURFACE_TEXTURE_BOUNDS}.xy, vec2(0.))) ? texture2D(${U_STATUS_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD}*${C_STATUS_SCALE}) : vec4(0.);
-    vec4 statusColor = dot(${L_CAMERA_DIRECTION}, vec3(0.,0.,-1.))>.6 ? texture2D(${U_STATUS_TEXTURE_SAMPLER}, (${V_SURFACE_TEXTURE_COORD}-${V_SURFACE_TEXTURE_BOUNDS}.xy)*${C_STATUS_SCALE}) : vec4(0.);
+    //vec4 ${L_TEMP_TEXTURE} = all(equal(${V_SURFACE_TEXTURE_BOUNDS}.xy, vec2(0.))) ? texture2D(${U_STATUS_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD}*${C_STATUS_SCALE}) : vec4(0.);
+    vec4 ${L_TEMP_TEXTURE} = dot(${L_CAMERA_DIRECTION}, vec3(0.,0.,-1.))>.6 ? texture2D(${U_STATUS_TEXTURE_SAMPLER}, (${V_SURFACE_TEXTURE_COORD}-${V_SURFACE_TEXTURE_BOUNDS}.xy)*${C_STATUS_SCALE}) : vec4(0.);
     if (${L_DEPTH_TEXTURE}.a>0.) {
-      vec4 color = texture2D(${U_RENDER_TEXTURE_SAMPLER}, surfacePosition);
+      vec4 ${L_COLOR} = texture2D(${U_RENDER_TEXTURE_SAMPLER}, ${L_SURFACE_POSITION});
       //vec2 v = ${V_SURFACE_TEXTURE_COORD}/${V_SURFACE_TEXTURE_BOUNDS}.zw;
-      //vec4 statusColor = all(equal(${V_SURFACE_TEXTURE_BOUNDS}.xy, vec2(0.))) ? vec4(v.x, v.y, 0., 1.) : vec4(0.);
+      //vec4 ${L_TEMP_TEXTURE} = all(equal(${V_SURFACE_TEXTURE_BOUNDS}.xy, vec2(0.))) ? vec4(v.x, v.y, 0., 1.) : vec4(0.);
       vec3 ${L_SURFACE_NORMAL} = vec3(${L_DEPTH_TEXTURE}.x, ${L_DEPTH_TEXTURE}.y, .5)*2.-1.;
       ${L_SURFACE_NORMAL} = vec3(${L_SURFACE_NORMAL}.xy, sqrt(1. - pow(length(${L_SURFACE_NORMAL}), 2.)));
       //${L_SURFACE_NORMAL} = ${V_SURFACE_ROTATION} * vec3(0., 0., 1.);
-      vec3 pixelPosition = ${V_WORLD_POSITION}.xyz + pixelDepth * cameraNormal;
-      float cameraDistance = length(pixelPosition-${U_CAMERA_POSITION});
-      float fog = 1.-min(pow(cameraDistance/5., 2.), 1.);
+      vec3 ${L_PIXEL_POSITION} = ${V_WORLD_POSITION}.xyz + pixelDepth * ${L_CAMERA_NORMAL};
+      float fog = 1.-min(pow(length(${L_PIXEL_POSITION}-${U_CAMERA_POSITION})/5., 2.), 1.);
       vec3 ${L_LIGHTING} = ${U_AMBIENT_LIGHT}.xyz;
       for(int i=0;i<${C_MAX_NUM_LIGHTS};i++){
         if (float(i)<${U_AMBIENT_LIGHT}.w) {
@@ -200,7 +205,7 @@ const VERTEX_SHADER = `
           vec4 lightPosition = transform*vec4(0., 0., 0., 1.);
           vec3 lightDirection = normalize((transform*vec4(1., 0., 0., 1.)-lightPosition).xyz);
           float reach = brightness*${C_MAX_LIGHT_REACH};
-          vec3 lightDelta = lightPosition.xyz - pixelPosition;
+          vec3 lightDelta = lightPosition.xyz - ${L_PIXEL_POSITION};
           for (float i=0.; i<2.; i++) {
             if (light.w>=0.) {
               float ld = max(dot(lightDirection, normalize(lightDelta)), 0.);
@@ -209,17 +214,17 @@ const VERTEX_SHADER = `
                     // distance 
                     * (pow(1.-length(lightDelta)/reach, 2.))*reach
                     // angle 
-                    * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(normalize(lightDelta)-i*cameraNormal)), 0.),.1/color.a) * (i>0.?1.-color.a:color.a)
+                    * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(normalize(lightDelta)-i*${L_CAMERA_NORMAL})), 0.),.1/${L_COLOR}.a) * (i>0.?1.-${L_COLOR}.a:${L_COLOR}.a)
                     // cone
                     * max(pow(ld, light.w), pow(clamp((brightness-length(lightDelta))/brightness, 0., 1.), 2.));
               }
             } else {
-              float dp = dot(${L_SURFACE_NORMAL}, normalize(${V_SURFACE_ROTATION} * (lightDirection-i*cameraNormal)));
+              float dp = dot(${L_SURFACE_NORMAL}, normalize(${V_SURFACE_ROTATION} * (lightDirection-i*${L_CAMERA_NORMAL})));
               if (dp > 0.) {
-                float d = (transform * vec4(pixelPosition, 1.)).x/dp;
+                float d = (transform * vec4(${L_PIXEL_POSITION}, 1.)).x/dp;
                 if (reach > d && d > 0.) {
                   float p = d/reach;
-                  ${L_LIGHTING} += light.xyz * pow(pow(1.-p, 2.)*reach,0.1/color.a) * (i>0.?1.-color.a:color.a);
+                  ${L_LIGHTING} += light.xyz * pow(pow(1.-p, 2.)*reach,0.1/${L_COLOR}.a) * (i>0.?1.-${L_COLOR}.a:${L_COLOR}.a);
                 }  
               }
               ${L_LIGHTING}+=light.xyz*i*abs(light.w);
@@ -227,10 +232,9 @@ const VERTEX_SHADER = `
           }
         }
       }
-      //gl_FragColor = vec4(mix(statusColor.xyz, mix(vec3(fog), color.xyz, fog)*(color.a<1.?${L_LIGHTING}:vec3(1.)), statusColor.w), 1.);
-      gl_FragColor = vec4(mix(mix(vec3(fog), color.xyz, fog)*(color.a<1.?${L_LIGHTING}:vec3(1.)), statusColor.xyz, statusColor.w), 1.);
-    } else if (statusColor.w > .1) {
-      gl_FragColor = vec4(statusColor.xyz, 1.);
+      gl_FragColor = vec4(mix(mix(vec3(fog), ${L_COLOR}.xyz, fog)*(${L_COLOR}.a<1.?${L_LIGHTING}:vec3(1.)), ${L_TEMP_TEXTURE}.xyz, ${L_TEMP_TEXTURE}.w), 1.);
+    } else if (${L_TEMP_TEXTURE}.w > .1) {
+      gl_FragColor = vec4(${L_TEMP_TEXTURE}.xyz * ${L_TEMP_TEXTURE}.w, 1.);
     } else {
       discard;
     }
@@ -282,8 +286,8 @@ onload = async () => {
   type LoadingEvent = [VolumetricDrawCommand[] | string, Matrix4, [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][],  EntityType];
 
   const SURFACE_COLORS: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
-    [[TEXTURE_GUNMETAL, TEXTURE_RED_CARPET]],
-    [[TEXTURE_DULLMETAL, TEXTURE_BLUE_CARPET]],
+    [[COLOR_GUNMETAL, COLOR_RED_CARPET]],
+    [[COLOR_DULLMETAL, COLOR_BLUE_CARPET]],
   ];
 
   // slightly scale up to hide wall-gaps
@@ -297,16 +301,17 @@ onload = async () => {
     // resources
     [VOLUMETRIC_RESOURCE, matrix4Identity(), VOLUMETRIC_PARAMS_RESOURCE, ENTITY_TYPE_RESOURCE],
     [VOLUMETRIC_MARINE, matrix4Scale(MODEL_SCALE * .5), [
-      [[TEXTURE_GREEN_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_WHITE_GLOWING]],
-      [[TEXTURE_RED_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_WHITE_GLOWING]],
-      [[TEXTURE_YELLOW_SHUNY, TEXTURE_BLACK, TEXTURE_WHITE_GLOWING]],
-      [[TEXTURE_PURPLE_SHINY, TEXTURE_WHITE_SHINY, TEXTURE_WHITE_GLOWING]],
+      [[COLOR_GREEN_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
+      [[COLOR_RED_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
+      [[COLOR_YELLOW_SHUNY, COLOR_BLACK, COLOR_WHITE_GLOWING]],
+      [[COLOR_PURPLE_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
+      [[COLOR_CHITIN, COLOR_RED_SHINY, COLOR_RED_GLOWING]],
     ], ENTITY_TYPE_MARINE], 
     [VOLUMETRIC_PISTOL, matrix4Scale(MODEL_SCALE * .2), [
-      [[TEXTURE_GUNMETAL, TEXTURE_BLACK]],
+      [[COLOR_GUNMETAL, COLOR_BLACK]],
     ], ENTITY_TYPE_PISTOL],
     [VOLUMETRIC_SPIDER, matrix4Scale(MODEL_SCALE * .5), [
-      [[TEXTURE_CHITIN, COLOR_RED_GLOWING, TEXTURE_RED_SHINY]],
+      [[COLOR_CHITIN, COLOR_RED_GLOWING, COLOR_RED_SHINY]],
     ], ENTITY_TYPE_SPIDER],
   ];
 
@@ -586,9 +591,9 @@ onload = async () => {
   const perspectiveMatrix = matrix4Multiply(
       matrix4InfinitePerspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, zNear),
       //matrix4Perspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .35, 10),
-      matrix4Rotate(-Math.PI/2, 1, 0, 0),
-      matrix4Rotate(Math.PI/2, 0, 0, 1),
-      matrix4Rotate(-Math.PI/9, 0, 1, 0),
+      matrix4Rotate(-CONST_PI_ON_2_1DP, 1, 0, 0),
+      matrix4Rotate(CONST_PI_ON_2_2DP, 0, 0, 1),
+      matrix4Rotate(-CONST_PI_ON_9_1DP, 0, 1, 0),
   );
 
   const entityRenderables = await addEvents(loadingEventQueue, ...COMMANDS);
@@ -613,7 +618,7 @@ onload = async () => {
       case GAME_EVENT_TYPE_MOVE:
         {
           const { unrotatedDeltaPosition, party } = e;
-          const a = party.orientation * Math.PI/2;
+          const a = party.orientated * CONST_PI_ON_2_1DP;
 
           const deltaPosition = vector2Rotate(a, unrotatedDeltaPosition.slice(0, 2) as Vector2).concat(unrotatedDeltaPosition[2]);
           const from = party.tile;
@@ -658,11 +663,11 @@ onload = async () => {
       case GAME_EVENT_TYPE_TURN:
         {
           const { deltaOrientation, party } = e;
-          const toOrientation = (party.orientation + deltaOrientation + 4)%4;
-          party.orientation = toOrientation as Orientation;
+          const toOrientation = (party.orientated + deltaOrientation + 4)%4;
+          party.orientated = toOrientation as Orientation;
           let cameraRotationPromise: Promise<any>;
           if(aiMove = party == playerParty) {
-            const cameraAnimationFactory = createTweenAnimationFactory(party, party, 'czr', party['czr'] + deltaOrientation * Math.PI/2, easeInQuad, 300);
+            const cameraAnimationFactory = createTweenAnimationFactory(party, party, 'czr', party['czr'] + deltaOrientation * CONST_PI_ON_2_2DP, easeInQuad, 300);
             cameraRotationPromise = addEvents(party.animationQueue, cameraAnimationFactory);
           }
 
@@ -703,8 +708,8 @@ onload = async () => {
                     ...BASE_PARTY_MEMBER,
                     animationQueue: createAnimationEventQueue(game),
                     entity: e.entity,
-                    position: fromSlot.position,
-                    ['zr']: e.from.party.orientation * Math.PI/2,
+                    ['pos']: fromSlot['pos'],
+                    ['zr']: e.from.party.orientated * CONST_PI_ON_2_2DP,
                   };  
             }
           }
@@ -737,8 +742,8 @@ onload = async () => {
         {
           const { attackerLocation: { party, slot } } = e;
 
-          const lookingAtX = party.tile[0] + CARDINAL_XY_DELTAS[party.orientation][0];
-          const lookingAtY = party.tile[1] + CARDINAL_XY_DELTAS[party.orientation][1];
+          const lookingAtX = party.tile[0] + CARDINAL_XY_DELTAS[party.orientated][0];
+          const lookingAtY = party.tile[1] + CARDINAL_XY_DELTAS[party.orientated][1];
           const lookingAtZ = party.tile[2];
           const victimParty = (game.level[lookingAtZ][lookingAtY][lookingAtX] as Tile).parties.find(p => p.type == PARTY_TYPE_HOSTILE || p.type == PARTY_TYPE_PLAYER);
           if (victimParty && victimParty.members.some(m => m)) {
@@ -823,7 +828,7 @@ onload = async () => {
             iterateLevel(game.level, (partyMember) => {
               const attackAnimations = partyMember.attackAnimations;
               partyMember.attackAnimations.map((attackAnimation, i) => {
-                const a = Math.random() * Math.PI;
+                const a = Math.random() * CONST_PI_0DP;
                 const r = i * .5/attackAnimations.length;
                 attackAnimation.x = .5 + Math.cos(a) * r;
                 attackAnimation.y = .5 + Math.sin(a) * r;
@@ -850,16 +855,16 @@ onload = async () => {
           aiMove = party == playerParty;
           const promises: Promise<any>[] = [];
           const attacker = party.members[slot] as PartyMember;
-          const originalPosition = attacker.position;
+          const originalPosition = attacker['pos'];
           FLAG_ATTACK_ANIMATION && await addEvents(
               attacker.animationQueue,
               createParallelAnimationFactory(
-                  createTweenAnimationFactory(attacker, attacker, 'yr', -Math.PI/4, easeOutQuad, 199, 0),
-                  createTweenAnimationFactory(attacker, attacker, 'position', [originalPosition[0], originalPosition[1], originalPosition[2] + .3], easeOutQuad, 199),
+                  createTweenAnimationFactory(attacker, attacker, 'yr', -CONST_PI_ON_4_1DP, easeOutQuad, 199, 0),
+                  createTweenAnimationFactory(attacker, attacker, 'pos', [originalPosition[0], originalPosition[1], originalPosition[2] + .3], easeOutQuad, 199),
               ),
               createParallelAnimationFactory(
-                  createTweenAnimationFactory(attacker, attacker, 'yr', Math.PI/6, easeInQuad, 199),
-                  createTweenAnimationFactory(attacker, attacker, 'position', originalPosition, easeInQuad, 199),
+                  createTweenAnimationFactory(attacker, attacker, 'yr', CONST_PI_ON_6_1DP, easeInQuad, 199),
+                  createTweenAnimationFactory(attacker, attacker, 'pos', originalPosition, easeInQuad, 199),
               ),
               createTweenAnimationFactory(attacker, attacker, 'yr', 0, easeOutQuad, 99),
           );
@@ -870,7 +875,6 @@ onload = async () => {
               const actor = partyMember.entity as ActorEntity;
               const damaged = actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity > resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity;
               const dead = resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity <= 0;
-              actor.res = resources;
               let promise: Promise<any> = Promise.all(partyMember.attackAnimations.map(attackAnimation => addEvents(
                   partyMember.animationQueue,
                   createTweenAnimationFactory(
@@ -889,7 +893,7 @@ onload = async () => {
                           partyMember,
                           partyMember,
                           'yr',
-                          -Math.PI/5,
+                          -CONST_PI_ON_5_1DP,
                           easeInOutExp4BackToStart,
                           299,
                           0,
@@ -912,6 +916,7 @@ onload = async () => {
                 // clear attacks and move
                 partyMember.activeAttackStartTime = 0;
                 partyMember.attackAnimations = [];
+                actor.res = resources;
                 if (toSlot != slot) {
                   const replacedPartyMember = party.members[toSlot];
                   party.members[slot] = replacedPartyMember;
@@ -946,7 +951,7 @@ onload = async () => {
                             partyMember,
                             partyMember,
                             'zr',
-                            partyMember['zr'] + Math.PI * 4,
+                            partyMember['zr'] + 9,
                             easeOutQuad,
                             CONST_DEATH_DURATION,
                         ),
@@ -958,6 +963,8 @@ onload = async () => {
                     const tile  = game.level[party.tile[2]][party.tile[1]][party.tile[0]] as Tile;
                     tile.parties = tile.parties.filter(p => p != party);
                   }
+                } else if (party.type == PARTY_TYPE_HOSTILE){
+                  await delay(499);
                 }
               });
               promises.push(promise);
@@ -982,7 +989,7 @@ onload = async () => {
       for (let party of otherParties) {
 
         let orientation = getFavorableOrientation(party, game.level);
-        let deltaOrientation = orientation - party.orientation;
+        let deltaOrientation = orientation - party.orientated;
         if (deltaOrientation) {
           switch (Math.abs(deltaOrientation)) {
             case 2: 
@@ -1023,6 +1030,7 @@ onload = async () => {
               type: GAME_EVENT_TYPE_PROPOSE_ATTACK,
               attackerLocation,
             });
+            await delay(699);
             await gameEventQueueHandler({
               type: GAME_EVENT_TYPE_CONFIRM_ATTACK,
               attackerLocation,
@@ -1043,19 +1051,19 @@ onload = async () => {
   const partyPosition: Vector3 = [LEVEL_DIMENSION/2 | 0, 1, 1];
   const playerParty: Party = {
     members: new Array(4).fill(0),
-    orientation: ORIENTATION_NORTH,
+    orientated: ORIENTATION_NORTH,
     type: PARTY_TYPE_PLAYER,
     tile: partyPosition,
     ['cpos']: [LEVEL_DIMENSION/2 | 0, 1, 1],
     ['coff']: [.4, 0, -.6],
-    ['czr']: Math.PI/2,
+    ['czr']: CONST_PI_ON_2_2DP,
     anims: [],
     animationQueue: createAnimationEventQueue(game),
   };
   playerParty.members[0] = {
     ...BASE_PARTY_MEMBER,
-    position: partyPosition,
-    ['zr']: Math.PI/2,
+    ['pos']: partyPosition,
+    ['zr']: CONST_PI_ON_2_1DP,
     animationQueue: createAnimationEventQueue(game),
     entity: createMarine(entityRenderables[ENTITY_TYPE_MARINE], 0),
     weapon: createPistol(entityRenderables[ENTITY_TYPE_PISTOL][0]),
@@ -1069,7 +1077,7 @@ onload = async () => {
     entity?: Entity,
     fromLocation?: EntityLocation,
     dragImage?: HTMLElement,
-    currentTarget?: EventTarget,
+    currTarget?: EventTarget,
     startTime: number,
     startPosition: {
       clientX: number,
@@ -1119,7 +1127,7 @@ onload = async () => {
           const midpoints = vector3TransformMatrix4(staticTransform, ...max.map((v, i) => v - min[i]) as Vector3);
           const midz = midpoints[2];
           
-          const position = partyMember.position;
+          const position = partyMember['pos'];
           const averageExtent = midpoints.reduce((a, v) => a + v/3, 0);
           const v = vector4TransformMatrix4(projectionMatrix, position[0], position[1], position[2]+midz/2);
           const [px, py, pz, pw] = v;
@@ -1148,7 +1156,7 @@ onload = async () => {
           items = {
             anims: [],
             members: [],
-            orientation: ORIENTATION_EAST,
+            orientated: ORIENTATION_EAST,
             animationQueue: createAnimationEventQueue(game),
             tile: currentPosition,
             type: PARTY_TYPE_ITEM,
@@ -1192,15 +1200,17 @@ onload = async () => {
   onmousedown = (e: MouseEvent) => {
     onStartDrag(e.target, e);
   };
-  ontouchstart = (e: TouchEvent) => {
-    onStartDrag(e.target, e.targetTouches[0]);
+  if (FLAG_MOBILE_SUPPORT) {
+    ontouchstart = (e: TouchEvent) => {
+      onStartDrag(e.target, e.targetTouches[0]);
+    }  
   }
 
 
   const onDrag = (p: { clientX: number, clientY: number }, moved?: Booleanish) => {
     const target = document.elementFromPoint(p.clientX, p.clientY);
     if (dragContext) {
-      dragContext.currentTarget = target;
+      dragContext.currTarget = target;
       dragContext.lastPosition = p;
       const dragImage = dragContext.dragImage;
       if (dragImage) {
@@ -1216,8 +1226,10 @@ onload = async () => {
   onmousemove = (e: MouseEvent) => {
     onDrag(e, 1);
   }
-  ontouchmove = (e: TouchEvent) => {
-    onDrag(e.targetTouches[0], 1);
+  if (FLAG_MOBILE_SUPPORT) {
+    ontouchmove = (e: TouchEvent) => {
+      onDrag(e.targetTouches[0], 1);
+    }  
   }
 
   const onDragEnd = (p: { clientX: number, clientY: number }) => {
@@ -1243,8 +1255,8 @@ onload = async () => {
         } else if (game.time - startTime < CONST_DRAG_DURATION){
           if (l > Z.clientWidth/6) {
             // reversed coordinates
-            const a = Math.atan2(-dy, dx) + Math.PI*2;
-            const dir = ((a + Math.PI/4)*2/Math.PI | 0)%4;
+            const a = Math.atan2(-dy, dx) + CONST_PI_1DP * 2;
+            const dir = ((a + CONST_PI_ON_4_1DP)*2/CONST_PI_1DP | 0)%4;
             switch (dir) {
               case 0: // right
               case 2: // left
@@ -1285,8 +1297,10 @@ onload = async () => {
       onDragEnd(e);
     }
   }
-  ontouchend = (e: TouchEvent) => {
-    onDragEnd(e.targetTouches[0] || dragContext && dragContext.lastPosition);
+  if (FLAG_MOBILE_SUPPORT) {
+    ontouchend = (e: TouchEvent) => {
+      onDragEnd(e.targetTouches[0] || dragContext && dragContext.lastPosition);
+    }  
   }
 
   const cleanUpDrag = () => {
@@ -1299,7 +1313,10 @@ onload = async () => {
     }
   }
 
-  onmouseleave = ontouchcancel = cleanUpDrag;
+  if (FLAG_MOBILE_SUPPORT) {
+    ontouchcancel = cleanUpDrag;
+  }
+  onmouseleave = cleanUpDrag;
 
   const renderEntityToContext = (entity: Entity, ctx: CanvasRenderingContext2D, width: number, height: number, party?: Party, slot?: number) => {
     // render status
@@ -1309,7 +1326,7 @@ onload = async () => {
       const startingY = symbolDimension/6;
       let y = startingY + symbolDimension/6;
       ctx.save();
-      if (member == game.pendingMember) {
+      if (FLAG_ROTATE_COLORS && member == game.pendingMember) {
         ctx.filter = `hue-rotate(${Math.min((game.time - member.activeAttackStartTime) | 0, 180)}deg)`;
       }
       ctx.lineWidth = symbolDimension/15;
@@ -1346,14 +1363,13 @@ onload = async () => {
         y += symbolDimension;
       });
 
-      ctx.strokeStyle = '#AFF';
-      ctx.fillStyle = `hsl(180,50%,${15 + (member == game.pendingMember ? Math.sin((game.time - member.activeAttackStartTime)/99)*15 | 0 : 0)}%)`;
+      ctx.strokeStyle = ctx.fillStyle = `hsl(${FLAG_ROTATE_COLORS || member != game.pendingMember ? 180 : 180 - Math.min((game.time - member.activeAttackStartTime) | 0, 180)},50%,${50 + (member == game.pendingMember ? Math.sin((game.time - member.activeAttackStartTime)/99)*30 | 0 : 0)}%)`;
       ctx.globalCompositeOperation = 'destination-over';
       ctx.beginPath(); // required to prevent weirdness with clearRect
       ctx.rect(symbolDimension/3, startingY + symbolDimension/6, width - symbolDimension/3, entity.res.length * symbolDimension);
       //ctx.closePath();
       ctx.stroke();
-      ctx.globalAlpha = .5;
+      ctx.globalAlpha = .3;
       ctx.fill();
       ctx.restore();
 
@@ -1442,7 +1458,7 @@ onload = async () => {
     );
 
     const usableLights = (game.previousLights || []).sort((a, b) => {
-      return vectorNLength(vectorNSubtract(a.position, cameraPosition)) - vectorNLength(vectorNSubtract(b.position, cameraPosition));
+      return vectorNLength(vectorNSubtract(a['pos'], cameraPosition)) - vectorNLength(vectorNSubtract(b['pos'], cameraPosition));
     });
     // usableLights.unshift({
     //   position: cameraPosition,
@@ -1487,7 +1503,7 @@ onload = async () => {
       const weaponElement: HTMLCanvasElement = el.querySelector('.b');
       el.className = dragContext
           && dragContext.fromLocation
-          && [entityElement, weaponElement, el].some(e => dragContext && e == dragContext.currentTarget)
+          && [entityElement, weaponElement, el].some(e => dragContext && e == dragContext.currTarget)
           ? 'x o'
           : 'x';
       renderEntityToCanvas(m && m.entity, entityElement, playerParty, i);
@@ -1506,24 +1522,24 @@ onload = async () => {
           if (partyMember.entity.type == ENTITY_TYPE_MARINE) {
             if (!i && party.type == PARTY_TYPE_PLAYER) {
               game.previousLights.push({
-                position: partyMember.position,
+                ['pos']: partyMember['pos'],
                 light: [.8, .8, .75, 2],
                 lightTransform: matrix4Multiply(
-                    matrix4Translate(...partyMember.position),
-                    matrix4Rotate(party['czr'] + Math.PI, 0, 0, 1),
+                    matrix4Translate(...partyMember['pos']),
+                    matrix4Rotate(party['czr'] + CONST_PI_1DP, 0, 0, 1),
                     matrix4Translate(.2, 0, .5),
                     matrix4Rotate(-Math.PI/9, 0, 1, 0),
                 )
               });
             } else {
               game.previousLights.push({
-                position: partyMember.position,
+                ['pos']: partyMember['pos'],
                 light: [.5, .5, .5, 1],
                 lightTransform: matrix4Multiply(
-                    matrix4Translate(...partyMember.position),
-                    matrix4Rotate(partyMember['zr'] + Math.PI, 0, 0, 1),
+                    matrix4Translate(...partyMember['pos']),
+                    matrix4Rotate(partyMember['zr'] + CONST_PI_1DP, 0, 0, 1),
                     matrix4Translate(-.2, 0, .3),
-                    matrix4Rotate(-Math.PI/4, 0, 1, 0),
+                    matrix4Rotate(-CONST_PI_ON_4_1DP, 0, 1, 0),
                 )
               })
             }
@@ -1587,7 +1603,7 @@ onload = async () => {
             }
           }
 
-          const position = partyMember.position;
+          const position = partyMember['pos'];
           const yRotation = partyMember['yr'] || 0;
           const zRotation = (partyMember['zr'] || 0) + (partyMember['zr2'] || 0);
           const modelPositionMatrix = matrix4Translate(...position);

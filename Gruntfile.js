@@ -84,22 +84,33 @@ module.exports = function (grunt) {
       },
       replace: {
           html: {
-              src: ['dist/index.html'],
-              overwrite: true,
-              replacements: [{
-                  from: /build\/out\.js/g,
-                  to:"out.min.js"
-              }, { // gut the HTML entirely!
-                  from: "</body></html>",
-                  to: ""
-              }, {
-                  from: "<html>",
-                  to: ""
-              }, {
-                  from: "<body>",
-                  to: ""
-              }]
+            src: ['dist/index.html'],
+            overwrite: true,
+            replacements: [{
+              from: /build\/out\.js/g,
+              to:"out.min.js"
+            }, { // gut the HTML entirely!
+              from: "</body></html>",
+              to: ""
+            }, {
+              from: "<html>",
+              to: ""
+            }, {
+              from: "<body>",
+              to: ""
+            }]
           },
+          html2: {
+            src: ['dist/index.html'],
+            overwrite: true,
+            replacements: [{
+              from: /id=\"(\w+)\"/g,
+              to: "id=$1"
+            }, {
+              from: /class=\"(\w+)\"/g,
+              to: "class=$1"
+            }]
+          },          
           js: {
               src: ['dist/out.min.js'],
               overwrite: true,
@@ -113,29 +124,41 @@ module.exports = function (grunt) {
                 from: /\/\*(.|\\n)*\*\//g,
                 to:""
               }, */{
-                  from: /((\\n)\s*)+/g,
-                  to:" "
+                from: /((\\n)\s*)+/g,
+                to:" "
               }, {
-                  from: /(\s)+/g,
-                  to:" "
+                from: /(\s)+/g,
+                to:" "
               }, {
-                  from: /(\W)\s(\w)/g,
-                  to: "$1$2"
+                from: /(\W)\s(\w)/g,
+                to: "$1$2"
               }, {
-                  from: /(\w)\s(\W)/g,
-                  to: "$1$2"
+                from: /(\w)\s(\W)/g,
+                to: "$1$2"
               }, {
-                  from: /(\W)\s(\W)/g,
-                  to: "$1$2"
+                from: /(\W)\s(\W)/g,
+                to: "$1$2"
               }, {
-                  from: "void 0",
-                  to: "null"
+                from: "void 0",
+                to: "null"
               }, {
-                  from: "const ",
-                  to: "var "
+                from: "const ",
+                to: "var "
+              }, {
+                from: "const[",
+                to: "var["
+              }, {
+                from: "const{",
+                to: "var{"
               }, {
                 from: "let ",
                 to: "var "
+              }, {
+                from: "let{",
+                to: "var{"
+              }, {
+                from: "let[",
+                to: "var["
               }/*, {
                 //from: /\[(\d+)\]\:/,
                 from: /\[(\d+)\]:/g,
@@ -205,7 +228,7 @@ module.exports = function (grunt) {
   // Default task(s).
   grunt.registerTask('reset', ['clean:all']);
   grunt.registerTask('prod', ['ts']);
-  grunt.registerTask('dist', ['prod', 'closure-compiler:es2020', 'copy','cssmin','replace:html', 'replace:js', 'replace:js2', 'inline', 'htmlmin']);
+  grunt.registerTask('dist', ['prod', 'closure-compiler:es2020', 'copy','cssmin','replace:html', 'replace:js', 'replace:js2', 'inline', 'htmlmin','replace:html2']);
   grunt.registerTask('default', ['prod', 'connect', 'watch']);
 
 };

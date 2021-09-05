@@ -27,7 +27,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     const wallRenderables = walls[(position[2])%walls.length];
     return {
       parties: [{
-        orientation: ORIENTATION_EAST,
+        orientated: ORIENTATION_EAST,
         type: PARTY_TYPE_OBSTACLE,
         tile: position,
         anims: [],
@@ -83,7 +83,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     }
     if (!t.parties.length) {
       t.parties.push({
-        orientation: ORIENTATION_EAST,
+        orientated: ORIENTATION_EAST,
         type: PARTY_TYPE_FLOOR,
         tile: position,
         anims: [],
@@ -201,12 +201,12 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
   volumeMap(tiles, (t: Tile) => {
     t.parties.forEach(p => {
       const orientation = getFavorableOrientation(p, tiles);
-      p.orientation = orientation;
+      p.orientated = orientation;
       p.members.forEach((m, i) => {
         if (m) {
           const [position, rotation] = getTargetPositionAndRotations(p, i);
           m['zr'] = rotation;
-          m.position = position as Vector3;
+          m['pos'] = position as Vector3;
         }
       })
     });
@@ -260,11 +260,11 @@ const getFavorableOrientation = (party: Party, level: Level): Orientation | unde
     }
     return [9, orientation];
   }).sort(([appeal1], [appeal2]) => appeal1 - appeal2);
-  if (options.length && (options[0][0] < PARTY_TYPE_ITEM || party.orientation == null)) {
+  if (options.length && (options[0][0] < PARTY_TYPE_ITEM || party.orientated == null)) {
     let orientation = options[0][1];
     return orientation;
   } else {
-    return party.orientation;
+    return party.orientated;
   }
 }
 
