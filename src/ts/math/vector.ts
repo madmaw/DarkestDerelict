@@ -9,21 +9,18 @@ type Vector4 = [number, number, number, number];
 const vector2AngleAndDistance = ([x1, y1]: Vector2, [x2, y2]: Vector2) => {
   const dx = x2 - x1;
   const dy = y2 - y1;
-  return [mathAtan2(dy, dx), mathPow(dx*dx + dy*dy, .5)];
+  return [Mathatan2(dy, dx), Mathpow(dx*dx + dy*dy, .5)];
 }
 
 const vector2Rotate = (a: number, [x, y]: Vector2): Vector2 => {
-  const sin = mathSin(a);
-  const cos = mathCos(a);
+  const sin = Mathsin(a);
+  const cos = Mathcos(a);
   return [
     x * cos - y * sin,
     x * sin + y * cos,
   ];
 }
 
-// const vectorNRound = <T extends number[]>(v: T): T => {
-//   return v.map(v => Math.round(v)) as any;
-// }
 const vector3TransformMatrix4 = (m: Matrix4, x: number, y: number, z: number): Vector3 => 
     vector4TransformMatrix4(m, x, y, z).slice(0, 3) as Vector3;
 
@@ -58,7 +55,7 @@ const vectorNDotProduct = <T extends number[]>(v1: T, v2: T): number => {
 }
 
 const vectorNLength = <T extends number[]>(v: T): number => {
-    return mathPow(vectorNDotProduct(v, v), .5);
+    return Mathpow(vectorNDotProduct(v, v), .5);
 }
 
 const vectorNMix = <T extends number[]>(v1: T, v2: T, amt: number): T => {

@@ -24,7 +24,7 @@ type Party = {
   members: (PartyMember | Falseish)[],
   orientated?: Orientation,
   tile: Vector3,
-  type: PartyType,
+  partyType: PartyType,
   // camera position
   ['cpos']?: Vector3;
   // [negated] camera offset 
@@ -51,10 +51,10 @@ type PartyMember = {
   secondary?: Entity | Falseish,
   animationQueue: EventQueue<AnimationFactory, void>,
   attackAnimations?: {
-    attack: Attack,
-    x?: number,
-    y?: number,
-    scale: number,
+    attackType: Attack,
+    ['x']?: number,
+    ['y']?: number,
+    ['s']: number, // scale
   }[],
   activeAttackStartTime?: number,
 } & AnimationHolder;
@@ -83,10 +83,10 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
   const partyMember = party.members[memberSlot] as PartyMember;
   let toAngle = partyMember['zr'] || 0;
   let targetPosition: Vector3 | Falseish = tile;
-  switch (party.type) {
+  switch (party.partyType) {
     case PARTY_TYPE_HOSTILE:
     case PARTY_TYPE_PLAYER:
-      toAngle = party.orientated * Math.PI/2;
+      toAngle = party.orientated * CONST_PI_ON_2_1DP;
       const ox = (.5 - (memberSlot / 2 | 0))/2;
       const oy = (.5 - (memberSlot % 2))/2;
       // find the minimum turning angle for toAngle
@@ -96,7 +96,7 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
     case PARTY_TYPE_ITEM:
       // rotate in place
       if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
-        toAngle = party.orientated * Math.PI/2;
+        toAngle = party.orientated * CONST_PI_ON_2_1DP;
       }
       break;
     case PARTY_TYPE_OBSTACLE:
@@ -109,23 +109,23 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
   const diff = vectorNLength(vectorNSubtract(targetPosition, sourcePosition));
   let walkAngle: number;
   if (!partyMember['pos'] || diff > .01) {
-    walkAngle = Math.atan2(targetPosition[1] - sourcePosition[1], targetPosition[0] - sourcePosition[0])
+    walkAngle = Mathatan2(targetPosition[1] - sourcePosition[1], targetPosition[0] - sourcePosition[0])
   } else {
     walkAngle = partyMember['zr'] || 0;
     targetPosition = 0;
   }
 
-  while (walkAngle > partyMember['zr'] + Math.PI) {
-    walkAngle -= Math.PI*2;
+  while (walkAngle > partyMember['zr'] + CONST_PI_1DP) {
+    walkAngle -= CONST_2_PI_1DP;
   }
-  while (walkAngle < partyMember['zr'] - Math.PI) {
-    walkAngle += Math.PI*2;
+  while (walkAngle < partyMember['zr'] - CONST_PI_1DP) {
+    walkAngle += CONST_2_PI_1DP;
   }
-  while (toAngle > walkAngle + Math.PI) {
-    toAngle -= Math.PI*2;
+  while (toAngle > walkAngle + CONST_PI_1DP) {
+    toAngle -= CONST_2_PI_1DP;
   }
-  while (toAngle < walkAngle - Math.PI) {
-    toAngle += Math.PI*2;
+  while (toAngle < walkAngle - CONST_PI_1DP) {
+    toAngle += CONST_2_PI_1DP;
   }
 
   return [targetPosition, toAngle, walkAngle] as const;
@@ -137,7 +137,7 @@ const applyAttacks = (party: Party, slot: number): [ActorEntityResourceValues[],
     const entity = partyMember.entity as ActorEntity;
     const attacks = partyMember.attackAnimations;
     const [resources, newSlot] = attacks.reduce(
-        ([resources, slot], { attack }) => {
+        ([resources, slot], { attackType: attack }) => {
           switch (attack) {
             case ATTACK_BLUDGEONING:
             case ATTACK_BURNING:
@@ -160,13 +160,21 @@ const applyAttacks = (party: Party, slot: number): [ActorEntityResourceValues[],
               slot = slot + (1 - (slot/2 | 0)*2)*2;
               break;
             case ATTACK_POWER_DRAIN:
-              resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity--;
+              const temporary = resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary|| 0;
+              if (temporary) {
+                resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary--;
+              } else {
+                resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity--;
+              }
               break;
             case ATTACK_POWER_GAIN:
               resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity++;
               break;
             case ATTACK_POWER_GAIN_TEMPORARY:
               resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary = (resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary|| 0) + 1;
+              break;
+            case ATTACK_POWER_DRAIN_TEMPORARY:
+              resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary = (resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary|| 0) - 1;
               break;
           }
           return [resources, slot];
@@ -175,8 +183,8 @@ const applyAttacks = (party: Party, slot: number): [ActorEntityResourceValues[],
     );
     return [
       resources.map(r => {
-        r.quantity = Math.min(Math.max(0, r.quantity), r.max || r.quantity);
-        r.temporary = Math.min(r.temporary || 0, r.max || r.quantity);
+        r.quantity = Mathmin(Mathmax(0, r.quantity), r.max || r.quantity);
+        r.temporary = Mathmin(Mathmax(r.temporary || 0), r.max || r.quantity);
         return r;
       }),
       newSlot,

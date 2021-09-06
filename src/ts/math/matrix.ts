@@ -141,8 +141,8 @@ const matrix4RotateInOrder = (rx: number, ry: number, rz: number): Matrix4 => {
 const matrix4Rotate = (rad: number, x: number, y: number, z: number): Matrix4 => {
   let s_, c_, t_;
 
-  s_ = mathSin(rad);
-  c_ = mathCos(rad);
+  s_ = Mathsin(rad);
+  c_ = Mathcos(rad);
   t_ = 1 - c_;
   // NOTE: xyz and zxy the 'depth' axis points in different directions
   // (toward the screen for z, away from the screen for y)

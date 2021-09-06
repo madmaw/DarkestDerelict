@@ -1,25 +1,34 @@
 type EntityTypeWall = 0;
+const ENTITY_TYPE_WALL: EntityTypeWall = 0;
 type EntityTypeFloor = 1;
+const ENTITY_TYPE_FLOOR: EntityTypeFloor = 1;
 type EntityTypeSymbol = 2;
+const ENTITY_TYPE_SYMBOL: EntityTypeSymbol = 2;
 type EntityTypeResource = 3;
+const ENTITY_TYPE_RESOURCE: EntityTypeResource = 3;
 type EntityTypeMarine = 4;
+const ENTITY_TYPE_MARINE: EntityTypeMarine = 4;
 type EntityTypePistol = 5;
+const ENTITY_TYPE_PISTOL: EntityTypePistol = 5;
 type EntityTypeSpider= 6;
+const ENTITY_TYPE_SPIDER: EntityTypeSpider = 6;
+type EntityTypeTorch = 7;
+const ENTITY_TYPE_TORCH: EntityTypeTorch = 7;
+type EntityTypeBattery = 8;
+const ENTITY_TYPE_BATTERY: EntityTypeBattery = 8;
+type EntityTypeBayonet = 9;
+const ENTITY_TYPE_BAYONET: EntityTypeBayonet = 9;
+
 type EntityType = EntityTypeWall
     | EntityTypeFloor
     | EntityTypeSymbol
     | EntityTypeResource
     | EntityTypeMarine
     | EntityTypePistol
-    | EntityTypeSpider;
-
-const ENTITY_TYPE_WALL: EntityTypeWall = 0;
-const ENTITY_TYPE_FLOOR: EntityTypeFloor = 1;
-const ENTITY_TYPE_SYMBOL: EntityTypeSymbol = 2;
-const ENTITY_TYPE_RESOURCE: EntityTypeResource = 3;
-const ENTITY_TYPE_MARINE: EntityTypeMarine = 4;
-const ENTITY_TYPE_PISTOL: EntityTypePistol = 5;
-const ENTITY_TYPE_SPIDER: EntityTypeSpider = 6;
+    | EntityTypeSpider
+    | EntityTypeTorch
+    | EntityTypeBattery
+    | EntityTypeBayonet;
 
 const ENTITY_NAMES = [
   'wall',
@@ -29,13 +38,10 @@ const ENTITY_NAMES = [
   'marine',
   'pistol',
   'spider',  
+  'torch',
+  'battery',
+  'bayonet',
 ];
-
-const ENTITY_Z_PADDINGS: Partial<{[k in EntityType]: number}> = {
-  [ENTITY_TYPE_MARINE]: 8,
-  [ENTITY_TYPE_SPIDER]: 8,
-}
-
 
 type EntityPurposeUseless = 0;
 type EntityPurposeWeapon = 1;
@@ -67,7 +73,7 @@ type EntityRenderables = {
 };
 
 type EntityBase = {
-  type: EntityType,
+  entityType: EntityType,
   renderables: EntityRenderables,
 };
 
@@ -94,7 +100,7 @@ type WeaponEntity = {
 } & EntityBase & HasAttack;
 
 type OtherEntity = {
-  purpose: EntityPurposeSecondary | EntityPurposeUseless;
+  purpose: EntityPurposeUseless | EntityPurposeSecondary;
 } & EntityBase;
 
 type Entity = ActorEntity | WeaponEntity | OtherEntity;
@@ -132,8 +138,10 @@ type AttackPowerGain = 10;
 const ATTACK_POWER_GAIN: AttackPowerGain = 10;
 type AttackPowerGainTemporary = 11;
 const ATTACK_POWER_GAIN_TEMPORARY: AttackPowerGainTemporary = 11;
-type AttackWebbing = 12;
-const ATTACK_WEBBING: AttackWebbing = 12;
+type AttackPowerDrainTemporary = 12;
+const ATTACK_POWER_DRAIN_TEMPORARY: AttackPowerDrainTemporary = 12;
+type AttackWebbing = 13;
+const ATTACK_WEBBING: AttackWebbing = 13;
 
 type Attack = AttackPiercing
     | AttackCutting
@@ -147,5 +155,6 @@ type Attack = AttackPiercing
     | AttackPowerDrain
     | AttackPowerGain
     | AttackPowerGainTemporary
+    | AttackPowerDrainTemporary
     | AttackWebbing;
 

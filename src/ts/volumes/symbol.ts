@@ -11,12 +11,12 @@ const VOLUMETRIC_COMMANDS_SYMBOL: VolumetricDrawCommand[] = [
     {
       type: 'numeric',
       range: 'positive-integer',
-      value: UNSCALED_VOLUME_DIMENSION * .8, // .8 to allow for overflows
+      value: UNSCALED_VOLUME_DIMENSION * .8 | 0, // .8 to allow for overflows
     },
     {
       type: 'numeric',
       range: 'positive-integer',
-      value: 2,
+      value: UNSCALED_VOLUME_DIMENSION * .5,
     },
   ],
 ];
@@ -132,6 +132,15 @@ const VOLUMETRIC_PARAMS_SYMBOL: [(Vector4 | string)[], ((NumericValue<ValueRange
           type: 'char',
           value: '△'
         }]: '△'
+  ],
+  // power drain temporary
+  [
+    [COLOR_YELLOW_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '▽'
+        }]: '▽'
   ],
   // web
   [

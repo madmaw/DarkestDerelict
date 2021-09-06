@@ -6,7 +6,7 @@ const CONST_ATTACK_DURATION = 299;
 const CONST_DEATH_DURATION = 699;
 const CONST_EFFECT_INTERVAL = 399;
 
-const CONST_DEFAULT_TAN_FOV_ON_2 = .7;
+const CONST_DEFAULT_TAN_FOV_ON_2 = .8;
 
 const CONST_PI_0DP = 3;
 const CONST_2_PI_0DP = 6;
@@ -39,7 +39,9 @@ const CONST_PI_ON_6_1DP = .5;
 const CONST_PI_ON_7_2DP = .44;
 const CONST_PI_ON_8_1DP = .4;
 const CONST_PI_ON_9_1DP = .3;
+const CONST_PI_ON_11_2DP = .29;
 const CONST_PI_ON_12_2DP = .26;
+const CONST_PI_ON_15_1DP = .2;
 const CONST_PI_ON_15_2DP = .2;
 const CONST_PI_ON_18_2DP = .17;
 const CONST_PI_ON_20_2DP = .16;

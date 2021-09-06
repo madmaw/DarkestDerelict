@@ -28,7 +28,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     return {
       parties: [{
         orientated: ORIENTATION_EAST,
-        type: PARTY_TYPE_OBSTACLE,
+        partyType: PARTY_TYPE_OBSTACLE,
         tile: position,
         anims: [],
         animationQueue: createAnimationEventQueue(timeHolder),
@@ -38,7 +38,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
           animationQueue: createAnimationEventQueue(timeHolder),
           entity: {
             renderables: wallRenderables,
-            type: ENTITY_TYPE_WALL,
+            entityType: ENTITY_TYPE_WALL,
             purpose: ENTITY_PURPOSE_USELESS,
           }
         }],
@@ -66,7 +66,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
               ));
       });
       if (validDeltas.length) {
-        const [dx, dy] = validDeltas[validDeltas.length*Math.random()|0];
+        const [dx, dy] = validDeltas[validDeltas.length*Mathrandom()|0];
         dig(tiles, x + dx, y + dy, dx, dy);
       }
     } while(validDeltas.length);
@@ -84,7 +84,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     if (!t.parties.length) {
       t.parties.push({
         orientated: ORIENTATION_EAST,
-        type: PARTY_TYPE_FLOOR,
+        partyType: PARTY_TYPE_FLOOR,
         tile: position,
         anims: [],
         animationQueue: createAnimationEventQueue(timeHolder),
@@ -93,30 +93,31 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
           animationQueue: createAnimationEventQueue(timeHolder),
           entity: {
             renderables: floors[position[2]%floors.length],
-            type: ENTITY_TYPE_FLOOR,
+            entityType: ENTITY_TYPE_FLOOR,
             purpose: ENTITY_PURPOSE_USELESS,
           }
         }],
       });
-      if (Math.random()>.5) {
-        const type = (ENTITY_TYPE_MARINE + c%4) as EntityType;
-        if (c < 12) {
-          c++;
+      if (Mathrandom()>.5) {
+        const type = (ENTITY_TYPE_MARINE + c%6) as EntityType;
+        if (c < 20) {
+          c++; 
         } else {
           return t;
         }
         const thingRenderables = entityRenderables[type];
         let entity: Entity;
-        let purpose: EntityPurposeWeapon | EntityPurposeUseless = ENTITY_PURPOSE_USELESS;
         switch (type) {
           case ENTITY_TYPE_PISTOL:
             entity = createPistol(thingRenderables[0]);
             break;
-          case ENTITY_TYPE_SYMBOL:
+          case ENTITY_TYPE_TORCH:
+          case ENTITY_TYPE_BATTERY:
+          case ENTITY_TYPE_BAYONET:
             entity = {
-              renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
-              type,
-              purpose,
+              renderables: thingRenderables[Mathrandom() * thingRenderables.length | 0],
+              entityType: type,
+              purpose: ENTITY_PURPOSE_SECONDARY,
             };
             break;
           case ENTITY_TYPE_SPIDER:
@@ -132,8 +133,8 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
               ],
               purpose: ENTITY_PURPOSE_ACTOR,
               side: 1,
-              renderables: thingRenderables[Math.random() * thingRenderables.length | 0],
-              type,
+              renderables: thingRenderables[Mathrandom() * thingRenderables.length | 0],
+              entityType: type,
               attacks: [
                 // power level 0
                 [
@@ -176,13 +177,13 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
             };
             break;
           case ENTITY_TYPE_MARINE:
-            entity = createMarine(thingRenderables, Math.random() * thingRenderables.length | 0);
+            entity = createMarine(thingRenderables, Mathrandom() * thingRenderables.length | 0);
             break;
         }
 
         if (entity) {
           t.parties.push({
-            type: type == ENTITY_TYPE_SPIDER ? PARTY_TYPE_HOSTILE : PARTY_TYPE_ITEM,
+            partyType: type == ENTITY_TYPE_SPIDER ? PARTY_TYPE_HOSTILE : PARTY_TYPE_ITEM,
             tile: position,
             anims: [],
             animationQueue: createAnimationEventQueue(timeHolder),
@@ -218,7 +219,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
       y--;
       for (let x=0; x<LEVEL_DIMENSION; x++) {
         const item = tiles[1][y][x];
-        s.push(!item || item.parties.some(p => p.type == PARTY_TYPE_OBSTACLE) ? '#' : item.parties.some(p => p.type === PARTY_TYPE_ITEM) ? '!' : ' ');
+        s.push(!item || item.parties.some(p => p.partyType == PARTY_TYPE_OBSTACLE) ? '#' : item.parties.some(p => p.partyType === PARTY_TYPE_ITEM) ? '!' : ' ');
       }
       s.push('\n');
     }
@@ -239,16 +240,16 @@ const getFavorableOrientation = (party: Party, level: Level): Orientation | unde
         && ty>=0
         && tx<LEVEL_DIMENSION
         && ty<LEVEL_DIMENSION
-        && (party.type == PARTY_TYPE_HOSTILE || party.type == PARTY_TYPE_ITEM) 
+        && (party.partyType == PARTY_TYPE_HOSTILE || party.partyType == PARTY_TYPE_ITEM) 
     ) {
       const comparisonTile = level[tz][ty][tx];
       // lower appeal is higher
       const appeal = comparisonTile && comparisonTile.parties.reduce(
           (a, p) => a + (
               p.members.some(m => !!m)
-                  ? p.type == party.type
+                  ? p.partyType == party.partyType
                       ? 1 // slightly avoid looking at like
-                      : p.type
+                      : p.partyType
                   : 0
           ),
           0,
@@ -284,7 +285,7 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
     purpose: ENTITY_PURPOSE_ACTOR,
     side: 0,
     renderables: renderables[color],
-    type: ENTITY_TYPE_MARINE,
+    entityType: ENTITY_TYPE_MARINE,
     attacks: [
       // power level 0
       [
@@ -331,7 +332,7 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
 const createPistol = (renderables: EntityRenderables): WeaponEntity => {
   return {
     renderables,
-    type: ENTITY_TYPE_PISTOL,
+    entityType: ENTITY_TYPE_PISTOL,
     purpose: ENTITY_PURPOSE_WEAPON,
     attacks: [
       // power level 0

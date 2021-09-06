@@ -289,7 +289,7 @@ const VOLUMETRIC_PARAMS_RESOURCE: [(Vector4 | string)[], ((NumericValue<ValueRan
         }, {
           type: 'numeric',
           range: 'positive-integer',
-          value: 32,
+          value: 30,
         }, {
           type: 'numeric',
           range: 'angle',
@@ -349,7 +349,7 @@ const VOLUMETRIC_PARAMS_RESOURCE: [(Vector4 | string)[], ((NumericValue<ValueRan
         }, {
           type: 'numeric',
           range: 'positive-integer',
-          value: 32,
+          value: 30,
         }, {
           type: 'numeric',
           range: 'angle',

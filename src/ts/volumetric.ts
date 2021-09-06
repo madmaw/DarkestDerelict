@@ -67,21 +67,21 @@ type Rect3 = [Vector3, Vector3];
 
 const CARDINAL_PROJECTIONS: Matrix4[] = [
   // front
-  matrix4Multiply(matrix4Rotate(Math.PI/2, 0, 1, 0), matrix4Rotate(-Math.PI/2, 0, 0, 1)),
+  matrix4Multiply(matrix4Rotate(CONST_PI_ON_2_3DP, 0, 1, 0), matrix4Rotate(-CONST_PI_ON_2_3DP, 0, 0, 1)),
   // back
-  matrix4Multiply(matrix4Rotate(-Math.PI/2, 0, 1, 0), matrix4Rotate(Math.PI/2, 0, 0, 1)),
+  matrix4Multiply(matrix4Rotate(-CONST_PI_ON_2_3DP, 0, 1, 0), matrix4Rotate(CONST_PI_ON_2_3DP, 0, 0, 1)),
   // right
-  matrix4Rotate(-Math.PI/2, 1, 0, 0),
+  matrix4Rotate(-CONST_PI_ON_2_3DP, 1, 0, 0),
   // left
-  matrix4Multiply(matrix4Rotate(Math.PI/2, 1, 0, 0),matrix4Rotate(Math.PI, 0, 0, 1)),
+  matrix4Multiply(matrix4Rotate(CONST_PI_ON_2_3DP, 1, 0, 0),matrix4Rotate(CONST_PI_3DP, 0, 0, 1)),
   // top
   matrix4Identity(),
   // bottom
-  matrix4Rotate(Math.PI, 0, 1, 0),
+  matrix4Rotate(CONST_PI_3DP, 0, 1, 0),
 ];
 const INVERSE_CARDINAL_PROJECTIONS = CARDINAL_PROJECTIONS.map(matrix4Invert);
 const CARDINAL_NORMALS: Vector3[] = CARDINAL_PROJECTIONS.map(
-    rotation => vector3TransformMatrix4(rotation, 0, 0, 1).map(Math.round) as Vector3,
+    rotation => vector3TransformMatrix4(rotation, 0, 0, 1).map(Mathround) as Vector3,
 );
 
 type VolumetricDrawCommand = [
@@ -252,15 +252,15 @@ const processVolumetricDrawCommandString = (
           renderShape(
               volume,
               (test: Vector3, force?: Booleanish) => {
-                if (force || test.every((v, i) => Math.abs(v) <= dims[i])) {
+                if (force || test.every((v, i) => Mathabs(v) <= dims[i])) {
                   const p = test.map((v, i) => v/(dims[i]-.5*effectiveRounding));
                   const maxIndex = p.reduce(
-                      (maxIndex, v, i) => Math.abs(p[maxIndex]) < Math.abs(v)
+                      (maxIndex, v, i) => Mathabs(p[maxIndex]) < Mathabs(v)
                           ? i
                           : maxIndex,
                       0,
                   );
-                  const v = test.map((v, i) => i == maxIndex || Math.abs(v) > dims[i] - effectiveRounding ? v/Math.abs(v) : 0);
+                  const v = test.map((v, i) => i == maxIndex || Mathabs(v) > dims[i] - effectiveRounding ? v/Mathabs(v) : 0);
                   return vectorNNormalize(v as Vector3);
                 } 
               },
@@ -276,10 +276,9 @@ const processVolumetricDrawCommandString = (
           const rightRadius = positiveIntegerFromBase64(nextCommand())/2;
           const leftRadius = positiveIntegerFromBase64(nextCommand())/2;
 
-          const angle = Math.PI/2 + Math.asin((rightRadius - leftRadius)/width);
-          //const angle = Math.atan2(rightRadius - leftRadius, width);
-          const sin = Math.sin(angle);
-          const cos = Math.cos(angle);
+          const angle = CONST_PI_ON_2_3DP + Math.asin((rightRadius - leftRadius)/width);
+          const sin = Mathsin(angle);
+          const cos = Mathcos(angle);
           const leftX = cos * leftRadius - widthDiv2;
           const leftY = sin * leftRadius;
           const rightX = cos * rightRadius + widthDiv2;
@@ -301,9 +300,9 @@ const processVolumetricDrawCommandString = (
                 }
                 // cylinder
                 const r = leftY + (rightY - leftY) * (x - leftX)/width;
-                const a = Math.atan2(y, z);
-                const ny = Math.sin(a) * sin;
-                const nz = Math.cos(a) * sin;
+                const a = Mathatan2(y, z);
+                const ny = Mathsin(a) * sin;
+                const nz = Mathcos(a) * sin;
                 return (force || r*r > y*y + z*z) && [cos, ny, nz];
               },
               transform,
@@ -315,26 +314,25 @@ const processVolumetricDrawCommandString = (
         {
           const width = positiveIntegerFromBase64(nextCommand());
           const widthDiv2 = width/2;
-          const widthMinux1Px = width-effectiveRounding;
+          const widthMinux1Px = width-effectiveRounding*2;
           const widthMinus1pxDiv2 = widthMinux1Px/2;
           const leftRadius = positiveIntegerFromBase64(nextCommand())/2;
           const rightRadius = positiveIntegerFromBase64(nextCommand())/2;
-          //const angle = Math.PI/2 + Math.asin((rightRadius - leftRadius)/width);
-          const angle = Math.atan2(rightRadius - leftRadius, width);
-          const sin = Math.sin(angle + Math.PI/2);
-          const cos = Math.cos(angle + Math.PI/2);
+          const angle = Mathatan2(leftRadius - rightRadius, width);
+          const sin = Mathsin(angle);
+          const cos = Mathcos(angle);
           const steps = positiveIntegerFromBase64(nextCommand());
-          const stepAngle = Math.PI*2/steps;
-          const cosStepAngleDiv2 = Math.cos(stepAngle/2)
-          const sinStepAngleDiv2 = Math.sin(stepAngle/2)
+          const stepAngle = CONST_2_PI_3DP/steps;
+          const cosStepAngleDiv2 = Mathcos(stepAngle/2)
+          const sinStepAngleDiv2 = Mathsin(stepAngle/2)
 
           renderShape(
               volume,
               (test: Vector3, force?: Booleanish): Vector3 => {
                 const [x, y, z] = test;
-                let a = Math.atan2(y, z);
+                let a = Mathatan2(y, z);
                 if (a < 0) { 
-                  a += Math.PI*2;
+                  a += CONST_2_PI_3DP;
                 }
                 const sector = a / stepAngle | 0;
                 const sectorAngle = sector * stepAngle + stepAngle/2;
@@ -347,13 +345,13 @@ const processVolumetricDrawCommandString = (
                 const inPoly = cosStepAngleDiv2*rOuter>rz;
                 const inPolySurface = cosStepAngleDiv2*rInner<rz
                 
-                if (Math.abs(x) <= widthDiv2 && inPoly || force) {
-                  return inPolySurface
-                      ? Math.abs(ry) - rInner * sinStepAngleDiv2 > 0
+                if (Mathabs(x) <= widthDiv2 && inPoly || force) {
+                  return widthMinus1pxDiv2 > Math.abs(x) || inPolySurface
+                      ? Mathabs(ry) - rInner * sinStepAngleDiv2 > 0
                           ? ry > 0
-                              ? [cos, Math.sin(sectorAngle+stepAngle/2)*sin, Math.cos(sectorAngle+stepAngle/2)*sin]
-                              : [cos, Math.sin(sectorAngle-stepAngle/2)*sin, Math.cos(sectorAngle-stepAngle/2)*sin]
-                          : [cos, Math.sin(sectorAngle)*sin, Math.cos(sectorAngle)*sin] as Vector3
+                              ? [sin, Mathsin(sectorAngle+stepAngle/2)*cos, Mathcos(sectorAngle+stepAngle/2)*cos]
+                              : [sin, Mathsin(sectorAngle-stepAngle/2)*cos, Mathcos(sectorAngle-stepAngle/2)*cos]
+                          : [sin, Mathsin(sectorAngle)*cos, Mathcos(sectorAngle)*cos] as Vector3
                       : vectorNNormalize([x, 0, 0]);
                 }
               },
@@ -382,12 +380,12 @@ const processVolumetricDrawCommandString = (
             (test: Vector3, force?: Booleanish): Vector3 => {
               const [x, y, z] = test;
               // need to scale back up to pixel size
-              const px = Math.round(y*VOLUME_SCALE + VOLUME_MIDPOINT);
-              const py = Math.round(-z*VOLUME_SCALE + VOLUME_MIDPOINT);
+              const px = Mathround(y*VOLUME_SCALE + VOLUME_MIDPOINT);
+              const py = Mathround(-z*VOLUME_SCALE + VOLUME_MIDPOINT);
               const a = pixels.data[py*VOLUME_DIMENSION*4+px*4+3];
-              if (a > 128 && Math.abs(x)<=widthDiv2 || force) {
+              if (a > 99 && Mathabs(x)<=widthDiv2 || force) {
                 return vectorNNormalize(
-                    Math.abs(x) >= widthDiv2 - effectiveRounding
+                    Mathabs(x) >= widthDiv2 - effectiveRounding
                         ? [x, 0, 0]
                         : test
                 );
@@ -445,6 +443,24 @@ const processVolumetricDrawCommandString = (
             ),
         );
         break;
+      /* unused (doesn't work?)
+      case TYPE_CONTEXT_END_INTERSECTION:
+        nextContext();
+        fixNormals(
+            volumeMap(
+                contexts[0].volum,
+                (v, [x, y, z]) => {
+                  const s = volume[z][y][x];
+                  if (v && s) {
+                    return v.length > 1
+                      ? v
+                      : s;
+                  }
+                }
+            ),
+        );
+        break;
+        */
       case TYPE_CONTEXT_END_SUBTRACTION:
         nextContext();
         fixNormals(
@@ -577,13 +593,9 @@ const fixNormals = (volume: Volume<Voxel>, shape?: Shape, transform?: Matrix4, i
 
   volumeMap(volume, (voxel, position): Voxel | Falseish => {
     const exposed = CARDINAL_NORMALS.some(d => {
-      const [x, y, z] = vectorNSubtract(position, d);
-      return x >= 0
-          && x < VOLUME_DIMENSION
-          && y >= 0
-          && y < VOLUME_DIMENSION
-          && z >= 0
-          && z < VOLUME_DIMENSION
+      const v = vectorNSubtract(position, d)
+      const [x, y, z] = v;
+      return v.every(v => v >= 0 && v < VOLUME_DIMENSION)
           && !volume[z][y][x];
     }); 
 
@@ -619,8 +631,8 @@ const calculateVolumeBounds = <T>(volume: Volume<T>): Rect3 => {
   let min: Vector3 = [VOLUME_DIMENSION, VOLUME_DIMENSION, VOLUME_DIMENSION];
   volumeMap(volume, (t, position) => {
     if (t && t[0]>=0) {
-      max = max.map((v, i) => Math.max(position[i], v)) as Vector3;
-      min = min.map((v, i) => Math.min(position[i], v)) as Vector3;
+      max = max.map((v, i) => Mathmax(position[i], v)) as Vector3;
+      min = min.map((v, i) => Mathmin(position[i], v)) as Vector3;
     }
   });
   return [min, max];
@@ -636,25 +648,26 @@ const volumeToDepthTexture = (volume: Volume<Voxel>, bounds: Rect3) => {
     return [
       ((normal[0]+1)*127)|0,
       ((normal[1]+1)*127)|0,
-      Math.min(minz + VOLUME_DEPTH_OFFSET, 255),
-      Math.min(maxz + 1, 255),
+      Mathmin(minz + VOLUME_DEPTH_OFFSET, 255),
+      Mathmin(maxz + 1, 255),
     ];
   });
 }
 
 const volumeToRenderTexture = (volume: Volume<Voxel>, bounds: Rect3, packedRenderTextures: readonly (Vector4 | string)[]) => {
-  const renderTextures: Vector4[] = FLAG_USE_PACKED_COLORS 
+  const renderTextures: readonly Vector4[] = FLAG_USE_PACKED_COLORS
       ? packedRenderTextures.map(colorFromBase64)
       : packedRenderTextures as Vector4[];
   if (!FLAG_USE_PACKED_COLORS) {
-    renderTextures.forEach(r => {
+    renderTextures.forEach((r) => {
       const packed = colorToBase64(r);
-      console.log(`${JSON.stringify(r)} => ${packed}`);
+      console.log(`${JSON.stringify(r)} => ${packed}`);    
     });
   }
-  return volumeToTexture(volume, bounds, voxel => {
-    const materialIndex = Math.abs(voxel[0]);
-    return renderTextures[materialIndex%renderTextures.length];
+  return volumeToTexture(volume, bounds, (voxel) => {
+    const materialIndex = Mathabs(voxel[0]);
+    const texture = renderTextures[materialIndex%renderTextures.length];
+    return texture;
   });
 }
 
@@ -679,9 +692,9 @@ const volumeToTexture = (
     const inverseTransform = matrix4Invert(transform);
     const extents1 = vector3TransformMatrix4(inverseTransform, ...omin);
     const extents2 = vector3TransformMatrix4(inverseTransform, ...omax);
-    const min = extents1.map((v, i) => Math.round(Math.min(v, extents2[i]))) as Vector3;
+    const min = extents1.map((v, i) => Mathround(Mathmin(v, extents2[i]))) as Vector3;
     const [minx, miny, minz] = min;
-    const max = extents1.map((v, i) => Math.round(Math.max(v, extents2[i]))) as Vector3;
+    const max = extents1.map((v, i) => Mathround(Mathmax(v, extents2[i]))) as Vector3;
     const [maxx, maxy, maxz] = max;
     const transformedBounds: Rect3 = [min, max];
     const width = maxx - minx + 1;
@@ -701,8 +714,8 @@ const volumeToTexture = (
         let lastZ = 0;
         for (let vz=VOLUME_DIMENSION; vz>0; ) {
           vz--;
-          const v = vector3TransformMatrix4(transform, vx, vy, vz).map(Math.round);
-          if (!FLAG_CHECK_VOLUME_BOUNDS || v[2] >=0 && v[2] < VOLUME_DIMENSION && v[1] >= 0 && v[1] < VOLUME_DIMENSION && v[0] >= 0 && v[0] < VOLUME_DIMENSION) {
+          const v = vector3TransformMatrix4(transform, vx, vy, vz).map(Mathround);
+          if (!FLAG_CHECK_VOLUME_BOUNDS || v.every(v => v >= 0 && v < VOLUME_DIMENSION)) {
             const voxel = volume[v[2]][v[1]][v[0]];
             if (voxel) {
               if (!firstVoxel) {
@@ -730,7 +743,7 @@ const volumeToTexture = (
     const sy1 = y/TEXTURE_DIMENSION;
     const sx2 = (x + width)/TEXTURE_DIMENSION;
     const sy2 = (y + height)/TEXTURE_DIMENSION;
-    rowHeight = Math.max(height, rowHeight);
+    rowHeight = Mathmax(height, rowHeight);
     x += width + TEXTURE_PADDING;
     return [sx1, sy1, sx2, sy2] as Rect2;
   });
