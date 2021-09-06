@@ -118,26 +118,17 @@ module.exports = function (grunt) {
                   from: "'use strict';",
                   to:""
               }, {
-                from: /\/\/([^\\])*\\n/g,
+                from: /\/\/([^\n])*\n/g,
                 to:""
               }, /*{
                 from: /\/\*(.|\\n)*\*\//g,
                 to:""
               }, */{
-                from: /((\\n)\s*)+/g,
-                to:" "
+                from: /\$\{\"((\w|\d|\.)*)\"\}/g,
+                to: "$1"
               }, {
-                from: /(\s)+/g,
-                to:" "
-              }, {
-                from: /(\W)\s(\w)/g,
-                to: "$1$2"
-              }, {
-                from: /(\w)\s(\W)/g,
-                to: "$1$2"
-              }, {
-                from: /(\W)\s(\W)/g,
-                to: "$1$2"
+                from: /\$\{(\-?(\d|\.)*)\}/g,
+                to: "$1"
               }, {
                 from: "void 0",
                 to: "null"
@@ -169,14 +160,20 @@ module.exports = function (grunt) {
             src: ['dist/out.min.js'],
             overwrite: true,
             replacements: [{
-                from: /(\W)\s(\w)/g,
-                to: "$1$2"
+              from: /(\s)+/g,
+              to:" "
             }, {
-                from: /(\w)\s(\W)/g,
-                to: "$1$2"
+              from: /((\\n)\s*)+/g,
+              to:" "
             }, {
-                from: /(\W)\s(\W)/g,
-                to: "$1$2"
+              from: /(\W)\s(\w)/g,
+              to: "$1$2"
+            }, {
+              from: /(\w)\s(\W)/g,
+              to: "$1$2"
+            }, {
+              from: /(\W)\s(\W)/g,
+              to: "$1$2"
             }]
         },
       },
@@ -228,7 +225,7 @@ module.exports = function (grunt) {
   // Default task(s).
   grunt.registerTask('reset', ['clean:all']);
   grunt.registerTask('prod', ['ts']);
-  grunt.registerTask('dist', ['prod', 'closure-compiler:es2020', 'copy','cssmin','replace:html', 'replace:js', 'replace:js2', 'inline', 'htmlmin','replace:html2']);
+  grunt.registerTask('dist', ['prod', 'closure-compiler:es2020', 'copy','cssmin','replace:html', 'replace:js', 'replace:js2', 'replace:js2', 'inline', 'htmlmin','replace:html2']);
   grunt.registerTask('default', ['prod', 'connect', 'watch']);
 
 };

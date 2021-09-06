@@ -835,10 +835,10 @@ onload = async () => {
                 targetPartyMember.activeAttackStartTime = game.time;
                 targetPartyMember.attackAnimations = [];
               }
-              const attackAnimations = (targetAttacks || []).map((attack, i) => {
+              const attackAnimations = (targetAttacks || []).map((attack) => {
                 return {
                   attackType: attack,
-                  s: 0,
+                  ['s']: 0,
                 };
               });
               targetPartyMember.attackAnimations.push(...attackAnimations);
@@ -1383,6 +1383,7 @@ onload = async () => {
             const w = thumbnail.width * symbolScale;
             const h = thumbnail.height * symbolScale;
             ctx.drawImage(symbol.thumbnail, x + (symbolDimension - w)/2, y + (symbolDimension - h)/2, w, h);
+            
             x += symbolDimension;
           });
         });
@@ -1399,7 +1400,7 @@ onload = async () => {
       ctx.fill();
       ctx.restore();
 
-      member.attackAnimations?.forEach(({ attackType: attack, x, y, s: scale }) => {
+      member.attackAnimations?.forEach(({ attackType: attack, x, y, ['s']: scale }) => {
         if (scale) {
           const thumbnail = entityRenderables[ENTITY_TYPE_SYMBOL][attack].thumbnail;
           ctx.save();

@@ -214,7 +214,7 @@ const VOLUMETRIC_COMMANDS_BAYONET: VolumetricDrawCommand[] = [
   ],  
 ];
 
-const VOLUMETRIC_BAYONET = FLAG_USE_VOLUME_COMMANDS ? VOLUMETRIC_COMMANDS_BAYONET : '';
+const VOLUMETRIC_BAYONET = FLAG_USE_VOLUME_COMMANDS ? VOLUMETRIC_COMMANDS_BAYONET : 'ZJxUB<>JzX.z_C><<-.#;xbz[hDCHDD.z_BRDA-+#<hTxUDB@@@';
 
 const VOLUMETRIC_PARAMS_BAYONET: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
   [
