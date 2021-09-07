@@ -9,16 +9,19 @@ const ORIENTATION_WEST: OrientationWest = 2;
 const ORIENTATION_SOUTH: OrientationSouth = 3;
 
 type PartyTypeHostile = -4;
-type PartyTypePlayer = -3;
-type PartyTypeItem = -1;
-type PartyTypeFloor = 0;
-type PartyTypeObstacle = 9;
-type PartyType = PartyTypePlayer | PartyTypeItem | PartyTypeHostile | PartyTypeFloor | PartyTypeObstacle;
 const PARTY_TYPE_HOSTILE: PartyTypeHostile = -4;
+type PartyTypePlayer = -3;
 const PARTY_TYPE_PLAYER: PartyTypePlayer = -3;
+type PartyTypeItem = -1;
 const PARTY_TYPE_ITEM: PartyTypeItem = -1;
+type PartyTypeFloor = 0;
 const PARTY_TYPE_FLOOR: PartyTypeFloor = 0;
+type PartyTypeDoor = 8;
+const PARTY_TYPE_DOOR: PartyTypeDoor = 8;
+type PartyTypeObstacle = 9;
 const PARTY_TYPE_OBSTACLE: PartyTypeObstacle = 9;
+
+type PartyType = PartyTypePlayer | PartyTypeItem | PartyTypeHostile | PartyTypeFloor | PartyTypeDoor | PartyTypeObstacle;
 
 type Party = {
   members: (PartyMember | Falseish)[],

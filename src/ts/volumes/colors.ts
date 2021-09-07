@@ -5,6 +5,7 @@ const COLOR_RED_GLOWING: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'yBBy' : [2
 const COLOR_YELLOW_SHUNY: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'ZZJ=' : [128, 128, 64, 12];
 const COLOR_ORANGE_SHINY: Vector4 | string = FLAG_USE_PACKED_COLORS ? '\\QJ=' : [138, 92, 64, 12];
 const COLOR_PURPLE_SHINY: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'ZJZ=' : [128, 64, 128, 12];
+const COLOR_SILVER_SHINY: Vector4 | string = FLAG_USE_PACKED_COLORS ? '' : [128, 128, 128, 12];
 const COLOR_GUNCARPET: Vector4 | string = FLAG_USE_PACKED_COLORS ? '' : [118, 118, 128, 99];
 const COLOR_DULLMETAL: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'WWZ>' : [118, 118, 128, 18];
 const COLOR_GUNMETAL: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'WWZ<' : [118, 118, 128, 9];

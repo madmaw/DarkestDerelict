@@ -2,7 +2,7 @@
 ///<reference path="./constants.ts"/>
 ///<reference path="./volumetric.ts"/>
 ///<reference path="./gl.ts"/>
-///<reference path="./volumes/wall.ts"/>
+///<reference path="./volumes/wall_inset.ts"/>
 ///<reference path="./volumes/marine.ts"/>
 ///<reference path="./events.ts"/>
 
@@ -123,12 +123,14 @@ const VERTEX_SHADER = `
   const L_COLOR = FLAG_LONG_SHADER_NAMES ? 'lColor' : 'r';
   const L_PIXEL_POSITION = FLAG_LONG_SHADER_NAMES ? 'lPixelPosition' : 'q';
 
-  const CONST_NUM_STEPS = 128;
-  const MAX_DEPTH = VOLUME_DIMENSION/TEXTURE_DIMENSION;
+  
+  const CONST_MAX_NUM_STEPS = 64;
+  const CONST_TARGET_NUM_STEPS = 32;
+  const MAX_DEPTH = (VOLUME_DIMENSION + VOLUME_DEPTH_OFFSET)/TEXTURE_DIMENSION;
   const C_MAX_DEPTH = `${MAX_DEPTH}`;
   const C_MIN_DEPTH = -VOLUME_DEPTH_OFFSET/TEXTURE_DIMENSION;
-  const STEP_DEPTH = (MAX_DEPTH-C_MIN_DEPTH)/CONST_NUM_STEPS;
-  const C_STEP_DEPTH = `${STEP_DEPTH}`;
+  const BASE_STEP_DEPTH = MAX_DEPTH/CONST_TARGET_NUM_STEPS;
+  const MIN_STEP_DEPTH = MAX_DEPTH/CONST_MAX_NUM_STEPS;
   const DEPTH_SCALE = 256/VOLUME_DIMENSION*MAX_DEPTH;
   const C_DEPTH_SCALE = `${DEPTH_SCALE}${DEPTH_SCALE==Mathround(DEPTH_SCALE)?'.':''}`;
   const C_MAX_NUM_LIGHTS = 4;
@@ -162,8 +164,8 @@ const VERTEX_SHADER = `
     
     float pixelDepth=0.;
     float depth=${C_MIN_DEPTH};
-    float stepDepth=${C_STEP_DEPTH};
-    for (int i=0; i<${CONST_NUM_STEPS}; i++) {
+    float stepDepth=max(${BASE_STEP_DEPTH}*dot(vec3(0., 0., -1.), ${L_CAMERA_DIRECTION}), ${MIN_STEP_DEPTH});
+    for (int i=0; i<${CONST_MAX_NUM_STEPS}; i++) {
       depth+=stepDepth;
       vec2 ${L_TEMP_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD}-depth*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
       if (all(lessThanEqual(${V_SURFACE_TEXTURE_BOUNDS}.xy, ${L_TEMP_SURFACE_POSITION})) && all(lessThan(${L_TEMP_SURFACE_POSITION}, ${V_SURFACE_TEXTURE_BOUNDS}.zw))) {
@@ -274,8 +276,9 @@ onload = async () => {
   type LoadingEvent = [VolumetricDrawCommand[] | string, Matrix4, [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][], number?];
 
   const SURFACE_COLORS: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
-    [[COLOR_GUNMETAL, COLOR_RED_CARPET, COLOR_WHITE_SHINY]],
-    [[COLOR_DULLMETAL, COLOR_BLUE_CARPET, COLOR_WHITE_SHINY]],
+    [[COLOR_GUNMETAL, COLOR_GUNMETAL, COLOR_GUNMETAL]],
+    [[COLOR_GUNMETAL, COLOR_RED_CARPET, COLOR_SILVER_SHINY]],
+    [[COLOR_DULLMETAL, COLOR_BLUE_CARPET, COLOR_SILVER_SHINY]],
   ];
 
   // slightly scale up to hide wall-gaps
@@ -283,8 +286,10 @@ onload = async () => {
   const MODEL_SCALE_MATRIX = matrix4Scale(MODEL_SCALE);
   
   const COMMANDS: readonly LoadingEvent[] = [
-    // wall
-    [VOLUMETRIC_WALL, MODEL_SCALE_MATRIX, SURFACE_COLORS],
+    // wall inset
+    [VOLUMETRIC_WALL_INSET, MODEL_SCALE_MATRIX, SURFACE_COLORS],
+    // wall pipes
+    [VOLUMETRIC_WALL_PIPES, MODEL_SCALE_MATRIX, SURFACE_COLORS],
     // floor
     [VOLUMETRIC_FLOOR,  MODEL_SCALE_MATRIX, SURFACE_COLORS],
     // symbols
@@ -300,9 +305,7 @@ onload = async () => {
       [[COLOR_CHITIN, COLOR_RED_CARPET, COLOR_RED_GLOWING]],
     ], 8], 
     // pistol
-    [VOLUMETRIC_PISTOL, matrix4Scale(MODEL_SCALE * .2), [
-      [[COLOR_GUNMETAL, COLOR_BLACK]],
-    ]],
+    [VOLUMETRIC_PISTOL, matrix4Scale(MODEL_SCALE * .2), VOLUMETRIC_PARAMS_PISTOL],
     // spider
     [VOLUMETRIC_SPIDER, matrix4Scale(MODEL_SCALE * .5), [
       [[COLOR_CHITIN, COLOR_RED_GLOWING, COLOR_RED_SHINY]],
@@ -313,6 +316,16 @@ onload = async () => {
     [VOLUMETRIC_BATTERY, matrix4Scale(MODEL_SCALE * .1), VOLUMETRIC_PARAMS_BATTERY],
     // bayonet
     [VOLUMETRIC_BAYONET, matrix4Scale(MODEL_SCALE * .2), VOLUMETRIC_PARAMS_BAYONET],
+    // door
+    [VOLUMETRIC_DOOR, MODEL_SCALE_MATRIX, [
+      [[COLOR_RED_SHINY, COLOR_WHITE_SHINY, COLOR_RED_GLOWING]],
+      [[COLOR_GREEN_SHINY, COLOR_WHITE_SHINY, COLOR_GREEN_GLOWING]],
+    ]],
+    // key
+    [VOLUMETRIC_KEY, matrix4Scale(MODEL_SCALE * .2), [
+      [[COLOR_RED_SHINY]],
+      [[COLOR_GREEN_SHINY]],
+    ]],
   ];
 
   const loadingEventQueue: EventQueue<LoadingEvent, EntityRenderables[]> = {
@@ -583,7 +596,7 @@ onload = async () => {
   gl.cullFace(CONST_GL_BACK);
   gl.enable(CONST_GL_BLEND);
   gl.blendFunc(CONST_GL_SRC_ALPHA, CONST_GL_ONE_MINUS_SRC_ALPHA);
-  gl.clearColor(0, .1, .1, 1);
+  gl.clearColor(0, 0, 0, 1);
   gl.clearDepth(1);
   gl.enable(CONST_GL_DEPTH_TEST); 
   gl.depthFunc(CONST_GL_LEQUAL);
@@ -598,7 +611,7 @@ onload = async () => {
       //matrix4Perspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .35, 10),
       matrix4Rotate(-CONST_PI_ON_2_1DP, 1, 0, 0),
       matrix4Rotate(CONST_PI_ON_2_2DP, 0, 0, 1),
-      //matrix4Rotate(-CONST_PI_ON_9_1DP, 0, 1, 0),
+      matrix4Rotate(-CONST_PI_ON_9_1DP, 0, 1, 0),
   );
 
   const entityRenderables = await addEvents(loadingEventQueue, ...COMMANDS);
@@ -629,8 +642,8 @@ onload = async () => {
           const deltaPosition = vector2Rotate(a, unrotatedDeltaPosition.slice(0, 2) as Vector2).concat(unrotatedDeltaPosition[2]);
           const from = party.tile;
           const to = from.map((v, i) => Mathround(v + deltaPosition[i])) as Vector2;
-          const toTile = game.level[to[1]][to[0]] as Tile;
-          if (toTile.parties.some(p => p.partyType == PARTY_TYPE_OBSTACLE || p.partyType == PARTY_TYPE_HOSTILE)) {
+          const toTile = game.level[to[1]]?.[to[0]] as Tile;
+          if (!toTile || toTile.parties.some(p => p.partyType == PARTY_TYPE_DOOR || p.partyType == PARTY_TYPE_OBSTACLE || p.partyType == PARTY_TYPE_HOSTILE)) {
             if (party == playerParty) {
               // just animate the camera in and out
               const toCameraPosition = [...from.map((v, i) => v + deltaPosition[i]/6), 0] as Vector3;
@@ -647,7 +660,7 @@ onload = async () => {
             if (turnPassed = 1) {
               // move the camera too
               const toCameraPosition = [...to, 0] as Vector3;
-              const animationFactory = createTweenAnimationFactory(party, party, 'cpos', toCameraPosition, easeInQuad, 3000);
+              const animationFactory = createTweenAnimationFactory(party, party, 'cpos', toCameraPosition, easeInQuad, 300);
               cameraMovePromise = addEvents(party.animationQueue, animationFactory); 
             }
             // animate and update resources
@@ -665,6 +678,10 @@ onload = async () => {
                 return await moveNaturallyToSlotPosition(party, partyMember, i);
               }
             }).concat(cameraMovePromise));  
+            // did we move to the next level?
+            if (to[1] >= LEVEL_DIMENSION + LEVEL_SPACING - 1 && to[0] == (LEVEL_DIMENSION/2 | 0)) {
+              goToNextLevel();
+            }
           }
         }
         break;
@@ -710,7 +727,20 @@ onload = async () => {
                 if (toSlotPurpose == ENTITY_PURPOSE_ACTOR) {
                   reciprocalMoveEntity = toSlot.secondary;
                   turnPassed = toSlot.secondary = e.entity;
+                } else if (toSlotPurpose == ENTITY_PURPOSE_DOOR && (e.entity as SecondaryEntity).variation == (toSlot.entity as SecondaryEntity).variation) {
+                  const [x, y, z] = toSlot['pos'];
+                  // destroy the key
+                  if (fromSlot.secondary = e.entity) {
+                    fromSlot.secondary = 0;
+                  } else {
+                    e.party.members[e.slot] = 0;
+                  }
+                  await addEvents(toSlot.animationQueue, createTweenAnimationFactory(toSlot, toSlot, 'pos', [x, y, z+1], easeInQuad, 400));
+                  // remove the door entirely
+                  e.to.party.members[e.to.slot] = 0;
+                  e.to.party.partyType = PARTY_TYPE_FLOOR;
                 }
+                break;
               }
           } else {
             if (e.to.party.partyType == PARTY_TYPE_ITEM || purpose == ENTITY_PURPOSE_ACTOR) {
@@ -1086,14 +1116,13 @@ onload = async () => {
   const game: Game = {
     time: 0,
   };
-  game.level = generateLevel(game, entityRenderables, 0);
-  const partyPosition: Vector2 = [LEVEL_DIMENSION/2 | 0, 1];
+  let depth = 0;
+  const DEFAULT_PARTY_POSITION: Vector2 = [LEVEL_DIMENSION/2 | 0, 0];
   const playerParty: Party = {
     members: new Array(4).fill(0),
     orientated: ORIENTATION_NORTH,
     partyType: PARTY_TYPE_PLAYER,
-    tile: partyPosition,
-    ['cpos']: [LEVEL_DIMENSION/2 | 0, 1, 0],
+    tile: DEFAULT_PARTY_POSITION,
     ['coff']: [.4, 0, -.6],
     ['czr']: CONST_PI_ON_2_2DP,
     anims: [],
@@ -1101,19 +1130,33 @@ onload = async () => {
   };
   playerParty.members[0] = {
     ...BASE_PARTY_MEMBER,
-    ['pos']: [...partyPosition, 0],
     ['zr']: CONST_PI_ON_2_1DP,
     animationQueue: createAnimationEventQueue(game),
     entity: createMarine(entityRenderables[ENTITY_TYPE_MARINE], 0),
-    weapon: createPistol(entityRenderables[ENTITY_TYPE_PISTOL][0]),
+    weapon: createPistol(entityRenderables[ENTITY_TYPE_PISTOL], ATTACK_PIERCING),
     secondary: {
       entityType: ENTITY_TYPE_TORCH,
       purpose: ENTITY_PURPOSE_SECONDARY,
       renderables: entityRenderables[ENTITY_TYPE_TORCH][0],
+      variation: 0,
     }
   };
-  (game.level[partyPosition[1]][partyPosition[0]] as Tile).parties.push(playerParty);
 
+  const goToNextLevel = () => {
+    depth++;
+    game.level = generateLevel(game, entityRenderables, depth);
+    (game.level[DEFAULT_PARTY_POSITION[1]][DEFAULT_PARTY_POSITION[0]] as Tile).parties.push(playerParty);
+    playerParty.tile = [...DEFAULT_PARTY_POSITION];
+    playerParty['cpos'] = [...DEFAULT_PARTY_POSITION, 0];
+    playerParty.members.forEach((m, i) => {
+      if (m) {
+        const [position] = getTargetPositionAndRotations(playerParty, i);
+        m['pos'] = position as Vector3;
+      }
+    });
+  };
+  goToNextLevel();
+  
   let slotsToEntities: Map<EventTarget, Entity> | undefined;
 
   let lastDragEnded: number | undefined;
@@ -1160,7 +1203,7 @@ onload = async () => {
       // flip y coordinates so screen coordinates = world coordinates
       const sy = 1 - p.clientY*2/Z.clientHeight;
       iterateLevelMembers(game.level, (partyMember, party, slot) => {
-        if (party.partyType == PARTY_TYPE_ITEM || party.partyType == PARTY_TYPE_HOSTILE) {
+        if (party.partyType == PARTY_TYPE_ITEM || party.partyType == PARTY_TYPE_HOSTILE || party.partyType == PARTY_TYPE_DOOR) {
           const { 
             staticTransform,
             bounds,

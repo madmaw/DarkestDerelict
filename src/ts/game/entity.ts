@@ -1,29 +1,36 @@
 // virtual types (use other resources to render)
 type EntityTypeCeiling = -1;
 const ENTITY_TYPE_CEILING: EntityTypeCeiling = -1;
-type EntityTypeWall = 0;
-const ENTITY_TYPE_WALL: EntityTypeWall = 0;
-type EntityTypeFloor = 1;
-const ENTITY_TYPE_FLOOR: EntityTypeFloor = 1;
-type EntityTypeSymbol = 2;
-const ENTITY_TYPE_SYMBOL: EntityTypeSymbol = 2;
-type EntityTypeResource = 3;
-const ENTITY_TYPE_RESOURCE: EntityTypeResource = 3;
-type EntityTypeMarine = 4;
-const ENTITY_TYPE_MARINE: EntityTypeMarine = 4;
-type EntityTypePistol = 5;
-const ENTITY_TYPE_PISTOL: EntityTypePistol = 5;
-type EntityTypeSpider= 6;
-const ENTITY_TYPE_SPIDER: EntityTypeSpider = 6;
-type EntityTypeTorch = 7;
-const ENTITY_TYPE_TORCH: EntityTypeTorch = 7;
-type EntityTypeBattery = 8;
-const ENTITY_TYPE_BATTERY: EntityTypeBattery = 8;
-type EntityTypeBayonet = 9;
-const ENTITY_TYPE_BAYONET: EntityTypeBayonet = 9;
+type EntityTypeWallInset = 0;
+const ENTITY_TYPE_WALL_INSET: EntityTypeWallInset = 0;
+type EntityTypeWallPipes = 1;
+const ENTITY_TYPE_WALL_PIPES: EntityTypeWallPipes = 1;
+type EntityTypeFloor = 2;
+const ENTITY_TYPE_FLOOR: EntityTypeFloor = 2;
+type EntityTypeSymbol = 3;
+const ENTITY_TYPE_SYMBOL: EntityTypeSymbol = 3;
+type EntityTypeResource = 4;
+const ENTITY_TYPE_RESOURCE: EntityTypeResource = 4;
+type EntityTypeMarine = 5;
+const ENTITY_TYPE_MARINE: EntityTypeMarine = 5;
+type EntityTypePistol = 6;
+const ENTITY_TYPE_PISTOL: EntityTypePistol = 6;
+type EntityTypeSpider= 7;
+const ENTITY_TYPE_SPIDER: EntityTypeSpider = 7;
+type EntityTypeTorch = 8;
+const ENTITY_TYPE_TORCH: EntityTypeTorch = 8;
+type EntityTypeBattery = 9;
+const ENTITY_TYPE_BATTERY: EntityTypeBattery = 9;
+type EntityTypeBayonet = 10;
+const ENTITY_TYPE_BAYONET: EntityTypeBayonet = 10;
+type EntityTypeDoor = 11;
+const ENTITY_TYPE_DOOR: EntityTypeDoor = 11;
+type EntityTypeKey = 12;
+const ENTITY_TYPE_KEY: EntityTypeKey = 12;
 
 type EntityType = EntityTypeCeiling
-    | EntityTypeWall
+    | EntityTypeWallInset
+    | EntityTypeWallPipes
     | EntityTypeFloor
     | EntityTypeSymbol
     | EntityTypeResource
@@ -32,10 +39,14 @@ type EntityType = EntityTypeCeiling
     | EntityTypeSpider
     | EntityTypeTorch
     | EntityTypeBattery
-    | EntityTypeBayonet;
+    | EntityTypeBayonet
+    | EntityTypeDoor
+    | EntityTypeKey;
+
 
 const ENTITY_NAMES = [
-  'wall',
+  'wall inset',
+  'wall pipes',
   'floor',
   'symbol',
   'resource',
@@ -45,20 +56,25 @@ const ENTITY_NAMES = [
   'torch',
   'battery',
   'bayonet',
+  'door',
+  'key',
 ];
 
 type EntityPurposeUseless = 0;
+const ENTITY_PURPOSE_USELESS: EntityPurposeUseless = 0;
 type EntityPurposeWeapon = 1;
+const ENTITY_PURPOSE_WEAPON: EntityPurposeWeapon = 1;
 type EntityPurposeSecondary = 2;
+const ENTITY_PURPOSE_SECONDARY: EntityPurposeSecondary = 2;
 type EntityPurposeActor = 3;
+const ENTITY_PURPOSE_ACTOR: EntityPurposeActor = 3;
+type EntityPurposeDoor = 4;
+const ENTITY_PURPOSE_DOOR: EntityPurposeDoor = 4;
 type EntityPurpose = EntityPurposeUseless
     | EntityPurposeWeapon
     | EntityPurposeSecondary
-    | EntityPurposeActor;
-const ENTITY_PURPOSE_USELESS: EntityPurposeUseless = 0;
-const ENTITY_PURPOSE_WEAPON: EntityPurposeWeapon = 1;
-const ENTITY_PURPOSE_SECONDARY: EntityPurposeSecondary = 2;
-const ENTITY_PURPOSE_ACTOR: EntityPurposeActor = 3;
+    | EntityPurposeActor
+    | EntityPurposeDoor;
 
 
 type EntityRenderables = {
@@ -103,11 +119,17 @@ type WeaponEntity = {
   purpose: EntityPurposeWeapon,
 } & EntityBase & HasAttack;
 
-type OtherEntity = {
-  purpose: EntityPurposeUseless | EntityPurposeSecondary;
+type SecondaryEntity = {
+  purpose: EntityPurposeSecondary | EntityPurposeDoor,
+  variation: number,
 } & EntityBase;
 
-type Entity = ActorEntity | WeaponEntity | OtherEntity;
+type OtherEntity = {
+  purpose: EntityPurposeUseless,
+  variation?: number,
+} & EntityBase;
+
+type Entity = ActorEntity | WeaponEntity | SecondaryEntity | OtherEntity;
 
 type HasAttack = {
   // dimensions:
@@ -120,14 +142,14 @@ type HasAttack = {
 
 type AttackPiercing = 0;
 const ATTACK_PIERCING: AttackPiercing = 0;
-type AttackCutting = 1;
-const ATTACK_CUTTING: AttackCutting = 1;
-type AttackBludgeoning = 2;
-const ATTACK_BLUDGEONING: AttackBludgeoning = 2;
-type AttackBurning = 3;
-const ATTACK_BURNING: AttackBurning = 3;
-type AttackPoison = 4;
-const ATTACK_POISON: AttackPoison = 4;
+type AttackBurning = 1;
+const ATTACK_BURNING: AttackBurning = 1;
+type AttackPoison = 2;
+const ATTACK_POISON: AttackPoison = 2;
+type AttackCutting = 3;
+const ATTACK_CUTTING: AttackCutting = 3;
+type AttackBludgeoning = 4;
+const ATTACK_BLUDGEONING: AttackBludgeoning = 4;
 type AttackHeal = 5;
 const ATTACK_HEAL: AttackHeal = 5;
 type AttackHealTemporary = 6;
@@ -148,10 +170,10 @@ type AttackWebbing = 13;
 const ATTACK_WEBBING: AttackWebbing = 13;
 
 type Attack = AttackPiercing
-    | AttackCutting
-    | AttackBludgeoning
     | AttackBurning
     | AttackPoison
+    | AttackCutting
+    | AttackBludgeoning
     | AttackHeal
     | AttackHealTemporary
     | AttackMoveLateral

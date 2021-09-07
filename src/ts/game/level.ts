@@ -1,6 +1,8 @@
 ///<reference path="../math/random.ts"/>
 
+const LEVEL_SPACING = 3;
 const LEVEL_DIMENSION = 9;
+const LEVEL_MIDDLE_X = LEVEL_DIMENSION/2 | 0;
 const TILE_DELTAS = [-1, 0, 1];
 // in order of orientation
 const CARDINAL_XY_DELTAS: Vector2[] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
@@ -32,42 +34,36 @@ const iterateLevelMembers = (level: Level, f: (m: PartyMember, party: Party, slo
 }
 
 const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderables[][], depth: number): Level => {
-  const walls = entityRenderables[ENTITY_TYPE_WALL];
-  const tiles = new Array(LEVEL_DIMENSION).fill(0).map(() => new Array(LEVEL_DIMENSION).fill(0).map<Tile>(() => ({
+  const tiles = new Array(LEVEL_DIMENSION + LEVEL_SPACING*2).fill(0).map(() => new Array(LEVEL_DIMENSION).fill(0).map<Tile>(() => ({
     parties: [],
   })));
 
   iterateLevel(tiles, (t, position) => {
-    const wallRenderables = walls[depth%walls.length];
-    t.parties.push({
-      orientated: ORIENTATION_EAST,
-      partyType: PARTY_TYPE_OBSTACLE,
-      tile: position,
-      anims: [],
-      animationQueue: createAnimationEventQueue(timeHolder),
-      members: [{
-        ...BASE_PARTY_MEMBER,
+    const [x, y] = position;
+    // leave an in/out corridor
+    if (x != LEVEL_MIDDLE_X || y > LEVEL_SPACING && y < LEVEL_DIMENSION + LEVEL_SPACING) {
+      t.parties.push({
+        orientated: ORIENTATION_EAST,
+        partyType: PARTY_TYPE_OBSTACLE,
+        tile: position,
+        anims: [],
         animationQueue: createAnimationEventQueue(timeHolder),
-        entity: {
-          renderables: wallRenderables,
-          entityType: ENTITY_TYPE_WALL,
-          purpose: ENTITY_PURPOSE_USELESS,
-        }
-      }],
-    })
+        members: [],
+      });  
+    }
   });
-  const dig = (tiles: Tile[][], x: number, y: number, previousDx: number, previousDy: number) => {
+  const dig = (x: number, y: number, previousDx: number, previousDy: number) => {
     (tiles[y][x] as Tile).parties = [];
     let validDeltas: Vector2[];
     do {
-      validDeltas = ([...CARDINAL_XY_DELTAS, ...new Array(y).fill([previousDx, previousDy])] as Vector2[])
+      validDeltas = ([...CARDINAL_XY_DELTAS, ...new Array(Mathmax(5-depth, 0)).fill([previousDx, previousDy])] as Vector2[])
         .filter(([dx, dy]) => {
           const tx = x + dx;
           const ty = y + dy;
           return tx>0
-              && ty>0
+              && ty>LEVEL_SPACING
               && tx<LEVEL_DIMENSION-1
-              && ty<LEVEL_DIMENSION-1
+              && ty<LEVEL_DIMENSION + LEVEL_SPACING - 1
               && (tiles[ty][tx] as Tile).parties.length
               && TILE_DELTAS.every(dx => (
                   TILE_DELTAS.every(dy => (!dx && !dy)
@@ -78,16 +74,60 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
       });
       if (validDeltas.length) {
         const [dx, dy] = validDeltas[validDeltas.length*Mathrandom()|0];
-        dig(tiles, x + dx, y + dy, dx, dy);
+        dig(x + dx, y + dy, dx, dy);
       }
     } while(validDeltas.length);
   };
 
-  dig(tiles, LEVEL_DIMENSION/2 | 0, 1, 0, 1);
+  dig(LEVEL_DIMENSION/2 | 0, LEVEL_DIMENSION + LEVEL_SPACING - 1, 0, -1);
+  dig(LEVEL_DIMENSION/2 | 0, LEVEL_SPACING + 1, 0, 1);
+  dig(LEVEL_DIMENSION/2 | 0, LEVEL_SPACING + 2, 0, 1);
+
+  const flood = (isValid: (tile: Tile) => Booleanish, updateTile: (tile: Tile, adjacentValid: number, position: Vector2) => void) => {
+    iterateLevel(tiles, (t: Tile, pos: Vector2) => {
+      const [x, y] = pos;
+      if (isValid(t)) {
+        const adjacentValid: number = CARDINAL_XY_DELTAS.reduce((a, [dx, dy], orientation) => {
+          const ax = x + dx;
+          const ay = y + dy;
+          if (ax >= 0 && ay >= 0 && ax < LEVEL_DIMENSION && ay < LEVEL_DIMENSION + LEVEL_SPACING*2 && isValid(tiles[ay][ax])) {
+            a |= 1 << orientation;
+          }
+          return a;
+        }, 0)
+        updateTile(t, adjacentValid, pos);
+      }
+    });
+  };
+  // add in the walls
+  const d = (depth % 2) + 1;
+  flood(
+      tile => tile.parties.some(p => p.partyType == PARTY_TYPE_OBSTACLE),
+      (tile, adjacentValid, [x, y]) => {
+        const inSpacing = y < LEVEL_SPACING || y >= LEVEL_DIMENSION + LEVEL_SPACING - 1;
+        const entityType = (adjacentValid == 5 || adjacentValid == 10) && !inSpacing
+            // east-west or north-south wall
+            ? ENTITY_TYPE_WALL_PIPES
+            : ENTITY_TYPE_WALL_INSET;
+        const orientated = adjacentValid & 1 ? ORIENTATION_EAST : ORIENTATION_NORTH;
+        const party = tile.parties[0];
+        party.members.push({
+          ...BASE_PARTY_MEMBER,
+          animationQueue: createAnimationEventQueue(timeHolder),
+          ['zr']: orientated * CONST_3_PI_ON_2_3DP,          
+          entity: {
+            renderables: entityRenderables[entityType][inSpacing ? 0 : d],
+            entityType,
+            purpose: ENTITY_PURPOSE_USELESS,
+          }
+        });
+      },
+  );
 
   let c = 0;
-
   iterateLevel(tiles, (t: Tile, position: Vector2) => {
+    const [x, y] = position;
+    const inSpacing = y < LEVEL_SPACING || y >= LEVEL_DIMENSION + LEVEL_SPACING - 1;
     const floors = entityRenderables[ENTITY_TYPE_FLOOR];
     if (!t.parties.length) {
       t.parties.push({
@@ -100,7 +140,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
           ...BASE_PARTY_MEMBER,
           animationQueue: createAnimationEventQueue(timeHolder),
           entity: {
-            renderables: floors[depth%floors.length],
+            renderables: floors[inSpacing ? 0 : d],
             entityType: ENTITY_TYPE_FLOOR,
             purpose: ENTITY_PURPOSE_USELESS,
           }
@@ -108,14 +148,14 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
           ...BASE_PARTY_MEMBER,
           animationQueue: createAnimationEventQueue(timeHolder),
           entity: {
-            renderables: floors[depth%floors.length],
+            renderables: floors[inSpacing ? 0 : d],
             entityType: ENTITY_TYPE_CEILING,
             purpose: ENTITY_PURPOSE_USELESS,
           },
         }],
       });
-      if (Mathrandom()>.5) {
-        const type = (ENTITY_TYPE_MARINE + c%6) as EntityType;
+      if (Mathrandom()>.5 && !inSpacing) {
+        const type = (ENTITY_TYPE_MARINE + c%8) as EntityType;
         if (c < 20) {
           c++; 
         } else {
@@ -125,15 +165,18 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         let entity: Entity;
         switch (type) {
           case ENTITY_TYPE_PISTOL:
-            entity = createPistol(thingRenderables[0]);
+            entity = createPistol(thingRenderables, (Mathrandom()*3 | 0) as Attack);
             break;
           case ENTITY_TYPE_TORCH:
           case ENTITY_TYPE_BATTERY:
           case ENTITY_TYPE_BAYONET:
+          case ENTITY_TYPE_KEY:
+            const variation = Mathrandom() * thingRenderables.length | 0;
             entity = {
-              renderables: thingRenderables[Mathrandom() * thingRenderables.length | 0],
+              renderables: thingRenderables[variation],
               entityType: type,
               purpose: ENTITY_PURPOSE_SECONDARY,
+              variation,
             };
             break;
           case ENTITY_TYPE_SPIDER:
@@ -227,13 +270,53 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     })
   });
 
+
+  tiles[0][LEVEL_MIDDLE_X].parties.push({
+    animationQueue: createAnimationEventQueue(timeHolder),
+    anims: [],
+    partyType: PARTY_TYPE_FLOOR,
+    tile: [LEVEL_MIDDLE_X, 0],
+    members: [{
+      ...BASE_PARTY_MEMBER,
+      animationQueue: createAnimationEventQueue(timeHolder),
+      anims: [],
+      ['pos']: [LEVEL_MIDDLE_X, -.4, 0],
+      ['zr']: CONST_PI_ON_2_2DP,
+      entity: {
+        entityType: ENTITY_TYPE_DOOR,
+        purpose: ENTITY_PURPOSE_USELESS,
+        renderables: entityRenderables[ENTITY_TYPE_DOOR][0],
+      },
+    }],
+  });
+  tiles[LEVEL_DIMENSION + LEVEL_SPACING - 1][LEVEL_MIDDLE_X].parties.push({
+    animationQueue: createAnimationEventQueue(timeHolder),
+    anims: [],
+    partyType: PARTY_TYPE_DOOR,
+    tile: [LEVEL_MIDDLE_X, LEVEL_DIMENSION + LEVEL_SPACING - 1],
+    members: [{
+      ...BASE_PARTY_MEMBER,
+      animationQueue: createAnimationEventQueue(timeHolder),
+      anims: [],
+      ['pos']: [LEVEL_MIDDLE_X, LEVEL_DIMENSION + LEVEL_SPACING - 1.4, 0],
+      ['zr']: CONST_PI_ON_2_2DP,
+      entity: {
+        entityType: ENTITY_TYPE_DOOR,
+        purpose: ENTITY_PURPOSE_DOOR,
+        renderables: entityRenderables[ENTITY_TYPE_DOOR][0],
+        variation: 0,
+      },
+    }],
+  });  
+
   if (FLAG_DEBUG_LEVEL_GENERATION) {
     const s = [];
-    for (let y=LEVEL_DIMENSION; y;) {
+    for (let y=tiles.length; y;) {
       y--;
-      for (let x=0; x<LEVEL_DIMENSION; x++) {
-        const item = tiles[1][y][x];
-        s.push(!item || item.parties.some(p => p.partyType == PARTY_TYPE_OBSTACLE) ? '#' : item.parties.some(p => p.partyType === PARTY_TYPE_ITEM) ? '!' : ' ');
+      const row = tiles[y];
+      for (let x=0; x<row.length; x++) {
+        const tile = tiles[y][x];
+        s.push(!tile || tile.parties.some(p => p.partyType == PARTY_TYPE_OBSTACLE) ? '#' : tile.parties.some(p => p.partyType === PARTY_TYPE_ITEM) ? '!' : ' ');
       }
       s.push('\n');
     }
@@ -340,9 +423,9 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
   };
 }
 
-const createPistol = (renderables: EntityRenderables): WeaponEntity => {
+const createPistol = (renderables: EntityRenderables[], attackType: Attack): WeaponEntity => {
   return {
-    renderables,
+    renderables: renderables[attackType],
     entityType: ENTITY_TYPE_PISTOL,
     purpose: ENTITY_PURPOSE_WEAPON,
     attacks: [
@@ -374,7 +457,7 @@ const createPistol = (renderables: EntityRenderables): WeaponEntity => {
           , // front row, opposide side
           , // back row, same side
           , // back row, opposite side
-          [ATTACK_PIERCING], // enemy front row, same side
+          [attackType], // enemy front row, same side
         ], 
         // attacker in back row
         [
@@ -383,7 +466,7 @@ const createPistol = (renderables: EntityRenderables): WeaponEntity => {
           , // front row, opposide side
           , // back row, same side
           , // back row, opposite side
-          [ATTACK_PIERCING], // enemy front row, same side
+          [attackType], // enemy front row, same side
         ],
       ],
       // power level 2
@@ -395,7 +478,7 @@ const createPistol = (renderables: EntityRenderables): WeaponEntity => {
           , // front row, opposide side
           , // back row, same side
           , // back row, opposite side
-          [ATTACK_PIERCING, ATTACK_PIERCING], // enemy front row, same side
+          [attackType, attackType], // enemy front row, same side
         ], 
         // attacker in back row
         [
@@ -404,8 +487,8 @@ const createPistol = (renderables: EntityRenderables): WeaponEntity => {
           , // front row, opposide side
           , // back row, same side
           , // back row, opposite side
-          [ATTACK_PIERCING], // enemy front row, same side
-          [ATTACK_PIERCING], // enemy front row, opposite side
+          [attackType], // enemy front row, same side
+          [attackType], // enemy front row, opposite side
         ],
       ],
     ],

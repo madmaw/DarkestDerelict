@@ -77,15 +77,23 @@ const VOLUMETRIC_COMMANDS_FLOOR: VolumetricDrawCommand[] = [
     {
       type: 'numeric',
       range: 'integer',
-      value: -FLOOR_DEPTH/2 - 1,
+      value: -FLOOR_DEPTH/2,
     },    
+  ],
+  [
+    TYPE_SCALE_Z,
+    {
+      type: 'numeric',
+      range: 'positive-float',
+      value: .4,
+    },
   ],
   [
     TYPE_SHAPE_SPHERE,
     {
       type: 'numeric',
       range: 'positive-integer',
-      value: 4,
+      value: 6,
     },
   ],
 ];

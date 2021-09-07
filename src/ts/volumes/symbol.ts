@@ -34,24 +34,6 @@ const VOLUMETRIC_PARAMS_SYMBOL: [(Vector4 | string)[], ((NumericValue<ValueRange
           value: '◉'
         }] : '◉'
   ],
-  // slashing attack
-  [
-    [COLOR_RED_GLOWING], 
-    FLAG_USE_VOLUME_COMMANDS 
-        ? [{
-          type: 'char',
-          value: '/'
-        }] : '/'
-  ],
-  // bludgeoning attack
-  [
-    [COLOR_RED_GLOWING], 
-    FLAG_USE_VOLUME_COMMANDS 
-        ? [{
-          type: 'char',
-          value: '💥'
-        }] : '💥'
-  ],
   // burning
   [
     [COLOR_RED_GLOWING], 
@@ -70,6 +52,24 @@ const VOLUMETRIC_PARAMS_SYMBOL: [(Vector4 | string)[], ((NumericValue<ValueRange
           value: '☠'
         }]: '☠'
   ],
+  // slashing attack
+  [
+    [COLOR_RED_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '✂'
+        }] : '✂'
+  ],
+  // bludgeoning attack
+  [
+    [COLOR_RED_GLOWING], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '💥'
+        }] : '💥'
+  ],  
   // heal 
   [
     [COLOR_CYAN_GLOWING], 
