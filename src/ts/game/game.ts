@@ -24,25 +24,29 @@ const GAME_EVENT_TYPE_CHANGE_LOADOUT: GameEventTypeChangeLoadout = 2;
 type GameEventChangeLoadout = {
   eventType: GameEventTypeChangeLoadout,
   entity: Entity,
-  from: EntityLocation,
   to: EntityLocation,
-};
+} & EntityLocation;
 
 type GameEventTypeProposeAttack = 3;
 const GAME_EVENT_TYPE_PROPOSE_ATTACK: GameEventTypeProposeAttack = 3;
 type GameEventProposeAttack = {
   eventType: GameEventTypeProposeAttack,
-  attackerLocation: EntityLocation,
-};
+} & EntityLocation;
 
 type GameEventTypeConfirmAttack = 4;
 const GAME_EVENT_TYPE_CONFIRM_ATTACK: GameEventTypeConfirmAttack = 4;
 type GameEventConfirmAttack = {
   eventType: GameEventTypeConfirmAttack,
-  attackerLocation: EntityLocation,
+} & EntityLocation;
+
+type GameEventTypeWait = 5;
+const GAME_EVENT_TYPE_WAIT: GameEventTypeWait = 5;
+type GameEventWait = {
+  eventType: GameEventTypeWait,
+  party: Party,
 };
 
-type GameEvent = GameEventMove | GameEventTurn | GameEventChangeLoadout | GameEventProposeAttack | GameEventConfirmAttack;
+type GameEvent = GameEventMove | GameEventTurn | GameEventChangeLoadout | GameEventProposeAttack | GameEventConfirmAttack | GameEventWait;
 
 type Light = {
   ['pos']: Vector3,

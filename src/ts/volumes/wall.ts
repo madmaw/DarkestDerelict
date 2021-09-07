@@ -35,14 +35,6 @@ const VOLUMETRIC_COMMANDS_WALL: VolumetricDrawCommand[] = [
     },    
   ],
   [
-    TYPE_TRANSLATE_Z,
-    {
-      type: 'numeric',
-      range: 'integer',
-      value: FLOOR_DEPTH/2,
-    },    
-  ],
-  [
     TYPE_ROTATE_X,
     {
       type: 'numeric',
@@ -129,41 +121,6 @@ const VOLUMETRIC_COMMANDS_WALL: VolumetricDrawCommand[] = [
   ],
   [
     TYPE_CONTEXT_END_SUBTRACTION,
-  ],
-  [
-    TYPE_MATERIAL_OUT_OF_BOUNDS,
-  ],
-  [
-    TYPE_TRANSLATE_X,
-    {
-      type: 'numeric',
-      range: 'integer',
-      value: WALL_DIMENSION/2,
-    },    
-  ],
-  [
-    TYPE_TRANSLATE_Y,
-    {
-      type: 'numeric',
-      range: 'integer',
-      value: WALL_DIMENSION/2 - WALL_INSET,
-    },    
-  ],
-  [
-    TYPE_TRANSLATE_Z,
-    {
-      type: 'numeric',
-      range: 'integer',
-      value: WALL_DIMENSION/2 - WALL_INSET,
-    },    
-  ],
-  [
-    TYPE_SHAPE_SPHERE,
-    {
-      type: 'numeric',
-      range: 'positive-integer',
-      value: 1,
-    },
   ],
 ];
 const VOLUMETRIC_TEMPLATE_WALL = 'BVVV.xgz\\XbD<TV>!-.Zz^-.Zj^-.ZJ^-?xhyfzfS;';

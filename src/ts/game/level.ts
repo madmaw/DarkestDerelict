@@ -1,3 +1,5 @@
+///<reference path="../math/random.ts"/>
+
 const LEVEL_DIMENSION = 9;
 const TILE_DELTAS = [-1, 0, 1];
 // in order of orientation
@@ -7,43 +9,52 @@ type Tile = {
   parties: Party[],
 };
 
-type Level = Volume<Tile>;
+type Level = Tile[][];
 
-const iterateLevel = (level: Level, f: (m: PartyMember, party: Party, slotId: number) => void) => {
-  volumeMap(level, (tile: Tile) => {
-    tile.parties.forEach(party => [...party.members].forEach((partyMember, i) => partyMember && f(partyMember, party, i)));
+const iterateLevel = (level: Level, f: (t: Tile, position: Vector2) => void) => {
+  level.forEach((row, y) => {
+    row.forEach((tile, x) => {
+      f(tile, [x, y]);
+    });
+  });
+};
+
+const iterateLevelParties = (level: Level, f: (party: Party) => void) => {
+  iterateLevel(level, (tile: Tile) => {
+    tile.parties.forEach(f);
+  });
+};
+
+const iterateLevelMembers = (level: Level, f: (m: PartyMember, party: Party, slotId: number) => void) => {
+  iterateLevelParties(level, (party) => {
+    [...party.members].forEach((partyMember, i) => partyMember && f(partyMember, party, i));
   });
 }
 
-const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderables[][]): Level => {
+const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderables[][], depth: number): Level => {
   const walls = entityRenderables[ENTITY_TYPE_WALL];
-  const tiles = createEmptyVolume<Tile>(LEVEL_DIMENSION);
-  volumeMap(tiles, (t, position) => {
-    if (position[2] > 2) {
-      return {
-        parties: [],
-      }
-    } 
-    const wallRenderables = walls[(position[2])%walls.length];
-    return {
-      parties: [{
-        orientated: ORIENTATION_EAST,
-        partyType: PARTY_TYPE_OBSTACLE,
-        tile: position,
-        anims: [],
+  const tiles = new Array(LEVEL_DIMENSION).fill(0).map(() => new Array(LEVEL_DIMENSION).fill(0).map<Tile>(() => ({
+    parties: [],
+  })));
+
+  iterateLevel(tiles, (t, position) => {
+    const wallRenderables = walls[depth%walls.length];
+    t.parties.push({
+      orientated: ORIENTATION_EAST,
+      partyType: PARTY_TYPE_OBSTACLE,
+      tile: position,
+      anims: [],
+      animationQueue: createAnimationEventQueue(timeHolder),
+      members: [{
+        ...BASE_PARTY_MEMBER,
         animationQueue: createAnimationEventQueue(timeHolder),
-        members: [{
-          ...BASE_PARTY_MEMBER,
-          staticTransform: matrix4Identity(),
-          animationQueue: createAnimationEventQueue(timeHolder),
-          entity: {
-            renderables: wallRenderables,
-            entityType: ENTITY_TYPE_WALL,
-            purpose: ENTITY_PURPOSE_USELESS,
-          }
-        }],
+        entity: {
+          renderables: wallRenderables,
+          entityType: ENTITY_TYPE_WALL,
+          purpose: ENTITY_PURPOSE_USELESS,
+        }
       }],
-    };
+    })
   });
   const dig = (tiles: Tile[][], x: number, y: number, previousDx: number, previousDy: number) => {
     (tiles[y][x] as Tile).parties = [];
@@ -72,15 +83,12 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     } while(validDeltas.length);
   };
 
-  dig(tiles[1] as Tile[][], LEVEL_DIMENSION/2 | 0, 1, 0, 1);
+  dig(tiles, LEVEL_DIMENSION/2 | 0, 1, 0, 1);
 
   let c = 0;
 
-  volumeMap(tiles, (t: Tile, position: Vector3) => {
+  iterateLevel(tiles, (t: Tile, position: Vector2) => {
     const floors = entityRenderables[ENTITY_TYPE_FLOOR];
-    if (position[2] > 2) {
-      return t;
-    }
     if (!t.parties.length) {
       t.parties.push({
         orientated: ORIENTATION_EAST,
@@ -92,10 +100,18 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
           ...BASE_PARTY_MEMBER,
           animationQueue: createAnimationEventQueue(timeHolder),
           entity: {
-            renderables: floors[position[2]%floors.length],
+            renderables: floors[depth%floors.length],
             entityType: ENTITY_TYPE_FLOOR,
             purpose: ENTITY_PURPOSE_USELESS,
           }
+        }, {
+          ...BASE_PARTY_MEMBER,
+          animationQueue: createAnimationEventQueue(timeHolder),
+          entity: {
+            renderables: floors[depth%floors.length],
+            entityType: ENTITY_TYPE_CEILING,
+            purpose: ENTITY_PURPOSE_USELESS,
+          },
         }],
       });
       if (Mathrandom()>.5) {
@@ -199,18 +215,16 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     return t;
   });
   // set orientations
-  volumeMap(tiles, (t: Tile) => {
-    t.parties.forEach(p => {
-      const orientation = getFavorableOrientation(p, tiles);
-      p.orientated = orientation;
-      p.members.forEach((m, i) => {
-        if (m) {
-          const [position, rotation] = getTargetPositionAndRotations(p, i);
-          m['zr'] = rotation;
-          m['pos'] = position as Vector3;
-        }
-      })
-    });
+  iterateLevelParties(tiles, (party) => {
+    const orientation = getFavorableOrientation(party, tiles);
+    party.orientated = orientation;
+    party.members.forEach((partyMember, i) => {
+      if (partyMember) {
+        const [position, rotation] = getTargetPositionAndRotations(party, i);
+        partyMember['zr'] = rotation;
+        partyMember['pos'] = position as Vector3;
+      }
+    })
   });
 
   if (FLAG_DEBUG_LEVEL_GENERATION) {
@@ -230,7 +244,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
 }
 
 const getFavorableOrientation = (party: Party, level: Level): Orientation | undefined => {
-  const [x, y, tz]  = party.tile;
+  const [x, y]  = party.tile;
 
   // look around
   const options = CARDINAL_XY_DELTAS.map<[number, Orientation]>(([dx, dy], orientation: Orientation) => {
@@ -242,7 +256,7 @@ const getFavorableOrientation = (party: Party, level: Level): Orientation | unde
         && ty<LEVEL_DIMENSION
         && (party.partyType == PARTY_TYPE_HOSTILE || party.partyType == PARTY_TYPE_ITEM) 
     ) {
-      const comparisonTile = level[tz][ty][tx];
+      const comparisonTile = level[ty][tx];
       // lower appeal is higher
       const appeal = comparisonTile && comparisonTile.parties.reduce(
           (a, p) => a + (
@@ -270,16 +284,24 @@ const getFavorableOrientation = (party: Party, level: Level): Orientation | unde
 }
 
 const createMarine = (renderables: EntityRenderables[], color: number): ActorEntity => {
-  // TODO: adjust resources and attacks based on color
+
+  const rng = rngFactory(color);
+  const r = rng();
+  // TODO make special do something
+  // TODO make green marine very standard
+  const special = rng() + 1 | 0;
+  const maxPower = 2 + (r * r * r * 2 | 0);
+  const maxHealth = 5 - maxPower - special;
+
   return {
     res: [
       {
-        quantity: 3,
-        max: 3,
+        quantity: maxHealth,
+        max: maxHealth,
         temporary: 0,
       }, {
         quantity: 0,
-        max: 2,
+        max: maxPower,
       },
     ],
     purpose: ENTITY_PURPOSE_ACTOR,
@@ -291,38 +313,27 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
       [
         // attacker in front row
         [
-          // shove and retreat
+          // retreat
           [ATTACK_MOVE_MEDIAL], // front row, same side
-          , // front row, opposide side
-          , // back row, same side
-          , // back row, opposite side
-          [ATTACK_MOVE_MEDIAL], // enemy front row, same side
         ], 
         // attacker in back row
         [
           // move up
           , // front row, same side
           , // front row, opposide side
-          [ATTACK_POWER_GAIN, ATTACK_MOVE_MEDIAL], // back row, same side
+          [ATTACK_MOVE_MEDIAL], // back row, same side
         ], 
       ],
       // power level 1
       [
         // attacker in front row
         [
-          // punch
-          , // front row, same side
+          // punch and retreat
+          [ATTACK_MOVE_MEDIAL], // front row, same side
           , // front row, opposide side
           , // back row, same side
           , // back row, opposite side
           [ATTACK_BLUDGEONING], // enemy front row, same side
-        ], 
-        // attacker in back row
-        [
-          // bold move
-          , // front row, same side
-          , // front row, opposide side
-          [ATTACK_POWER_GAIN, ATTACK_MOVE_MEDIAL], // back row, same side
         ], 
       ],
     ],

@@ -1,5 +1,7 @@
 ///<reference path="./constants.ts"/>
 
+const BOLT_INSET = 2;
+
 const VOLUMETRIC_COMMANDS_FLOOR: VolumetricDrawCommand[] = [
   [
     TYPE_SHAPE_BOX,
@@ -20,16 +22,24 @@ const VOLUMETRIC_COMMANDS_FLOOR: VolumetricDrawCommand[] = [
     },
   ],
   [
-    TYPE_MATERIAL_ID,
-    {
-      type: 'numeric',
-      range: 'positive-integer',
-      value: 1,
-    },
-  ],
-  [
     TYPE_CONTEXT_START,
   ],
+    [
+      TYPE_MATERIAL_ID,
+      {
+        type: 'numeric',
+        range: 'positive-integer',
+        value: 1,
+      },
+    ],
+    [
+      TYPE_TRANSLATE_Z,
+      {
+        type: 'numeric',
+        range: 'integer',
+        value: FLOOR_DEPTH/2,
+      }
+    ],
     [
       TYPE_SHAPE_BOX,
       {
@@ -50,6 +60,33 @@ const VOLUMETRIC_COMMANDS_FLOOR: VolumetricDrawCommand[] = [
     ],
   [
     TYPE_CONTEXT_END_REMATERIAL,
+  ],
+  [
+    TYPE_MATERIAL_ID,
+    {
+      type: 'numeric',
+      range: 'positive-integer',
+      value: 2,
+    },
+  ],
+  [
+    TYPE_MATERIAL_OUT_OF_BOUNDS,
+  ], 
+  [
+    TYPE_TRANSLATE_Z,
+    {
+      type: 'numeric',
+      range: 'integer',
+      value: -FLOOR_DEPTH/2 - 1,
+    },    
+  ],
+  [
+    TYPE_SHAPE_SPHERE,
+    {
+      type: 'numeric',
+      range: 'positive-integer',
+      value: 4,
+    },
   ],
 ];
 

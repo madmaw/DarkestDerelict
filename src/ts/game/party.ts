@@ -23,7 +23,7 @@ const PARTY_TYPE_OBSTACLE: PartyTypeObstacle = 9;
 type Party = {
   members: (PartyMember | Falseish)[],
   orientated?: Orientation,
-  tile: Vector3,
+  tile: Vector2,
   partyType: PartyType,
   // camera position
   ['cpos']?: Vector3;
@@ -82,7 +82,7 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
   const tile = party.tile;
   const partyMember = party.members[memberSlot] as PartyMember;
   let toAngle = partyMember['zr'] || 0;
-  let targetPosition: Vector3 | Falseish = tile;
+  let targetPosition: Vector3 | Falseish = [...tile, 0];
   switch (party.partyType) {
     case PARTY_TYPE_HOSTILE:
     case PARTY_TYPE_PLAYER:
@@ -91,7 +91,7 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
       const oy = (.5 - (memberSlot % 2))/2;
       // find the minimum turning angle for toAngle
       const [dx, dy] = vector2Rotate(toAngle, [ox, oy]);    
-      targetPosition = [tile[0] + dx, tile[1] + dy, tile[2]];
+      targetPosition = [tile[0] + dx, tile[1] + dy, 0];
       break;
     case PARTY_TYPE_ITEM:
       // rotate in place
@@ -101,7 +101,11 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
       break;
     case PARTY_TYPE_OBSTACLE:
     case PARTY_TYPE_FLOOR:
-      targetPosition = [tile[0], tile[1], tile[2] - FLOOR_DEPTH/WALL_DIMENSION];
+      if (partyMember.entity.entityType == ENTITY_TYPE_CEILING) {
+        targetPosition = [tile[0], tile[1], 1 - FLOOR_DEPTH * 2/WALL_DIMENSION];
+      } else {
+        targetPosition = [tile[0], tile[1], -FLOOR_DEPTH/WALL_DIMENSION];
+      }
       break;
   }
 
@@ -195,6 +199,5 @@ const applyAttacks = (party: Party, slot: number): [ActorEntityResourceValues[],
 const isLookingAt = (party: Party, other: Party) => {
   const lookingAtX = party.tile[0] + CARDINAL_XY_DELTAS[party.orientated][0];
   const lookingAtY = party.tile[1] + CARDINAL_XY_DELTAS[party.orientated][1];
-  const lookingAtZ = party.tile[2];
-  return lookingAtX == other.tile[0] && lookingAtY == other.tile[1] && lookingAtZ == other.tile[2]
+  return lookingAtX == other.tile[0] && lookingAtY == other.tile[1];
 }

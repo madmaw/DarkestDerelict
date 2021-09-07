@@ -1,3 +1,6 @@
+// virtual types (use other resources to render)
+type EntityTypeCeiling = -1;
+const ENTITY_TYPE_CEILING: EntityTypeCeiling = -1;
 type EntityTypeWall = 0;
 const ENTITY_TYPE_WALL: EntityTypeWall = 0;
 type EntityTypeFloor = 1;
@@ -19,7 +22,8 @@ const ENTITY_TYPE_BATTERY: EntityTypeBattery = 8;
 type EntityTypeBayonet = 9;
 const ENTITY_TYPE_BAYONET: EntityTypeBayonet = 9;
 
-type EntityType = EntityTypeWall
+type EntityType = EntityTypeCeiling
+    | EntityTypeWall
     | EntityTypeFloor
     | EntityTypeSymbol
     | EntityTypeResource

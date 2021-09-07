@@ -123,7 +123,7 @@ const VERTEX_SHADER = `
   const L_COLOR = FLAG_LONG_SHADER_NAMES ? 'lColor' : 'r';
   const L_PIXEL_POSITION = FLAG_LONG_SHADER_NAMES ? 'lPixelPosition' : 'q';
 
-  const CONST_NUM_STEPS = 32;
+  const CONST_NUM_STEPS = 128;
   const MAX_DEPTH = VOLUME_DIMENSION/TEXTURE_DIMENSION;
   const C_MAX_DEPTH = `${MAX_DEPTH}`;
   const C_MIN_DEPTH = -VOLUME_DEPTH_OFFSET/TEXTURE_DIMENSION;
@@ -274,8 +274,8 @@ onload = async () => {
   type LoadingEvent = [VolumetricDrawCommand[] | string, Matrix4, [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][], number?];
 
   const SURFACE_COLORS: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
-    [[COLOR_GUNMETAL, COLOR_RED_CARPET]],
-    [[COLOR_DULLMETAL, COLOR_BLUE_CARPET]],
+    [[COLOR_GUNMETAL, COLOR_RED_CARPET, COLOR_WHITE_SHINY]],
+    [[COLOR_DULLMETAL, COLOR_BLUE_CARPET, COLOR_WHITE_SHINY]],
   ];
 
   // slightly scale up to hide wall-gaps
@@ -598,7 +598,7 @@ onload = async () => {
       //matrix4Perspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .35, 10),
       matrix4Rotate(-CONST_PI_ON_2_1DP, 1, 0, 0),
       matrix4Rotate(CONST_PI_ON_2_2DP, 0, 0, 1),
-      matrix4Rotate(-CONST_PI_ON_11_2DP, 0, 1, 0),
+      //matrix4Rotate(-CONST_PI_ON_9_1DP, 0, 1, 0),
   );
 
   const entityRenderables = await addEvents(loadingEventQueue, ...COMMANDS);
@@ -608,12 +608,13 @@ onload = async () => {
 
   const equipmentSlots: Element[] = new Array(X.children.length).fill(0).map((_, i) => X.children.item(i));
   const gameEventQueueHandler = async (e: GameEvent) => {
-    let aiMove: Booleanish;
+    const party = e.party;
+    let turnPassed: Booleanish;
 
     if (e.eventType != GAME_EVENT_TYPE_CONFIRM_ATTACK) {
       game.pendingMember = 0;
-      // clear any pending attacks
-      iterateLevel(game.level, partyMember => {
+      // clear any pending attacks on the level
+      iterateLevelMembers(game.level, partyMember => {
         partyMember.activeAttackStartTime = 0;
         partyMember.attackAnimations = [];
       });
@@ -622,57 +623,58 @@ onload = async () => {
     switch (e.eventType) {
       case GAME_EVENT_TYPE_MOVE:
         {
-          const { unrotatedDeltaPosition, party } = e;
+          const { unrotatedDeltaPosition } = e;
           const a = party.orientated * CONST_PI_ON_2_1DP;
 
           const deltaPosition = vector2Rotate(a, unrotatedDeltaPosition.slice(0, 2) as Vector2).concat(unrotatedDeltaPosition[2]);
           const from = party.tile;
-          const to = from.map((v, i) => Mathround(v + deltaPosition[i])) as Vector3;
-          const toTile = game.level[to[2]][to[1]][to[0]] as Tile;
+          const to = from.map((v, i) => Mathround(v + deltaPosition[i])) as Vector2;
+          const toTile = game.level[to[1]][to[0]] as Tile;
           if (toTile.parties.some(p => p.partyType == PARTY_TYPE_OBSTACLE || p.partyType == PARTY_TYPE_HOSTILE)) {
             if (party == playerParty) {
               // just animate the camera in and out
-              const toCameraPosition = from.map((v, i) => v + deltaPosition[i]/6) as Vector3;
+              const toCameraPosition = [...from.map((v, i) => v + deltaPosition[i]/6), 0] as Vector3;
               const toAnimationFactory = createTweenAnimationFactory(party, party, 'cpos', toCameraPosition, easeInQuad, 99);
               const returnAnimationFactory = createTweenAnimationFactory(party, party, 'cpos', party['cpos'], easeOutQuad, 99);
               await addEvents(party.animationQueue, toAnimationFactory, returnAnimationFactory); 
             }
           } else {
-            // clear any power states
-            iterateLevel(game.level, partyMember => {
-              if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
-                partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary = 0;
-                partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity = 0;
-                partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary = partyMember.secondary && partyMember.secondary.entityType == ENTITY_TYPE_BATTERY ? 1: 0;
-                partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].temporary = 0;
-              }
-            });
-
-            const fromTile = game.level[from[2]][from[1]][from[0]] as Tile;
+            const fromTile = game.level[from[1]][from[0]] as Tile;
             fromTile.parties.splice(fromTile.parties.indexOf(party), 1);
             toTile.parties.push(party);
             party.tile = to;
             let cameraMovePromise: Promise<any>;
-            if (aiMove = party == playerParty) {
+            if (turnPassed = 1) {
               // move the camera too
-              const toCameraPosition = [...to] as Vector3;
-              const animationFactory = createTweenAnimationFactory(party, party, 'cpos', toCameraPosition, easeInQuad, 300);
+              const toCameraPosition = [...to, 0] as Vector3;
+              const animationFactory = createTweenAnimationFactory(party, party, 'cpos', toCameraPosition, easeInQuad, 3000);
               cameraMovePromise = addEvents(party.animationQueue, animationFactory); 
             }
-            // animate
-            await Promise.all(party.members.map(async (member, i) => {
-              return member && await moveNaturallyToSlotPosition(party, member, i);
+            // animate and update resources
+            await Promise.all(party.members.map(async (partyMember, i) => {
+              if (partyMember) {
+                if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
+                  // retain some power if we have the battery
+                  partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary = Math.min(
+                      partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity + (partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary || 0),
+                      partyMember.secondary && partyMember.secondary.entityType == ENTITY_TYPE_BATTERY ? 1: 0,
+                  );
+                  partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity = 0;
+                  partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].temporary = 0;
+                }                  
+                return await moveNaturallyToSlotPosition(party, partyMember, i);
+              }
             }).concat(cameraMovePromise));  
           }
         }
         break;
       case GAME_EVENT_TYPE_TURN:
         {
-          const { deltaOrientation, party } = e;
+          const { deltaOrientation } = e;
           const toOrientation = (party.orientated + deltaOrientation + 4)%4;
           party.orientated = toOrientation as Orientation;
-          let cameraRotationPromise: Promise<any>;
-          if(aiMove = party == playerParty) {
+          let cameraRotationPromise: Promise<any>;        
+          if(turnPassed = 1) {
             const cameraAnimationFactory = createTweenAnimationFactory(party, party, 'czr', party['czr'] + deltaOrientation * CONST_PI_ON_2_2DP, easeInQuad, 300);
             cameraRotationPromise = addEvents(party.animationQueue, cameraAnimationFactory);
           }
@@ -685,11 +687,10 @@ onload = async () => {
       case GAME_EVENT_TYPE_CHANGE_LOADOUT:
         {
           const toSlot = e.to.party.members[e.to.slot];
-          const fromSlot = e.from.party.members[e.from.slot] as PartyMember;
+          const fromSlot = party.members[e.slot] as PartyMember;
           let reciprocalMoveEntity: Entity | Falseish = 0;
           let moveMember: PartyMember | Falseish = 0;
           let reciprocalMoveMember: PartyMember | Falseish = 0;
-          let success: Booleanish;
           const purpose = e.entity.purpose;
           
           if (toSlot) {
@@ -697,41 +698,40 @@ onload = async () => {
             switch (purpose) {
               case ENTITY_PURPOSE_ACTOR:
                 reciprocalMoveMember = toSlot;
-                success = e.to.party.members[e.to.slot] = fromSlot;
+                turnPassed = e.to.party.members[e.to.slot] = fromSlot;
                 break;
               case ENTITY_PURPOSE_WEAPON:
                 if (toSlotPurpose == ENTITY_PURPOSE_ACTOR) {
                   reciprocalMoveEntity = toSlot.weapon;
-                  success = toSlot.weapon = e.entity as WeaponEntity;
+                  turnPassed = toSlot.weapon = e.entity as WeaponEntity;
                 }
                 break;
               case ENTITY_PURPOSE_SECONDARY:
                 if (toSlotPurpose == ENTITY_PURPOSE_ACTOR) {
                   reciprocalMoveEntity = toSlot.secondary;
-                  success = toSlot.secondary = e.entity;
+                  turnPassed = toSlot.secondary = e.entity;
                 }
               }
           } else {
             if (e.to.party.partyType == PARTY_TYPE_ITEM || purpose == ENTITY_PURPOSE_ACTOR) {
-              success = moveMember = e.to.party.members[e.to.slot] = fromSlot.entity == e.entity
+              turnPassed = moveMember = e.to.party.members[e.to.slot] = fromSlot.entity == e.entity
                   ? fromSlot
                   : {
                     ...BASE_PARTY_MEMBER,
                     animationQueue: createAnimationEventQueue(game),
                     entity: e.entity,
                     ['pos']: fromSlot['pos'],
-                    ['zr']: e.from.party.orientated * CONST_PI_ON_2_2DP,
+                    ['zr']: party.orientated * CONST_PI_ON_2_2DP,
                   };  
             }
           }
 
-          if (success) {
-            aiMove = e.to.party == playerParty;
+          if (turnPassed) {
             if (fromSlot.entity == e.entity) {
               if (reciprocalMoveEntity) {
                 fromSlot.entity = reciprocalMoveEntity;
               } else {
-                e.from.party.members[e.from.slot] = reciprocalMoveMember;
+                party.members[e.slot] = reciprocalMoveMember;
               }
             } else if (fromSlot.weapon == e.entity){
               fromSlot.weapon = reciprocalMoveEntity as WeaponEntity;
@@ -741,7 +741,7 @@ onload = async () => {
 
             let toSlotPromise: Promise<any>;
             if (reciprocalMoveMember) {
-              toSlotPromise = moveNaturallyToSlotPosition(e.from.party, reciprocalMoveMember, e.from.slot);
+              toSlotPromise = moveNaturallyToSlotPosition(party, reciprocalMoveMember, e.slot);
             }
             let fromSlotPromise: Promise<any>;
             if (moveMember) {
@@ -753,12 +753,11 @@ onload = async () => {
         break;
       case GAME_EVENT_TYPE_PROPOSE_ATTACK:
         {
-          const { attackerLocation: { party, slot } } = e;
+          const { slot } = e;
 
           const lookingAtX = party.tile[0] + CARDINAL_XY_DELTAS[party.orientated][0];
           const lookingAtY = party.tile[1] + CARDINAL_XY_DELTAS[party.orientated][1];
-          const lookingAtZ = party.tile[2];
-          const victimParty = (game.level[lookingAtZ][lookingAtY][lookingAtX] as Tile).parties.find(p => p.partyType == PARTY_TYPE_HOSTILE || p.partyType == PARTY_TYPE_PLAYER);
+          const victimParty = (game.level[lookingAtY][lookingAtX] as Tile).parties.find(p => p.partyType == PARTY_TYPE_HOSTILE || p.partyType == PARTY_TYPE_PLAYER);
           if (victimParty && victimParty.members.some(m => m)) {
             // find attacker
             const attacker = party.members[slot] as PartyMember;
@@ -788,15 +787,21 @@ onload = async () => {
             );
 
             const attacks: Attack[][] = [...allAttacks[attackIndex][row]];
-            // remove power equivalent to attack index
-            // everyone else should gain 1 power and lose all temporary power
             for (let i=0; i<4; i++) {
               const slotId = slotIds[i];
               const partyMember = party.members[slotId];
               if (partyMember) {
                 attacks[i] = (attacks[i]||[]).concat(slotId == slot
+                    // remove power equivalent to attack index
                     ? new Array(attackIndex).fill(ATTACK_POWER_DRAIN)
-                    : new Array((partyMember.entity as ActorEntity).res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary||0)
+                    // everyone else should gain 1 power and lose all temporary power (unless they have the battery)
+                    : new Array(
+                            Mathmax(
+                                ((partyMember.entity as ActorEntity).res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary||0)
+                                    - (partyMember.secondary && partyMember.secondary.entityType == ENTITY_TYPE_BATTERY ? 1 : 0),
+                                0,
+                            ),
+                        )
                         .fill(ATTACK_POWER_DRAIN_TEMPORARY)
                         .concat(ATTACK_POWER_GAIN)
                 );
@@ -845,7 +850,7 @@ onload = async () => {
             });
             // for all the parties involved, animate the attack animations
             const attackAnimationPromises: Promise<any>[] = [];
-            iterateLevel(game.level, (partyMember) => {
+            iterateLevelMembers(game.level, (partyMember) => {
               const attackAnimations = partyMember.attackAnimations;
               partyMember.attackAnimations.map((attackAnimation, i) => {
                 const a = Mathrandom() * CONST_PI_0DP;
@@ -871,8 +876,8 @@ onload = async () => {
         break;
       case GAME_EVENT_TYPE_CONFIRM_ATTACK:
         {
-          const { attackerLocation: { party, slot } } = e;
-          aiMove = party == playerParty;
+          const { slot } = e;
+          turnPassed = 1;
           const promises: Promise<any>[] = [];
           const attacker = party.members[slot] as PartyMember;
           const originalPosition = attacker['pos'];
@@ -888,7 +893,7 @@ onload = async () => {
               ),
               createTweenAnimationFactory(attacker, attacker, 'yr', 0, easeOutQuad, 99),
           );
-          iterateLevel(game.level, (partyMember, party, slot) => {
+          iterateLevelMembers(game.level, (partyMember, party, slot) => {
             if(partyMember.attackAnimations?.length) {
               const [resources, toSlot] = applyAttacks(party, slot);
               
@@ -980,7 +985,7 @@ onload = async () => {
                   party.members[toSlot] = 0;
                   // is the entire party dead?
                   if (party.members.every(m => !m)) {
-                    const tile  = game.level[party.tile[2]][party.tile[1]][party.tile[0]] as Tile;
+                    const tile  = game.level[party.tile[1]][party.tile[0]] as Tile;
                     tile.parties = tile.parties.filter(p => p != party);
                   }
                 } else if (party.partyType == PARTY_TYPE_HOSTILE){
@@ -994,71 +999,85 @@ onload = async () => {
           game.pendingMember = 0;
         }
         break;
+      case GAME_EVENT_TYPE_WAIT:
+        turnPassed = 1;
+        break;
     }
-    if (aiMove) {
-      // volume map is not promise-friendly
-      const otherParties: Party[] = [];
-      volumeMap(game.level, (t: Tile) => {
-        t.parties.forEach(party => {
+    if (turnPassed) {
+      
+
+      if (party == playerParty) {
+        // AI moves after player
+        // volume map is not promise-friendly
+        const otherParties: Party[] = [];
+        iterateLevelParties(game.level, party => {
           if (party.partyType == PARTY_TYPE_HOSTILE || party.partyType == PARTY_TYPE_ITEM) {
             otherParties.push(party);
           }
-        })
-      });
-
-      for (let party of otherParties) {
-
-        let orientation = getFavorableOrientation(party, game.level);
-        let deltaOrientation = orientation - party.orientated;
-        if (deltaOrientation) {
-          switch (Mathabs(deltaOrientation)) {
-            case 2: 
-              deltaOrientation = 1;
-              break;
-            case 3:
-              deltaOrientation = -deltaOrientation/3 | 0;
-              break;
-          }
-          await gameEventQueueHandler({
-            eventType: GAME_EVENT_TYPE_TURN,
-            deltaOrientation,
-            party,
-          });
-        }
-        // check whether we should display the status graphic
-        await Promise.all(party.members.map(async m => {
-          if (m) {
-            if (isLookingAt(playerParty, party)) {
-              if (!m['sds']) {
-                await addEvents(m.animationQueue, createTweenAnimationFactory(m, m, 'sds', 1, easeInQuad, 99, 0));
-              }
-            } else if (m['sds']) {
-              await addEvents(party.animationQueue, createTweenAnimationFactory(m, m, 'sds', 0, easeInQuad, 99));
-            }  
-          }
-        }));
-
-        if (!deltaOrientation && isLookingAt(party, playerParty) && party.partyType == PARTY_TYPE_HOSTILE) {
-          const validSlots = party.members.map((m, i) => m ? [i] : []).flat();
-          if (validSlots.length) {
-            const slot = validSlots[Mathrandom() * validSlots.length | 0];
-            const attackerLocation = {
+        });
+  
+        for (let party of otherParties) {
+          let moved: Booleanish;
+          let orientation = getFavorableOrientation(party, game.level);
+          let deltaOrientation = orientation - party.orientated;
+          if (deltaOrientation) {
+            switch (Mathabs(deltaOrientation)) {
+              case 2: 
+                deltaOrientation = 1;
+                break;
+              case 3:
+                deltaOrientation = -deltaOrientation/3 | 0;
+                break;
+            }
+            await gameEventQueueHandler({
+              eventType: GAME_EVENT_TYPE_TURN,
+              deltaOrientation,
               party,
-              slot,
-            };
-            await gameEventQueueHandler({
-              eventType: GAME_EVENT_TYPE_PROPOSE_ATTACK,
-              attackerLocation,
             });
-            await delay(699);
+            moved = 1;
+          }
+          // check whether we should display the status graphic
+          await Promise.all(party.members.map(async m => {
+            if (m) {
+              if (isLookingAt(playerParty, party)) {
+                if (!m['sds']) {
+                  await addEvents(m.animationQueue, createTweenAnimationFactory(m, m, 'sds', 1, easeInQuad, 99, 0));
+                }
+              } else if (m['sds']) {
+                await addEvents(party.animationQueue, createTweenAnimationFactory(m, m, 'sds', 0, easeInQuad, 99));
+              }  
+            }
+          }));
+  
+          if (!moved && isLookingAt(party, playerParty) && party.partyType == PARTY_TYPE_HOSTILE) {
+            const validSlots = party.members.map((m, i) => m ? [i] : []).flat();
+            if (validSlots.length) {
+              const slot = validSlots[Mathrandom() * validSlots.length | 0];
+              await gameEventQueueHandler({
+                eventType: GAME_EVENT_TYPE_PROPOSE_ATTACK,
+                party,
+                slot,
+              });
+              await delay(699);
+              await gameEventQueueHandler({
+                eventType: GAME_EVENT_TYPE_CONFIRM_ATTACK,
+                party,
+                slot,
+              });
+              moved = 1;
+            }
+          }
+          if (!moved) {
+            // do nothing
             await gameEventQueueHandler({
-              eventType: GAME_EVENT_TYPE_CONFIRM_ATTACK,
-              attackerLocation,
-            });  
+              eventType: GAME_EVENT_TYPE_WAIT,
+              party,
+            });
           }
         }
       }
     }
+
   };
   const gameEventQueue: EventQueue<GameEvent, void> = {
     handler: gameEventQueueHandler,
@@ -1067,14 +1086,14 @@ onload = async () => {
   const game: Game = {
     time: 0,
   };
-  game.level = generateLevel(game, entityRenderables);
-  const partyPosition: Vector3 = [LEVEL_DIMENSION/2 | 0, 1, 1];
+  game.level = generateLevel(game, entityRenderables, 0);
+  const partyPosition: Vector2 = [LEVEL_DIMENSION/2 | 0, 1];
   const playerParty: Party = {
     members: new Array(4).fill(0),
     orientated: ORIENTATION_NORTH,
     partyType: PARTY_TYPE_PLAYER,
     tile: partyPosition,
-    ['cpos']: [LEVEL_DIMENSION/2 | 0, 1, 1],
+    ['cpos']: [LEVEL_DIMENSION/2 | 0, 1, 0],
     ['coff']: [.4, 0, -.6],
     ['czr']: CONST_PI_ON_2_2DP,
     anims: [],
@@ -1082,7 +1101,7 @@ onload = async () => {
   };
   playerParty.members[0] = {
     ...BASE_PARTY_MEMBER,
-    ['pos']: partyPosition,
+    ['pos']: [...partyPosition, 0],
     ['zr']: CONST_PI_ON_2_1DP,
     animationQueue: createAnimationEventQueue(game),
     entity: createMarine(entityRenderables[ENTITY_TYPE_MARINE], 0),
@@ -1093,7 +1112,7 @@ onload = async () => {
       renderables: entityRenderables[ENTITY_TYPE_TORCH][0],
     }
   };
-  (game.level[partyPosition[2]][partyPosition[1]][partyPosition[0]] as Tile).parties.push(playerParty);
+  (game.level[partyPosition[1]][partyPosition[0]] as Tile).parties.push(playerParty);
 
   let slotsToEntities: Map<EventTarget, Entity> | undefined;
 
@@ -1140,7 +1159,7 @@ onload = async () => {
       const sx = p.clientX*2/Z.clientWidth - 1;
       // flip y coordinates so screen coordinates = world coordinates
       const sy = 1 - p.clientY*2/Z.clientHeight;
-      iterateLevel(game.level, (partyMember, party, slot) => {
+      iterateLevelMembers(game.level, (partyMember, party, slot) => {
         if (party.partyType == PARTY_TYPE_ITEM || party.partyType == PARTY_TYPE_HOSTILE) {
           const { 
             staticTransform,
@@ -1175,7 +1194,7 @@ onload = async () => {
       } else {
         // return some reference to an empty slot in the current tile
         const currentPosition = playerParty.tile;
-        const tile = game.level[currentPosition[2]][currentPosition[1]][currentPosition[0]] as Tile;
+        const tile = game.level[currentPosition[1]][currentPosition[0]] as Tile;
         let items = tile.parties.find(p => p.partyType == PARTY_TYPE_ITEM);
         if (!items) {
           items = {
@@ -1271,9 +1290,9 @@ onload = async () => {
         if (entity && dragImage) {
           if (fromLocation.party != toLocation.party || fromLocation.slot != toLocation.slot) {
             addEvents(gameEventQueue, {
+              ...fromLocation,
               eventType: GAME_EVENT_TYPE_CHANGE_LOADOUT,
               entity,
-              from: fromLocation,
               to: toLocation,
             });  
           }    
@@ -1305,13 +1324,13 @@ onload = async () => {
         const attacker = fromLocation.party.members[fromLocation.slot]
         if (game.pendingMember == attacker && fromLocation.party == playerParty) {
           addEvents(gameEventQueue, {
+            ...fromLocation,
             eventType: GAME_EVENT_TYPE_CONFIRM_ATTACK,
-            attackerLocation: fromLocation,
           });  
         } else if (attacker && attacker.entity.purpose == ENTITY_PURPOSE_ACTOR) {
           addEvents(gameEventQueue, {
+            ...fromLocation,
             eventType: GAME_EVENT_TYPE_PROPOSE_ATTACK,
-            attackerLocation: fromLocation,
           });  
         }
       }
@@ -1535,218 +1554,216 @@ onload = async () => {
       renderEntityToCanvas(m && m.secondary, secondaryElement);
     });
     
-    volumeMap(game.level, (tile: Tile) => {
-      tile.parties.forEach(party => {
-        party.anims = party.anims.filter(a => !a(now));
-        let bestLight: Light | undefined;
+    iterateLevelParties(game.level, party => {
+      party.anims = party.anims.filter(a => !a(now));
+      let bestLight: Light | undefined;
 
-        party.members.forEach((partyMember, i) => {
-          if (!partyMember) {
-            return;
+      party.members.forEach((partyMember, i) => {
+        if (!partyMember) {
+          return;
+        }
+        partyMember.anims = partyMember.anims.filter(a => !a(now));
+        let light: Light | undefined;
+        if (partyMember.entity.entityType == ENTITY_TYPE_MARINE) {
+          // torch
+          if (partyMember.secondary && partyMember.secondary?.entityType == ENTITY_TYPE_TORCH) {
+            light = {
+              ['pos']: partyMember['pos'],
+              light: [.75, .75, .7, 2],
+              lightTransform: matrix4Multiply(
+                  matrix4Translate(...partyMember['pos']),
+                  matrix4Rotate(party['czr'] + CONST_PI_1DP, 0, 0, 1),
+                  matrix4Translate(.2, 0, .5),
+                  matrix4Rotate(-CONST_PI_ON_9_1DP, 0, 1, 0),
+              )
+            };
+          } else {
+            light = {
+              ['pos']: partyMember['pos'],
+              light: [.5, .5, .5, 1],
+              lightTransform: matrix4Multiply(
+                  matrix4Translate(...partyMember['pos']),
+                  matrix4Rotate((party['czr'] || partyMember['zr']) + CONST_PI_1DP, 0, 0, 1),
+                  matrix4Translate(-.2, 0, .3),
+                  matrix4Rotate(-CONST_PI_ON_4_1DP, 0, 1, 0),
+              )
+            };
           }
-          partyMember.anims = partyMember.anims.filter(a => !a(now));
-          let light: Light | undefined;
-          if (partyMember.entity.entityType == ENTITY_TYPE_MARINE) {
-            // torch
-            if (partyMember.secondary && partyMember.secondary?.entityType == ENTITY_TYPE_TORCH) {
-              light = {
-                ['pos']: partyMember['pos'],
-                light: [.75, .75, .7, 2],
-                lightTransform: matrix4Multiply(
-                    matrix4Translate(...partyMember['pos']),
-                    matrix4Rotate(party['czr'] + CONST_PI_1DP, 0, 0, 1),
-                    matrix4Translate(.2, 0, .5),
-                    matrix4Rotate(-CONST_PI_ON_9_1DP, 0, 1, 0),
-                )
-              };
+        }
+        bestLight = !light || bestLight && bestLight.light[1] > light.light[1] ? bestLight : light;
+        if (dragContext
+            && dragContext.startPosition != dragContext.lastPosition
+            && dragContext.entity == partyMember.entity
+            && dragContext.dragImage || party == playerParty
+        ) {
+          return;
+        }
+
+        const {
+          bounds,
+          depthTexture,
+          renderTexture,
+          statusTexture,
+          statusCanvas,
+          surfaceRotationsBuffer,
+          textureBoundsBuffer,
+          textureCoordinatesBuffer,
+          vertexIndexBuffer,
+          vertexPositionBuffer,
+          staticTransform,
+        } = partyMember.entity.renderables;
+
+        // update animations
+        if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
+          if (!partyMember.anims.length) {
+            if (Mathrandom() > .1) {
+              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zs', partyMember.entity.side ? 1.05 : .97, easeSinBackToStart, 3000));
             } else {
-              light = {
-                ['pos']: partyMember['pos'],
-                light: [.5, .5, .5, 1],
-                lightTransform: matrix4Multiply(
-                    matrix4Translate(...partyMember['pos']),
-                    matrix4Rotate((party['czr'] || partyMember['zr']) + CONST_PI_1DP, 0, 0, 1),
-                    matrix4Translate(-.2, 0, .3),
-                    matrix4Rotate(-CONST_PI_ON_4_1DP, 0, 1, 0),
-                )
-              };
+              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr2', (partyMember['zr2'] || 0) + (Mathrandom() - .5) * CONST_PI_ON_3_1DP, easeSquareBackToStart, 2000, 0));
             }
           }
-          bestLight = !light || bestLight && bestLight.light[1] > light.light[1] ? bestLight : light;
-          if (dragContext
-              && dragContext.startPosition != dragContext.lastPosition
-              && dragContext.entity == partyMember.entity
-              && dragContext.dragImage || party == playerParty
-          ) {
-            return;
+          const ctx = statusCanvas.getContext('2d');
+          // note reversed because we actually are facing to the right
+          const w = (bounds[1][1] - bounds[0][1] + 1) * STATUS_SCALE;
+          const h = (bounds[1][2] - bounds[0][2] + 1) * STATUS_SCALE;
+          ctx.clearRect(0, 0, w, h);
+          if (partyMember['sds'] > 0) {
+            // const g = ctx.createLinearGradient(0, 0, w, h);
+            // g.addColorStop(0, '#f00');
+            // g.addColorStop(1, '#00f');
+            // ctx.fillStyle = g;
+            //ctx.fillRect(0, 0, w, h);
+            ctx.save();
+            ctx.translate(w/2, 0);
+            ctx.scale(-partyMember['sds'], partyMember['sds']/partyMember['zs']);
+            ctx.translate(-w/2, 0);
+            renderEntityToContext(partyMember.entity, ctx, w, h, party, i);
+            ctx.restore();
           }
+          // update status texture
+          gl.bindTexture(CONST_GL_TEXTURE_2D, statusTexture);
+          gl.texImage2D(gl.TEXTURE_2D, 0, CONST_GL_RGBA, CONST_GL_RGBA, CONST_GL_UNSIGNED_BYTE, statusCanvas);
+        }
+        if (FLAG_ROTATING_ITEMS && (partyMember.entity.purpose == ENTITY_PURPOSE_WEAPON || partyMember.entity.purpose == ENTITY_PURPOSE_SECONDARY)) {
+          if (!partyMember.anims.length) {
+            partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr', partyMember['zr'] + CONST_2_PI_0DP, easeLinear, 4000));
+          }
+        }
 
-          const {
-            bounds,
-            depthTexture,
-            renderTexture,
-            statusTexture,
-            statusCanvas,
-            surfaceRotationsBuffer,
-            textureBoundsBuffer,
-            textureCoordinatesBuffer,
-            vertexIndexBuffer,
-            vertexPositionBuffer,
+        const position = partyMember['pos'];
+        const modelPositionMatrix = matrix4Translate(...position);
+        const yRotation = partyMember['yr'] || 0;
+        const zRotation = (partyMember['zr'] || 0) + (partyMember['zr2'] || 0);
+        const modelZRotationMatrix = matrix4Rotate(zRotation, 0, 0, 1);
+        const modelYRotationMatrix = matrix4Rotate(yRotation, 0, 1, 0);
+        const modelRotationMatrix = matrix4Multiply(
+            modelZRotationMatrix,
+            modelYRotationMatrix,
+        );  
+        const modelScaleMatrix = matrix4Scale(1, 1, partyMember['zs']);
+        const modelViewMatrix = matrix4Multiply(
+            modelPositionMatrix,
+            modelRotationMatrix,
+            modelScaleMatrix,
             staticTransform,
-          } = partyMember.entity.renderables;
+        );
+      
+        // vertexes
+        gl.bindBuffer(CONST_GL_ARRAY_BUFFER, vertexPositionBuffer);
+        gl.vertexAttribPointer(
+            attributes[A_VERTEX_POSITION_INDEX],
+            3, // numComponents
+            CONST_GL_FLOAT, // type
+            false, // normalise
+            0, // stride
+            0, // offset
+        );
+        gl.enableVertexAttribArray(attributes[A_VERTEX_POSITION_INDEX]);
+      
+        // indexes
+        gl.bindBuffer(CONST_GL_ELEMENT_ARRAY_BUFFER, vertexIndexBuffer);
+      
+        // texture coordinates
+        gl.bindBuffer(CONST_GL_ARRAY_BUFFER, textureCoordinatesBuffer);
+        gl.vertexAttribPointer(
+            attributes[A_SURFACE_TEXTURE_COORD_INDEX],
+            2, // numComponents
+            CONST_GL_FLOAT, // type
+            false, // normalise
+            0, // stride
+            0, // offset
+        );
+        gl.enableVertexAttribArray(attributes[A_SURFACE_TEXTURE_COORD_INDEX]);
+      
+        // texture bounds
+        gl.bindBuffer(CONST_GL_ARRAY_BUFFER, textureBoundsBuffer);
+        gl.vertexAttribPointer(
+            attributes[A_SURFACE_TEXTURE_BOUNDS_INDEX],
+            4, // numComponents
+            CONST_GL_FLOAT, // type
+            false, // normalise
+            0, // stride
+            0, // offset
+        );
+        gl.enableVertexAttribArray(attributes[A_SURFACE_TEXTURE_BOUNDS_INDEX]);
+      
+        // depth texture
+        gl.uniform1i(uniforms[U_DEPTH_TEXTURE_SAMPLER_INDEX], 0);
+        gl.activeTexture(CONST_GL_TEXTURE0);
+        gl.bindTexture(CONST_GL_TEXTURE_2D, depthTexture)
+        gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MAG_FILTER, CONST_GL_NEAREST);
+        gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MIN_FILTER, CONST_GL_NEAREST);
+      
+        // render texture
+        gl.uniform1i(uniforms[U_RENDER_TEXTURE_SAMPLER_INDEX], 1);
+        gl.activeTexture(CONST_GL_TEXTURE1);
+        gl.bindTexture(CONST_GL_TEXTURE_2D, renderTexture)
+        gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MAG_FILTER, CONST_GL_NEAREST);
+        gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MIN_FILTER, CONST_GL_NEAREST);
 
-          // update animations
-          if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
-            if (!partyMember.anims.length) {
-              if (Mathrandom() > .1) {
-                partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zs', partyMember.entity.side ? 1.05 : .97, easeSinBackToStart, 3000));
-              } else {
-                partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr2', (partyMember['zr2'] || 0) + (Mathrandom() - .5) * CONST_PI_ON_3_1DP, easeSquareBackToStart, 2000, 0));
-              }
-            }
-            const ctx = statusCanvas.getContext('2d');
-            // note reversed because we actually are facing to the right
-            const w = (bounds[1][1] - bounds[0][1] + 1) * STATUS_SCALE;
-            const h = (bounds[1][2] - bounds[0][2] + 1) * STATUS_SCALE;
-            ctx.clearRect(0, 0, w, h);
-            if (partyMember['sds'] > 0) {
-              // const g = ctx.createLinearGradient(0, 0, w, h);
-              // g.addColorStop(0, '#f00');
-              // g.addColorStop(1, '#00f');
-              // ctx.fillStyle = g;
-              //ctx.fillRect(0, 0, w, h);
-              ctx.save();
-              ctx.translate(w/2, 0);
-              ctx.scale(-partyMember['sds'], partyMember['sds']/partyMember['zs']);
-              ctx.translate(-w/2, 0);
-              renderEntityToContext(partyMember.entity, ctx, w, h, party, i);
-              ctx.restore();
-            }
-            // update status texture
-            gl.bindTexture(CONST_GL_TEXTURE_2D, statusTexture);
-            gl.texImage2D(gl.TEXTURE_2D, 0, CONST_GL_RGBA, CONST_GL_RGBA, CONST_GL_UNSIGNED_BYTE, statusCanvas);
-          }
-          if (FLAG_ROTATING_ITEMS && (partyMember.entity.purpose == ENTITY_PURPOSE_WEAPON || partyMember.entity.purpose == ENTITY_PURPOSE_SECONDARY)) {
-            if (!partyMember.anims.length) {
-              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr', partyMember['zr'] + CONST_2_PI_0DP, easeLinear, 4000));
-            }
-          }
+        // status texture
+        gl.uniform1i(uniforms[U_STATUS_TEXTURE_SAMPLER_INDEX], 2);
+        gl.activeTexture(CONST_GL_TEXTURE2);
+        gl.bindTexture(CONST_GL_TEXTURE_2D, statusTexture)
+        gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MAG_FILTER, CONST_GL_NEAREST);
+        gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MIN_FILTER, CONST_GL_NEAREST);
 
-          const position = partyMember['pos'];
-          const modelPositionMatrix = matrix4Translate(...position);
-          const yRotation = partyMember['yr'] || 0;
-          const zRotation = (partyMember['zr'] || 0) + (partyMember['zr2'] || 0);
-          const modelZRotationMatrix = matrix4Rotate(zRotation, 0, 0, 1);
-          const modelYRotationMatrix = matrix4Rotate(yRotation, 0, 1, 0);
-          const modelRotationMatrix = matrix4Multiply(
-              modelZRotationMatrix,
-              modelYRotationMatrix,
-          );  
-          const modelScaleMatrix = matrix4Scale(1, 1, partyMember['zs']);
-          const modelViewMatrix = matrix4Multiply(
-              modelPositionMatrix,
-              modelRotationMatrix,
-              modelScaleMatrix,
-              staticTransform,
-          );
         
-          // vertexes
-          gl.bindBuffer(CONST_GL_ARRAY_BUFFER, vertexPositionBuffer);
+        // surface rotation
+        gl.bindBuffer(CONST_GL_ARRAY_BUFFER, surfaceRotationsBuffer);
+        for (let i=0; i<4; i++) {
+          gl.enableVertexAttribArray(attributes[A_SURFACE_ROTATION_INDEX]+i);
           gl.vertexAttribPointer(
-              attributes[A_VERTEX_POSITION_INDEX],
-              3, // numComponents
-              CONST_GL_FLOAT, // type
-              false, // normalise
-              0, // stride
-              0, // offset
-          );
-          gl.enableVertexAttribArray(attributes[A_VERTEX_POSITION_INDEX]);
-        
-          // indexes
-          gl.bindBuffer(CONST_GL_ELEMENT_ARRAY_BUFFER, vertexIndexBuffer);
-        
-          // texture coordinates
-          gl.bindBuffer(CONST_GL_ARRAY_BUFFER, textureCoordinatesBuffer);
-          gl.vertexAttribPointer(
-              attributes[A_SURFACE_TEXTURE_COORD_INDEX],
-              2, // numComponents
-              CONST_GL_FLOAT, // type
-              false, // normalise
-              0, // stride
-              0, // offset
-          );
-          gl.enableVertexAttribArray(attributes[A_SURFACE_TEXTURE_COORD_INDEX]);
-        
-          // texture bounds
-          gl.bindBuffer(CONST_GL_ARRAY_BUFFER, textureBoundsBuffer);
-          gl.vertexAttribPointer(
-              attributes[A_SURFACE_TEXTURE_BOUNDS_INDEX],
-              4, // numComponents
-              CONST_GL_FLOAT, // type
-              false, // normalise
-              0, // stride
-              0, // offset
-          );
-          gl.enableVertexAttribArray(attributes[A_SURFACE_TEXTURE_BOUNDS_INDEX]);
-        
-          // depth texture
-          gl.uniform1i(uniforms[U_DEPTH_TEXTURE_SAMPLER_INDEX], 0);
-          gl.activeTexture(CONST_GL_TEXTURE0);
-          gl.bindTexture(CONST_GL_TEXTURE_2D, depthTexture)
-          gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MAG_FILTER, CONST_GL_NEAREST);
-          gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MIN_FILTER, CONST_GL_NEAREST);
-        
-          // render texture
-          gl.uniform1i(uniforms[U_RENDER_TEXTURE_SAMPLER_INDEX], 1);
-          gl.activeTexture(CONST_GL_TEXTURE1);
-          gl.bindTexture(CONST_GL_TEXTURE_2D, renderTexture)
-          gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MAG_FILTER, CONST_GL_NEAREST);
-          gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MIN_FILTER, CONST_GL_NEAREST);
-
-          // status texture
-          gl.uniform1i(uniforms[U_STATUS_TEXTURE_SAMPLER_INDEX], 2);
-          gl.activeTexture(CONST_GL_TEXTURE2);
-          gl.bindTexture(CONST_GL_TEXTURE_2D, statusTexture)
-          gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MAG_FILTER, CONST_GL_NEAREST);
-          gl.texParameteri(CONST_GL_TEXTURE_2D, CONST_GL_TEXTURE_MIN_FILTER, CONST_GL_NEAREST);
-
-          
-          // surface rotation
-          gl.bindBuffer(CONST_GL_ARRAY_BUFFER, surfaceRotationsBuffer);
-          for (let i=0; i<4; i++) {
-            gl.enableVertexAttribArray(attributes[A_SURFACE_ROTATION_INDEX]+i);
-            gl.vertexAttribPointer(
-                attributes[A_SURFACE_ROTATION_INDEX]+i,
-                4,
-                CONST_GL_FLOAT,
-                false,
-                64,
-                i*16,
-            );
-          }
-        
-          // uniforms
-          gl.uniformMatrix4fv(
-              uniforms[U_MODEL_VIEW_MATRIX_INDEX],
+              attributes[A_SURFACE_ROTATION_INDEX]+i,
+              4,
+              CONST_GL_FLOAT,
               false,
-              modelViewMatrix,
+              64,
+              i*16,
           );
-          gl.uniformMatrix4fv(
-              uniforms[U_MODEL_ROTATION_MATRIX_INDEX],
-              false,
-              matrix4Invert(modelRotationMatrix),
-          );
-        
-          gl.drawElements(
-              CONST_GL_TRIANGLES,
-              36, // everything is always a cube
-              CONST_GL_UNSIGNED_SHORT,
-              0
-          );
+        }
+      
+        // uniforms
+        gl.uniformMatrix4fv(
+            uniforms[U_MODEL_VIEW_MATRIX_INDEX],
+            false,
+            modelViewMatrix,
+        );
+        gl.uniformMatrix4fv(
+            uniforms[U_MODEL_ROTATION_MATRIX_INDEX],
+            false,
+            matrix4Invert(modelRotationMatrix),
+        );
+      
+        gl.drawElements(
+            CONST_GL_TRIANGLES,
+            36, // everything is always a cube
+            CONST_GL_UNSIGNED_SHORT,
+            0
+        );
 
-        });
-        bestLight && game.previousLights.push(bestLight);
-      })
+      });
+      bestLight && game.previousLights.push(bestLight);
     });
   }
   f(0);
