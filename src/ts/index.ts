@@ -323,8 +323,8 @@ onload = async () => {
     ]],
     // key
     [VOLUMETRIC_KEY, matrix4Scale(MODEL_SCALE * .2), [
-      [[COLOR_RED_SHINY]],
-      [[COLOR_GREEN_SHINY]],
+      [[COLOR_RED_GLOWING]],
+      [[COLOR_GREEN_GLOWING]],
     ]],
   ];
 

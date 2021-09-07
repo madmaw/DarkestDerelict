@@ -204,7 +204,7 @@ const VOLUMETRIC_COMMANDS_PISTOL: VolumetricDrawCommand[] = [
   ],
 ];
 
-const VOLUMETRIC_TEMPLATE_PISTOL = 'y`RzD<BBB.y^D>DDB-z^B@NB.Zj#;DN>>@%yQzTXWBACJ';
+const VOLUMETRIC_TEMPLATE_PISTOL = 'Rzy`D<BBB.y^D>DDB-z^B@NB.Zj#;DN>>@%#<yQzTXWBACJ';
 const VOLUMETRIC_PISTOL = FLAG_USE_VOLUME_COMMANDS ? VOLUMETRIC_COMMANDS_PISTOL : VOLUMETRIC_TEMPLATE_PISTOL;
 
 const VOLUMETRIC_PARAMS_PISTOL:  [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
