@@ -122,7 +122,16 @@ const VERTEX_SHADER = `
   const L_TEMP_TEXTURE = FLAG_LONG_SHADER_NAMES ? 'lTempTexture' : 's';
   const L_COLOR = FLAG_LONG_SHADER_NAMES ? 'lColor' : 'r';
   const L_PIXEL_POSITION = FLAG_LONG_SHADER_NAMES ? 'lPixelPosition' : 'q';
-
+  const L_PIXEL_DEPTH = FLAG_LONG_SHADER_NAMES ? 'lPixelDepth' : 'p';
+  const L_DEPTH = FLAG_LONG_SHADER_NAMES ? 'lDepth' : 'o';
+  const L_STEP_DEPTH = FLAG_LONG_SHADER_NAMES ? 'lStepDepth' : 'n';
+  const L_FOG = FLAG_LONG_SHADER_NAMES ? 'lFog' : 'm';
+  const L_LIGHT = FLAG_LONG_SHADER_NAMES ? 'lLight' : 'l';
+  const L_BRIGHTNESS = FLAG_LONG_SHADER_NAMES ? 'lBrightness' : 'k';
+  // i, j reserved for loops
+  const L_LIGHT_POSITION = FLAG_LONG_SHADER_NAMES ? 'lLightPosition' : 'h';
+  const L_REACH = FLAG_LONG_SHADER_NAMES ? 'lReach' : 'g';
+  const L_LIGHT_DELTA = FLAG_LONG_SHADER_NAMES ? 'lLightDelta' : 'f';
   
   const CONST_MAX_NUM_STEPS = 64;
   const CONST_TARGET_NUM_STEPS = 32;
@@ -162,33 +171,33 @@ const VERTEX_SHADER = `
     vec2 ${L_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD}+${C_MIN_DEPTH}*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
     vec4 ${L_DEPTH_TEXTURE} = vec4(0.);
     
-    float pixelDepth=0.;
-    float depth=${C_MIN_DEPTH};
-    float stepDepth=max(${BASE_STEP_DEPTH}*dot(vec3(0., 0., -1.), ${L_CAMERA_DIRECTION}), ${MIN_STEP_DEPTH});
+    float ${L_PIXEL_DEPTH}=0.;
+    float ${L_DEPTH}=${C_MIN_DEPTH};
+    float ${L_STEP_DEPTH}=max(${BASE_STEP_DEPTH}*dot(vec3(0., 0., -1.), ${L_CAMERA_DIRECTION}), ${MIN_STEP_DEPTH});
     for (int i=0; i<${CONST_MAX_NUM_STEPS}; i++) {
-      depth+=stepDepth;
-      vec2 ${L_TEMP_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD}-depth*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
+      ${L_DEPTH}+=${L_STEP_DEPTH};
+      vec2 ${L_TEMP_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD}-${L_DEPTH}*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
       if (all(lessThanEqual(${V_SURFACE_TEXTURE_BOUNDS}.xy, ${L_TEMP_SURFACE_POSITION})) && all(lessThan(${L_TEMP_SURFACE_POSITION}, ${V_SURFACE_TEXTURE_BOUNDS}.zw))) {
         vec4 ${L_TEMP_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, ${L_TEMP_SURFACE_POSITION});
 
-        if ((${L_TEMP_TEXTURE}.b-${VOLUME_DEPTH_PROPORTION})*${C_DEPTH_SCALE}<=depth && ${L_TEMP_TEXTURE}.a>0. && ${L_TEMP_TEXTURE}.a*${C_DEPTH_SCALE}>depth) {
+        if ((${L_TEMP_TEXTURE}.b-${VOLUME_DEPTH_PROPORTION})*${C_DEPTH_SCALE}<=${L_DEPTH} && ${L_TEMP_TEXTURE}.a>0. && ${L_TEMP_TEXTURE}.a*${C_DEPTH_SCALE}>${L_DEPTH}) {
           ${L_DEPTH_TEXTURE} = ${L_TEMP_TEXTURE};
           ${L_SURFACE_POSITION} = ${L_TEMP_SURFACE_POSITION};
-          pixelDepth=depth;
-          depth-=stepDepth;
-          stepDepth/=2.;
+          ${L_PIXEL_DEPTH}=${L_DEPTH};
+          ${L_DEPTH}-=${L_STEP_DEPTH};
+          ${L_STEP_DEPTH}/=2.;
         }
-      } else if (depth > 0.) {
-        depth-=stepDepth;
-        stepDepth/=2.;
+      } else if (${L_DEPTH} > 0.) {
+        ${L_DEPTH}-=${L_STEP_DEPTH};
+        ${L_STEP_DEPTH}/=2.;
       }
     }
     //${L_DEPTH_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD});
     //${L_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD};
-    //pixelDepth = 0.;
+    //${L_PIXEL_DEPTH} = 0.;
 
     //vec4 ${L_TEMP_TEXTURE} = all(equal(${V_SURFACE_TEXTURE_BOUNDS}.xy, vec2(0.))) ? texture2D(${U_STATUS_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD}*${C_STATUS_SCALE}) : vec4(0.);
-    vec4 ${L_TEMP_TEXTURE} = dot(${L_CAMERA_DIRECTION}, vec3(0.,0.,-1.))>.6 ? texture2D(${U_STATUS_TEXTURE_SAMPLER}, (${V_SURFACE_TEXTURE_COORD}-${V_SURFACE_TEXTURE_BOUNDS}.xy)*${C_STATUS_SCALE}) : vec4(0.);
+    vec4 ${L_TEMP_TEXTURE} = dot(${L_CAMERA_DIRECTION}, vec3(0.,0.,-1.))>.7 ? texture2D(${U_STATUS_TEXTURE_SAMPLER}, (${V_SURFACE_TEXTURE_COORD}-${V_SURFACE_TEXTURE_BOUNDS}.xy)*${C_STATUS_SCALE}) : vec4(0.);
     if (${L_DEPTH_TEXTURE}.a>0.) {
       vec4 ${L_COLOR} = texture2D(${U_RENDER_TEXTURE_SAMPLER}, ${L_SURFACE_POSITION});
       //vec2 v = ${V_SURFACE_TEXTURE_COORD}/${V_SURFACE_TEXTURE_BOUNDS}.zw;
@@ -196,33 +205,30 @@ const VERTEX_SHADER = `
       vec3 ${L_SURFACE_NORMAL} = vec3(${L_DEPTH_TEXTURE}.x, ${L_DEPTH_TEXTURE}.y, .5)*2.-1.;
       ${L_SURFACE_NORMAL} = vec3(${L_SURFACE_NORMAL}.xy, sqrt(1. - pow(length(${L_SURFACE_NORMAL}), 2.)));
       //${L_SURFACE_NORMAL} = ${V_SURFACE_ROTATION} * vec3(0., 0., 1.);
-      vec3 ${L_PIXEL_POSITION} = ${V_WORLD_POSITION}.xyz + pixelDepth * ${L_CAMERA_NORMAL};
-      float fog = 1.-min(pow(length(${L_PIXEL_POSITION}-${U_CAMERA_POSITION})/5., 2.), 1.);
+      vec3 ${L_PIXEL_POSITION} = ${V_WORLD_POSITION}.xyz + ${L_PIXEL_DEPTH} * ${L_CAMERA_NORMAL};
+      float ${L_FOG} = 1.-min(pow(length(${L_PIXEL_POSITION}-${U_CAMERA_POSITION})/5., 2.), 1.);
       vec3 ${L_LIGHTING} = ${U_AMBIENT_LIGHT}.xyz;
       for(int i=0;i<${C_MAX_NUM_LIGHTS};i++){
         if (float(i)<${U_AMBIENT_LIGHT}.w) {
-          vec4 light = ${U_LIGHTS}[i];
-          mat4 transform = ${U_LIGHT_TRANSFORMS}[i];
-          float brightness = length(light.xyz)/2.;
-          vec4 lightPosition = transform*vec4(0., 0., 0., 1.);
-          vec3 lightDirection = normalize((transform*vec4(1., 0., 0., 1.)-lightPosition).xyz);
-          float reach = brightness*${C_MAX_LIGHT_REACH};
-          vec3 lightDelta = lightPosition.xyz - ${L_PIXEL_POSITION};
-          for (float i=0.; i<2.; i++) {
-            float ld = max(dot(lightDirection, normalize(lightDelta)), 0.);
-            if (reach > length(lightDelta)) {
-              ${L_LIGHTING} += light.xyz
+          vec4 ${L_LIGHT} = ${U_LIGHTS}[i];
+          float ${L_BRIGHTNESS} = length(${L_LIGHT}.xyz)/2.;
+          vec4 ${L_LIGHT_POSITION} = ${U_LIGHT_TRANSFORMS}[i]*vec4(0., 0., 0., 1.);
+          float ${L_REACH} = ${L_BRIGHTNESS}*${C_MAX_LIGHT_REACH};
+          vec3 ${L_LIGHT_DELTA} = ${L_LIGHT_POSITION}.xyz - ${L_PIXEL_POSITION};
+          for (float j=0.; j<2.; j++) {
+            if (${L_REACH} > length(${L_LIGHT_DELTA})) {
+              ${L_LIGHTING} += ${L_LIGHT}.xyz
                   // distance 
-                  * (pow(1.-length(lightDelta)/reach, 2.))*reach
+                  * (pow(1.-length(${L_LIGHT_DELTA})/${L_REACH}, 2.))*${L_REACH}
                   // angle 
-                  * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(normalize(lightDelta)-i*${L_CAMERA_NORMAL})), 0.),.1/${L_COLOR}.a) * (i>0.?1.-${L_COLOR}.a:${L_COLOR}.a)
+                  * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(normalize(${L_LIGHT_DELTA})-j*${L_CAMERA_NORMAL})), 0.),.1/${L_COLOR}.a) * (j>0.?1.-${L_COLOR}.a:${L_COLOR}.a)
                   // cone
-                  * max(pow(ld, light.w), pow(clamp((brightness-length(lightDelta))/brightness, 0., 1.), 2.));
+                  * max(pow(max(dot(normalize((${U_LIGHT_TRANSFORMS}[i]*vec4(1., 0., 0., 1.)-${L_LIGHT_POSITION}).xyz), normalize(${L_LIGHT_DELTA})), 0.), ${L_LIGHT}.w), pow(clamp((${L_BRIGHTNESS}-length(${L_LIGHT_DELTA}))/${L_BRIGHTNESS}, 0., 1.), 2.));
             }
           }
         }
       }
-      gl_FragColor = vec4(mix(mix(vec3(fog), ${L_COLOR}.xyz, fog)*(${L_COLOR}.a<1.?${L_LIGHTING}:vec3(1.)), ${L_TEMP_TEXTURE}.xyz, ${L_TEMP_TEXTURE}.w), 1.);
+      gl_FragColor = vec4(mix(mix(vec3(${L_FOG}), ${L_COLOR}.xyz, ${L_FOG})*(${L_COLOR}.a<1.?${L_LIGHTING}:vec3(1.)), ${L_TEMP_TEXTURE}.xyz, ${L_TEMP_TEXTURE}.w), 1.);
     } else if (${L_TEMP_TEXTURE}.w > .1) {
       gl_FragColor = vec4(${L_TEMP_TEXTURE}.xyz * ${L_TEMP_TEXTURE}.w, 1.);
     } else {
@@ -235,7 +241,7 @@ onload = async () => {
   const canvas = Z;
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
-  const gl = canvas.getContext('webgl');
+  const gl = shortenMethods(canvas.getContext('webgl'));
 
   const CONST_GL_RENDERBUFFER = FLAG_USE_GL_CONSTANTS?gl.RENDERBUFFER:0x8D41;
   const CONST_GL_FRAMEBUFFER = FLAG_USE_GL_CONSTANTS?gl.FRAMEBUFFER:0x8D40;
@@ -276,7 +282,7 @@ onload = async () => {
   type LoadingEvent = [VolumetricDrawCommand[] | string, Matrix4, [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][], number?];
 
   const SURFACE_COLORS: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
-    [[COLOR_GUNMETAL, COLOR_GUNMETAL, COLOR_GUNMETAL]],
+    [[COLOR_WHITE_SHINY]],
     [[COLOR_GUNMETAL, COLOR_RED_CARPET, COLOR_SILVER_SHINY]],
     [[COLOR_DULLMETAL, COLOR_BLUE_CARPET, COLOR_SILVER_SHINY]],
   ];
@@ -292,40 +298,47 @@ onload = async () => {
     [VOLUMETRIC_WALL_PIPES, MODEL_SCALE_MATRIX, SURFACE_COLORS],
     // floor
     [VOLUMETRIC_FLOOR,  MODEL_SCALE_MATRIX, SURFACE_COLORS],
+    // door
+    [VOLUMETRIC_DOOR, MODEL_SCALE_MATRIX, [
+      [[COLOR_RED_SHINY, COLOR_RED_GLOWING]],
+      [[COLOR_GREEN_SHINY, COLOR_GREEN_GLOWING]],
+      [[COLOR_YELLOW_SHUNY, COLOR_YELLOW_GLOWING]],
+    ]],
     // symbols
     [VOLUMETRIC_SYMBOL, matrix4Identity(), VOLUMETRIC_PARAMS_SYMBOL],   
     // resources
     [VOLUMETRIC_RESOURCE, matrix4Identity(), VOLUMETRIC_PARAMS_RESOURCE],
     // marine
     [VOLUMETRIC_MARINE, matrix4Scale(MODEL_SCALE * .5), [
+      [[COLOR_CHITIN, COLOR_RED_CARPET, COLOR_RED_GLOWING]],
       [[COLOR_GREEN_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
       [[COLOR_RED_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
       [[COLOR_YELLOW_SHUNY, COLOR_BLACK, COLOR_WHITE_GLOWING]],
       [[COLOR_PURPLE_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
-      [[COLOR_CHITIN, COLOR_RED_CARPET, COLOR_RED_GLOWING]],
+      [[COLOR_BLUE_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
     ], 8], 
-    // pistol
-    [VOLUMETRIC_PISTOL, matrix4Scale(MODEL_SCALE * .2), VOLUMETRIC_PARAMS_PISTOL],
     // spider
     [VOLUMETRIC_SPIDER, matrix4Scale(MODEL_SCALE * .5), [
       [[COLOR_CHITIN, COLOR_RED_GLOWING, COLOR_RED_SHINY]],
     ], 8],
-    // torch
-    [VOLUMETRIC_TORCH, matrix4Scale(MODEL_SCALE * .2), VOLUMETRIC_PARAMS_TORCH],
-    // battery
-    [VOLUMETRIC_BATTERY, matrix4Scale(MODEL_SCALE * .1), VOLUMETRIC_PARAMS_BATTERY],
-    // bayonet
-    [VOLUMETRIC_BAYONET, matrix4Scale(MODEL_SCALE * .2), VOLUMETRIC_PARAMS_BAYONET],
-    // door
-    [VOLUMETRIC_DOOR, MODEL_SCALE_MATRIX, [
-      [[COLOR_RED_SHINY, COLOR_WHITE_SHINY, COLOR_RED_GLOWING]],
-      [[COLOR_GREEN_SHINY, COLOR_WHITE_SHINY, COLOR_GREEN_GLOWING]],
-    ]],
+    // pistol
+    [VOLUMETRIC_PISTOL, matrix4Scale(MODEL_SCALE * .2), VOLUMETRIC_PARAMS_PISTOL],
+    // shotgun
+    [VOLUMETRIC_SHOTGUN, matrix4Scale(MODEL_SCALE * .4), VOLUMETRIC_PARAMS_SHOTGUN],
+    // food
+    [VOLUMETRIC_FOOD, matrix4Scale(MODEL_SCALE * .2), VOLUMETRIC_PARAMS_FOOD],
     // key
     [VOLUMETRIC_KEY, matrix4Scale(MODEL_SCALE * .2), [
       [[COLOR_RED_GLOWING]],
       [[COLOR_GREEN_GLOWING]],
+      [[COLOR_YELLOW_GLOWING]],
     ]],
+    // battery
+    [VOLUMETRIC_BATTERY, matrix4Scale(MODEL_SCALE * .1), VOLUMETRIC_PARAMS_BATTERY],
+    // bayonet
+    [VOLUMETRIC_BAYONET, matrix4Scale(MODEL_SCALE * .2), VOLUMETRIC_PARAMS_BAYONET],
+    // torch
+    [VOLUMETRIC_TORCH, matrix4Scale(MODEL_SCALE * .2), VOLUMETRIC_PARAMS_TORCH],
   ];
 
   const loadingEventQueue: EventQueue<LoadingEvent, EntityRenderables[]> = {
@@ -708,6 +721,9 @@ onload = async () => {
           let reciprocalMoveEntity: Entity | Falseish = 0;
           let moveMember: PartyMember | Falseish = 0;
           let reciprocalMoveMember: PartyMember | Falseish = 0;
+          let itemDestroyed: Booleanish = 0;
+          let fromSlotPromise: Promise<any>;
+          let toSlotPromise: Promise<any>;
           const purpose = e.entity.purpose;
           
           if (toSlot) {
@@ -725,20 +741,23 @@ onload = async () => {
                 break;
               case ENTITY_PURPOSE_SECONDARY:
                 if (toSlotPurpose == ENTITY_PURPOSE_ACTOR) {
-                  reciprocalMoveEntity = toSlot.secondary;
-                  turnPassed = toSlot.secondary = e.entity;
+                  const actor = toSlot.entity as ActorEntity;
+                  if (e.entity.entityType == ENTITY_TYPE_FOOD && actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity < actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].max) {
+                    actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity++;
+                    turnPassed = itemDestroyed = 1;
+                  } else {
+                    reciprocalMoveEntity = toSlot.secondary;
+                    turnPassed = toSlot.secondary = e.entity;
+                  }
                 } else if (toSlotPurpose == ENTITY_PURPOSE_DOOR && (e.entity as SecondaryEntity).variation == (toSlot.entity as SecondaryEntity).variation) {
                   const [x, y, z] = toSlot['pos'];
                   // destroy the key
-                  if (fromSlot.secondary = e.entity) {
-                    fromSlot.secondary = 0;
-                  } else {
-                    e.party.members[e.slot] = 0;
-                  }
-                  await addEvents(toSlot.animationQueue, createTweenAnimationFactory(toSlot, toSlot, 'pos', [x, y, z+1], easeInQuad, 400));
-                  // remove the door entirely
-                  e.to.party.members[e.to.slot] = 0;
-                  e.to.party.partyType = PARTY_TYPE_FLOOR;
+                  turnPassed = itemDestroyed = 1;
+                  fromSlotPromise = addEvents(toSlot.animationQueue, createTweenAnimationFactory(toSlot, toSlot, 'pos', [x, y, z+1], easeInQuad, 400)).then(() => {
+                    // remove the door entirely
+                    e.to.party.members[e.to.slot] = 0;
+                    e.to.party.partyType = PARTY_TYPE_FLOOR;
+                  });
                 }
                 break;
               }
@@ -757,26 +776,34 @@ onload = async () => {
           }
 
           if (turnPassed) {
-            if (fromSlot.entity == e.entity) {
-              if (reciprocalMoveEntity) {
-                fromSlot.entity = reciprocalMoveEntity;
+            if (itemDestroyed) {
+              if (fromSlot.entity == e.entity) {
+                e.party.members[e.slot] = 0;
               } else {
-                party.members[e.slot] = reciprocalMoveMember;
+                fromSlot.secondary = 0;
+                // TODO: do we ever destroy a weapon?
               }
-            } else if (fromSlot.weapon == e.entity){
-              fromSlot.weapon = reciprocalMoveEntity as WeaponEntity;
-            } else if (fromSlot.secondary == e.entity) {
-              fromSlot.secondary = reciprocalMoveEntity;
+            } else {
+              if (fromSlot.entity == e.entity) {
+                if (reciprocalMoveEntity) {
+                  fromSlot.entity = reciprocalMoveEntity;
+                } else {
+                  party.members[e.slot] = reciprocalMoveMember;
+                }
+              } else if (fromSlot.weapon == e.entity){
+                fromSlot.weapon = reciprocalMoveEntity as WeaponEntity;
+              } else if (fromSlot.secondary == e.entity) {
+                fromSlot.secondary = reciprocalMoveEntity;
+              }
+  
+              if (reciprocalMoveMember) {
+                toSlotPromise = moveNaturallyToSlotPosition(party, reciprocalMoveMember, e.slot);
+              }
+              if (moveMember) {
+                fromSlotPromise = moveNaturallyToSlotPosition(e.to.party, moveMember, e.to.slot);
+              }
             }
 
-            let toSlotPromise: Promise<any>;
-            if (reciprocalMoveMember) {
-              toSlotPromise = moveNaturallyToSlotPosition(party, reciprocalMoveMember, e.slot);
-            }
-            let fromSlotPromise: Promise<any>;
-            if (moveMember) {
-              fromSlotPromise = moveNaturallyToSlotPosition(e.to.party, moveMember, e.to.slot);
-            }
             await Promise.all([toSlotPromise, fromSlotPromise]);  
           }
         }
@@ -839,7 +866,15 @@ onload = async () => {
             }
             // add in stabbing attack if we have the bayonet and are in the front row
             if (!row && attacker.secondary && attacker.secondary.entityType == ENTITY_TYPE_BAYONET) {
-              attacks[5] = (attacks[5]||[]).concat(ATTACK_CUTTING);
+              attacks[4] = (attacks[4]||[]).concat(ATTACK_CUTTING);
+            }
+            if (FLAG_MARINE_DIMORPHISM && attacker.entity.entityType == ENTITY_TYPE_MARINE
+                  && (!row && (attacker.entity as ActorEntity).variation == MARINE_VARIATION_YELLOW
+                      || row && (attacker.entity as ActorEntity).variation == MARINE_VARIATION_RED
+                  )
+                  && !attacks[row * 2].some(attack => attack == ATTACK_MOVE_MEDIAL)
+            ) {
+              attacks[row * 2] = (attacks[row*2] || []).concat(ATTACK_MOVE_MEDIAL);
             }
             
             // add attacks
@@ -1013,9 +1048,32 @@ onload = async () => {
                     )
                   );
                   party.members[toSlot] = 0;
+                  // add in any items they were carrying
+                  const tile  = game.level[party.tile[1]][party.tile[0]] as Tile;
+                  let items: Party = tile.parties.find(p => p.partyType == PARTY_TYPE_ITEM);
+                  if (!items) {
+                    items = {
+                      animationQueue: createAnimationEventQueue(game),
+                      anims: [],
+                      members: [],
+                      partyType: PARTY_TYPE_ITEM,
+                      tile: party.tile,
+                      orientated: 0,
+                    };
+                    tile.parties.push(items);  
+                  }
+                  items.members.push(...[partyMember.weapon, partyMember.secondary]
+                      .filter(v => !!v)
+                      .map<PartyMember>((item: Entity) => ({
+                        ...BASE_PARTY_MEMBER,
+                        animationQueue: createAnimationEventQueue(game),
+                        anims: [],
+                        entity: item,
+                        ['pos']: partyMember['pos'],
+                      }))
+                  );
                   // is the entire party dead?
                   if (party.members.every(m => !m)) {
-                    const tile  = game.level[party.tile[1]][party.tile[0]] as Tile;
                     tile.parties = tile.parties.filter(p => p != party);
                   }
                 } else if (party.partyType == PARTY_TYPE_HOSTILE){
@@ -1128,11 +1186,11 @@ onload = async () => {
     anims: [],
     animationQueue: createAnimationEventQueue(game),
   };
-  playerParty.members[0] = {
+  playerParty.members[2] = {
     ...BASE_PARTY_MEMBER,
     ['zr']: CONST_PI_ON_2_1DP,
     animationQueue: createAnimationEventQueue(game),
-    entity: createMarine(entityRenderables[ENTITY_TYPE_MARINE], 0),
+    entity: createMarine(entityRenderables[ENTITY_TYPE_MARINE], 1),
     weapon: createPistol(entityRenderables[ENTITY_TYPE_PISTOL], ATTACK_PIERCING),
     secondary: {
       entityType: ENTITY_TYPE_TORCH,
@@ -1203,7 +1261,9 @@ onload = async () => {
       // flip y coordinates so screen coordinates = world coordinates
       const sy = 1 - p.clientY*2/Z.clientHeight;
       iterateLevelMembers(game.level, (partyMember, party, slot) => {
-        if (party.partyType == PARTY_TYPE_ITEM || party.partyType == PARTY_TYPE_HOSTILE || party.partyType == PARTY_TYPE_DOOR) {
+        if ((party.partyType == PARTY_TYPE_ITEM || party.partyType == PARTY_TYPE_HOSTILE || party.partyType == PARTY_TYPE_DOOR)
+            && (isLookingAt(playerParty, party) || playerParty.tile[0] == party.tile[0] && playerParty.tile[1] == party.tile[1])
+        ) {
           const { 
             staticTransform,
             bounds,
@@ -1218,7 +1278,8 @@ onload = async () => {
           const averageExtent = midpoints.reduce((a, v) => a + v/3, 0);
           const v = vector4TransformMatrix4(projectionMatrix, position[0], position[1], position[2]+midz/2);
           const [px, py, pz, pw] = v;
-          if (Mathabs(px) < 1 && Mathabs(py) < 1 && pz/pw > 0 && pw < minDistance) {
+          // 1.05 because dropped items center points sit beneath the screen
+          if (Mathabs(px) < 1 && Mathabs(py) < 1.05 && pz/pw > 0 && pw < minDistance) {
             const r = averageExtent/pw;
             if (vectorNLength(vectorNSubtract([sx, sy], v)) < r) {
               minParty = party;
@@ -1268,7 +1329,7 @@ onload = async () => {
       let fromLocation: EntityLocation;
       let entity: Entity;
       let dragImage: HTMLElement;
-      if (locationAndEntity && locationAndEntity[1]) {
+      if (locationAndEntity && locationAndEntity[1] && locationAndEntity[0].party.partyType != PARTY_TYPE_DOOR) {
         [fromLocation, entity] = locationAndEntity;
         if (locationAndEntity[0].party.partyType != PARTY_TYPE_HOSTILE) {
           dragImage = entity.renderables.thumbnail;
@@ -1331,7 +1392,7 @@ onload = async () => {
       const [toLocation] = location;
       if (l > 9) {
         if (entity && dragImage) {
-          if (fromLocation.party != toLocation.party || fromLocation.slot != toLocation.slot) {
+          if (fromLocation.party != toLocation.party || fromLocation.slot != toLocation.slot || entity.entityType == ENTITY_TYPE_FOOD) {
             addEvents(gameEventQueue, {
               ...fromLocation,
               eventType: GAME_EVENT_TYPE_CHANGE_LOADOUT,
@@ -1607,31 +1668,29 @@ onload = async () => {
         }
         partyMember.anims = partyMember.anims.filter(a => !a(now));
         let light: Light | undefined;
-        if (partyMember.entity.entityType == ENTITY_TYPE_MARINE) {
-          // torch
-          if (partyMember.secondary && partyMember.secondary?.entityType == ENTITY_TYPE_TORCH) {
-            light = {
-              ['pos']: partyMember['pos'],
-              light: [.75, .75, .7, 2],
-              lightTransform: matrix4Multiply(
-                  matrix4Translate(...partyMember['pos']),
-                  matrix4Rotate(party['czr'] + CONST_PI_1DP, 0, 0, 1),
-                  matrix4Translate(.2, 0, .5),
-                  matrix4Rotate(-CONST_PI_ON_9_1DP, 0, 1, 0),
-              )
-            };
-          } else {
-            light = {
-              ['pos']: partyMember['pos'],
-              light: [.5, .5, .5, 1],
-              lightTransform: matrix4Multiply(
-                  matrix4Translate(...partyMember['pos']),
-                  matrix4Rotate((party['czr'] || partyMember['zr']) + CONST_PI_1DP, 0, 0, 1),
-                  matrix4Translate(-.2, 0, .3),
-                  matrix4Rotate(-CONST_PI_ON_4_1DP, 0, 1, 0),
-              )
-            };
-          }
+        // torch
+        if (partyMember.secondary && partyMember.secondary?.entityType == ENTITY_TYPE_TORCH) {
+          light = {
+            ['pos']: partyMember['pos'],
+            light: [.75, .75, .7, 2],
+            lightTransform: matrix4Multiply(
+                matrix4Translate(...partyMember['pos']),
+                matrix4Rotate(party['czr'] + CONST_PI_1DP, 0, 0, 1),
+                matrix4Translate(.2, 0, .5),
+                matrix4Rotate(-CONST_PI_ON_9_1DP, 0, 1, 0),
+            )
+          };
+        } else if (party.partyType == PARTY_TYPE_PLAYER || party.partyType == PARTY_TYPE_HOSTILE || partyMember.entity.entityType == ENTITY_TYPE_MARINE) {
+          light = {
+            ['pos']: partyMember['pos'],
+            light: party.partyType == PARTY_TYPE_HOSTILE ? [.5, 0, 0, 1] : [.5, .5, .5, 1],
+            lightTransform: matrix4Multiply(
+                matrix4Translate(...partyMember['pos']),
+                matrix4Rotate((party['czr'] || partyMember['zr']) + CONST_PI_1DP, 0, 0, 1),
+                matrix4Translate(-.2, 0, .3),
+                matrix4Rotate(-CONST_PI_ON_4_1DP, 0, 1, 0),
+            )
+          };
         }
         bestLight = !light || bestLight && bestLight.light[1] > light.light[1] ? bestLight : light;
         if (dragContext

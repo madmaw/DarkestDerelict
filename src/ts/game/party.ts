@@ -65,6 +65,7 @@ type PartyMember = {
 const BASE_PARTY_MEMBER: Pick<PartyMember, 'yr' | 'zr' | 'zs' | 'anims'> = {
   anims: [],
   ['zs']: 1,
+  ['zr']: 0,
 };
 
 const moveNaturallyToSlotPosition = (party: Party, member: PartyMember, toSlot: number) => {

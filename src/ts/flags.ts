@@ -22,3 +22,5 @@ const FLAG_ATTACK_ANIMATION = true || !FLAG_PRODUCTION_MINIMAL; // rear up and a
 const FLAG_DEATH_ANIMATION = true || !FLAG_PRODUCTION_MINIMAL; // die
 const FLAG_MOBILE_SUPPORT = true; // touch controls
 const FLAG_ROTATE_COLORS = false; // doesn't work on iOS
+const FLAG_MARINE_DIMORPHISM = false || !FLAG_PRODUCTION_MINIMAL;
+const FLAG_DBEUG_SHORTENED_METHODS = true;

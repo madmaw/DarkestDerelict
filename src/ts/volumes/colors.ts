@@ -6,7 +6,6 @@ const COLOR_YELLOW_SHUNY: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'ZZJ=' : [
 const COLOR_ORANGE_SHINY: Vector4 | string = FLAG_USE_PACKED_COLORS ? '\\QJ=' : [138, 92, 64, 12];
 const COLOR_PURPLE_SHINY: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'ZJZ=' : [128, 64, 128, 12];
 const COLOR_SILVER_SHINY: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'ZZZ=' : [128, 128, 128, 12];
-const COLOR_GUNCARPET: Vector4 | string = FLAG_USE_PACKED_COLORS ? '' : [118, 118, 128, 99];
 const COLOR_DULLMETAL: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'WWZ>' : [118, 118, 128, 18];
 const COLOR_GUNMETAL: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'WWZ<' : [118, 118, 128, 9];
 const COLOR_GREEN: Vector4 | string = FLAG_USE_PACKED_COLORS ? '' : [92, 128, 92, 25];
@@ -15,6 +14,7 @@ const COLOR_RED_CARPET: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'QFGR' : [92
 const COLOR_RED_SHINY: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'QFF=' : [92, 48, 48, 12];
 const COLOR_LEATHER: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'J@:l' : [64, 24, 0, 200];
 const COLOR_BLUE_CARPET: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'EEJR' : [44, 44, 66, 99];
+const COLOR_BLUE_SHINY: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'EEJR' : [44, 44, 128, 12];
 const COLOR_CYAN_GLOWING: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'Byyy' : [32, 255, 255, 255];
 const COLOR_GREEN_GLOWING: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'ByBy' : [32, 255, 32, 255];
 const COLOR_CHITIN: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'BBB<' : [32, 32, 32, 9];

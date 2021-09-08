@@ -97,7 +97,7 @@ const VOLUMETRIC_COMMANDS_DOOR: VolumetricDrawCommand[] = [
       {
         type: 'numeric',
         range: 'positive-integer',
-        value: 2,
+        value: 1,
       },
     ],
     [
@@ -118,7 +118,7 @@ const VOLUMETRIC_COMMANDS_DOOR: VolumetricDrawCommand[] = [
         value: 2,
       },
     ],  
-  [TYPE_CONTEXT_END_SUBTRACTION],
+  [TYPE_CONTEXT_END_REMATERIAL],
 ];
 
 const VOLUMETRIC_TEMPLATE_DOOR = 'B>VV.z^B>F>-yPxX.#<B<<<-';

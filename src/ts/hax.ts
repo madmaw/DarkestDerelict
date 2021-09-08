@@ -1,17 +1,21 @@
 const shortenMethods = <F, T extends F>(o: F): T => {
-  //let dts = '';
+  let dts = '';
   for(const k in o) {
     const shortened = k.replace(/(^..)[a-z]*([A-Z][a-z]?)?[a-z]*([A-Z][a-z]?)?[a-z]*([A-Z][a-z]?)?[a-z]*(.+)$/, '$1$2$3$4$5');
-    //if (shortened != k) {
-      // if (o[shortened]) {
-      //   console.log(`//${shortened} already exists!`);
-      // } else {
-      //   dts += `${shortened}: PropType<${o.constructor?.name || 'object'}, '${k}'>;\n`;
-      // }
-      o[shortened] = o[k];
-    //}
+    if (FLAG_DBEUG_SHORTENED_METHODS) {
+      if (shortened != k) {
+        if (o[shortened]) {
+          console.log(`//${shortened} already exists!`);
+        } else {
+          dts += `${shortened}: PropType<${o.constructor?.name || 'object'}, '${k}'>;\n`;
+        }
+      }  
+    }
+    o[shortened] = o[k];
   }
-  //console.log(dts);
+  if (FLAG_DBEUG_SHORTENED_METHODS) {  
+    console.log(dts);
+  }
   return o as any;
 };
 

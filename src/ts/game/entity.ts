@@ -7,58 +7,69 @@ type EntityTypeWallPipes = 1;
 const ENTITY_TYPE_WALL_PIPES: EntityTypeWallPipes = 1;
 type EntityTypeFloor = 2;
 const ENTITY_TYPE_FLOOR: EntityTypeFloor = 2;
-type EntityTypeSymbol = 3;
-const ENTITY_TYPE_SYMBOL: EntityTypeSymbol = 3;
-type EntityTypeResource = 4;
-const ENTITY_TYPE_RESOURCE: EntityTypeResource = 4;
-type EntityTypeMarine = 5;
-const ENTITY_TYPE_MARINE: EntityTypeMarine = 5;
-type EntityTypePistol = 6;
-const ENTITY_TYPE_PISTOL: EntityTypePistol = 6;
+type EntityTypeDoor = 3;
+const ENTITY_TYPE_DOOR: EntityTypeDoor = 3;
+type EntityTypeSymbol = 4;
+const ENTITY_TYPE_SYMBOL: EntityTypeSymbol = 4;
+type EntityTypeResource = 5;
+const ENTITY_TYPE_RESOURCE: EntityTypeResource = 5;
+type EntityTypeMarine = 6;
+const ENTITY_TYPE_MARINE: EntityTypeMarine = 6;
 type EntityTypeSpider= 7;
 const ENTITY_TYPE_SPIDER: EntityTypeSpider = 7;
-type EntityTypeTorch = 8;
-const ENTITY_TYPE_TORCH: EntityTypeTorch = 8;
-type EntityTypeBattery = 9;
-const ENTITY_TYPE_BATTERY: EntityTypeBattery = 9;
-type EntityTypeBayonet = 10;
-const ENTITY_TYPE_BAYONET: EntityTypeBayonet = 10;
-type EntityTypeDoor = 11;
-const ENTITY_TYPE_DOOR: EntityTypeDoor = 11;
-type EntityTypeKey = 12;
-const ENTITY_TYPE_KEY: EntityTypeKey = 12;
+type EntityTypePistol = 8;
+const ENTITY_TYPE_PISTOL: EntityTypePistol = 8;
+type EntityTypeShotgun = 9;
+const ENTITY_TYPE_SHOTGUN: EntityTypeShotgun = 9;
+type EntityTypeFood = 10;
+const ENTITY_TYPE_FOOD: EntityTypeFood = 10;
+type EntityTypeKey = 11;
+const ENTITY_TYPE_KEY: EntityTypeKey = 11;
+type EntityTypeBattery = 12;
+const ENTITY_TYPE_BATTERY: EntityTypeBattery = 12;
+type EntityTypeBayonet = 13;
+const ENTITY_TYPE_BAYONET: EntityTypeBayonet = 13;
+type EntityTypeTorch = 14;
+const ENTITY_TYPE_TORCH: EntityTypeTorch = 14;
 
 type EntityType = EntityTypeCeiling
     | EntityTypeWallInset
     | EntityTypeWallPipes
     | EntityTypeFloor
+    | EntityTypeDoor
     | EntityTypeSymbol
     | EntityTypeResource
     | EntityTypeMarine
-    | EntityTypePistol
     | EntityTypeSpider
-    | EntityTypeTorch
+    | EntityTypePistol
+    | EntityTypeShotgun
+    | EntityTypeFood
+    | EntityTypeKey
     | EntityTypeBattery
     | EntityTypeBayonet
-    | EntityTypeDoor
-    | EntityTypeKey;
-
+    | EntityTypeTorch
+    ;
 
 const ENTITY_NAMES = [
   'wall inset',
   'wall pipes',
   'floor',
+  'door',
   'symbol',
   'resource',
   'marine',
-  'pistol',
   'spider',  
-  'torch',
+  'pistol',
+  'shotgun',
+  'food',
+  'key',
   'battery',
   'bayonet',
-  'door',
-  'key',
+  'torch',
 ];
+
+const MARINE_VARIATION_RED = 2;
+const MARINE_VARIATION_YELLOW = 3;
 
 type EntityPurposeUseless = 0;
 const ENTITY_PURPOSE_USELESS: EntityPurposeUseless = 0;
@@ -101,6 +112,7 @@ type ActorEntity = {
   purpose: EntityPurposeActor,
   side: number,
   res: ActorEntityResourceValues[],
+  variation?: number,
 } & EntityBase & HasAttack;
 
 type ActorEntityResourceTypeHealth = 0;
