@@ -55,7 +55,7 @@ type Light = {
 };
 
 type Game = {
-  time: number,
+  timeMillis: number,
   level?: Level,
   pendingMember?: PartyMember | Falseish,
   previousLights?: Light[];

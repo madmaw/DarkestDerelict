@@ -34,15 +34,6 @@ const VOLUMETRIC_PARAMS_SYMBOL: [(Vector4 | string)[], ((NumericValue<ValueRange
           value: '◉'
         }] : '◉'
   ],
-  // burning
-  [
-    [COLOR_RED_GLOWING], 
-    FLAG_USE_VOLUME_COMMANDS 
-        ? [{
-          type: 'char',
-          value: '🔥'
-        }]: '🔥'
-  ],
   // poison 
   [
     [COLOR_GREEN_GLOWING], 
@@ -52,41 +43,14 @@ const VOLUMETRIC_PARAMS_SYMBOL: [(Vector4 | string)[], ((NumericValue<ValueRange
           value: '☠'
         }]: '☠'
   ],
-  // slashing attack
+  // electric
   [
-    [COLOR_RED_GLOWING], 
+    [COLOR_YELLOW_GLOWING], 
     FLAG_USE_VOLUME_COMMANDS 
         ? [{
           type: 'char',
-          value: '✂'
-        }] : '✂'
-  ],
-  // bludgeoning attack
-  [
-    [COLOR_RED_GLOWING], 
-    FLAG_USE_VOLUME_COMMANDS 
-        ? [{
-          type: 'char',
-          value: '💥'
-        }] : '💥'
-  ],  
-  // heal 
-  [
-    [COLOR_CYAN_GLOWING], 
-    FLAG_USE_VOLUME_COMMANDS 
-        ? [{
-          type: 'char',
-          value: '❤️'
-        }]: '❤️'
-  ],
-  // heal temporary 
-  [
-    [COLOR_CYAN_GLOWING], 
-    FLAG_USE_VOLUME_COMMANDS 
-        ? [{
-          type: 'char',
-          value: '🛡️'
-        }]: '🛡️'
+          value: 'ϟ'
+        }]: 'ϟ'
   ],
   // move lateral 
   [
@@ -106,6 +70,15 @@ const VOLUMETRIC_PARAMS_SYMBOL: [(Vector4 | string)[], ((NumericValue<ValueRange
           value: '↕'
         }]: '↕'
   ],
+  // power gain
+  [
+    [COLOR_YELLOW_GLOWING],
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'char',
+          value: '▲'
+        }]: '▲'
+  ],
   // power drain
   [
     [COLOR_YELLOW_GLOWING], 
@@ -114,33 +87,6 @@ const VOLUMETRIC_PARAMS_SYMBOL: [(Vector4 | string)[], ((NumericValue<ValueRange
           type: 'char',
           value: '▼'
         }]: '▼'
-  ],
-  // power gain
-  [
-    [COLOR_YELLOW_GLOWING], 
-    FLAG_USE_VOLUME_COMMANDS 
-        ? [{
-          type: 'char',
-          value: '▲'
-        }]: '▲'
-  ],
-  // power gain temporary
-  [
-    [COLOR_YELLOW_GLOWING], 
-    FLAG_USE_VOLUME_COMMANDS 
-        ? [{
-          type: 'char',
-          value: '△'
-        }]: '△'
-  ],
-  // power drain temporary
-  [
-    [COLOR_YELLOW_GLOWING], 
-    FLAG_USE_VOLUME_COMMANDS 
-        ? [{
-          type: 'char',
-          value: '▽'
-        }]: '▽'
   ],
   // web
   [

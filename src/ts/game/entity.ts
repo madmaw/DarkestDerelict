@@ -124,7 +124,6 @@ type ActorEntityResourceType = ActorEntityResourceTypeHealth | ActorEntityResour
 type ActorEntityResourceValues = {
   quantity: number,
   max?: number,
-  temporary?: number,  
 }
 
 type WeaponEntity = {
@@ -154,45 +153,27 @@ type HasAttack = {
 
 type AttackPiercing = 0;
 const ATTACK_PIERCING: AttackPiercing = 0;
-type AttackBurning = 1;
-const ATTACK_BURNING: AttackBurning = 1;
-type AttackPoison = 2;
-const ATTACK_POISON: AttackPoison = 2;
-type AttackCutting = 3;
-const ATTACK_CUTTING: AttackCutting = 3;
-type AttackBludgeoning = 4;
-const ATTACK_BLUDGEONING: AttackBludgeoning = 4;
-type AttackHeal = 5;
-const ATTACK_HEAL: AttackHeal = 5;
-type AttackHealTemporary = 6;
-const ATTACK_HEAL_TEMPORARY: AttackHealTemporary = 6;
-type AttackMoveLateral = 7;  // horizontal
-const ATTACK_MOVE_LATERAL: AttackMoveLateral = 7;
-type AttackMoveMedial = 8; // vertical
-const ATTACK_MOVE_MEDIAL: AttackMoveMedial = 8;
-type AttackPowerDrain = 9;
-const ATTACK_POWER_DRAIN: AttackPowerDrain = 9;
-type AttackPowerGain = 10;
-const ATTACK_POWER_GAIN: AttackPowerGain = 10;
-type AttackPowerGainTemporary = 11;
-const ATTACK_POWER_GAIN_TEMPORARY: AttackPowerGainTemporary = 11;
-type AttackPowerDrainTemporary = 12;
-const ATTACK_POWER_DRAIN_TEMPORARY: AttackPowerDrainTemporary = 12;
-type AttackWebbing = 13;
-const ATTACK_WEBBING: AttackWebbing = 13;
+type AttackPoison = 1;
+const ATTACK_POISON: AttackPoison = 1;
+type AttackElectric = 2;
+const ATTACK_ELECTRIC: AttackElectric = 2;
+type AttackMoveLateral = 3;  // horizontal
+const ATTACK_MOVE_LATERAL: AttackMoveLateral = 3;
+type AttackMoveMedial = 4; // vertical
+const ATTACK_MOVE_MEDIAL: AttackMoveMedial = 4;
+type AttackPowerGain = 5;
+const ATTACK_POWER_GAIN: AttackPowerGain = 5;
+type AttackPowerDrain = 6;
+const ATTACK_POWER_DRAIN: AttackPowerDrain = 6;
+type AttackWebbing = 7;
+const ATTACK_WEBBING: AttackWebbing = 7;
 
 type Attack = AttackPiercing
-    | AttackBurning
     | AttackPoison
-    | AttackCutting
-    | AttackBludgeoning
-    | AttackHeal
-    | AttackHealTemporary
+    | AttackElectric
     | AttackMoveLateral
     | AttackMoveMedial
     | AttackPowerDrain
     | AttackPowerGain
-    | AttackPowerGainTemporary
-    | AttackPowerDrainTemporary
     | AttackWebbing;
 

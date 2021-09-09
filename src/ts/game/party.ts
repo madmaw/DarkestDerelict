@@ -144,45 +144,34 @@ const applyAttacks = (party: Party, slot: number): [ActorEntityResourceValues[],
   if (partyMember) {
     const entity = partyMember.entity as ActorEntity;
     const attacks = partyMember.attackAnimations;
-    const [resources, newSlot] = attacks.reduce(
+    const [resources, newSlot] = attacks.sort().reduce(
         ([resources, slot], { attackType: attack }) => {
           switch (attack) {
-            case ATTACK_BLUDGEONING:
-            case ATTACK_BURNING:
-            case ATTACK_CUTTING:
+            case ATTACK_ELECTRIC:
+            case ATTACK_POWER_DRAIN:
+              // TODO webbing should stop from acting at all
+            case ATTACK_WEBBING:
+              resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity--;
+              if (resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity >= 0 || attack != ATTACK_ELECTRIC) {
+                break;  
+              }
+              // electric attacks fall through to doing damage on enemies that have no energy
             case ATTACK_PIERCING:
               // TODO poison should damage over time
             case ATTACK_POISON:
               resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity--;
               break;
-            case ATTACK_HEAL:
-              resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity++;
-              break;
-            case ATTACK_HEAL_TEMPORARY:
-              resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].temporary = (resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].temporary|| 0) + 1;
-              break;
+              // if (attack != ATTACK_ELECTRIC) {
+              //   break;  
+              // }
             case ATTACK_MOVE_LATERAL:
               slot = slot + 1 - (slot%2)*2;
               break;
             case ATTACK_MOVE_MEDIAL:
               slot = slot + (1 - (slot/2 | 0)*2)*2;
               break;
-            case ATTACK_POWER_DRAIN:
-              const temporary = resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary|| 0;
-              if (temporary) {
-                resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary--;
-              } else {
-                resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity--;
-              }
-              break;
             case ATTACK_POWER_GAIN:
               resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity++;
-              break;
-            case ATTACK_POWER_GAIN_TEMPORARY:
-              resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary = (resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary|| 0) + 1;
-              break;
-            case ATTACK_POWER_DRAIN_TEMPORARY:
-              resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary = (resources[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary|| 0) - 1;
               break;
           }
           return [resources, slot];
@@ -192,7 +181,6 @@ const applyAttacks = (party: Party, slot: number): [ActorEntityResourceValues[],
     return [
       resources.map(r => {
         r.quantity = Mathmin(Mathmax(0, r.quantity), r.max || r.quantity);
-        r.temporary = Mathmin(Mathmax(r.temporary || 0), r.max || r.quantity);
         return r;
       }),
       newSlot,

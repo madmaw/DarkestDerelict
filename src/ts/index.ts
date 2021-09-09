@@ -241,7 +241,7 @@ onload = async () => {
   const canvas = Z;
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
-  const gl = shortenMethods(canvas.getContext('webgl'));
+  const gl = shortenMethods(canvas.getContext('webgl'), 'gl');
 
   const CONST_GL_RENDERBUFFER = FLAG_USE_GL_CONSTANTS?gl.RENDERBUFFER:0x8D41;
   const CONST_GL_FRAMEBUFFER = FLAG_USE_GL_CONSTANTS?gl.FRAMEBUFFER:0x8D40;
@@ -314,7 +314,6 @@ onload = async () => {
       [[COLOR_GREEN_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
       [[COLOR_RED_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
       [[COLOR_YELLOW_SHUNY, COLOR_BLACK, COLOR_WHITE_GLOWING]],
-      [[COLOR_PURPLE_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
       [[COLOR_BLUE_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
     ], 8], 
     // spider
@@ -438,8 +437,8 @@ onload = async () => {
         thumbnailCanvas.width = w;
         thumbnailCanvas.height = h;
 
-        const ctx = thumbnailCanvas.getContext('2d');
-        const imageData = ctx.createImageData(w, h);
+        const stx = shortenMethods(thumbnailCanvas.getContext('2d'), 'stx');
+        const imageData = stx.createImageData(w, h);
         for (let x=0; x<w; x++) {
           for (let y=0; y<h; y++) {
             const sx = w - x - 1;
@@ -453,7 +452,7 @@ onload = async () => {
             imageData.data.set(c.map((c, i) => (i+1)%4 ? c * n : c ? 255 : 0), y*w*4+x*4);
           }
         }
-        ctx.putImageData(imageData, 0, 0);
+        stx.putImageData(imageData, 0, 0);
 
         // unfortunately, using a canvas doesn't seem to work for drag and drop as it has zero-width when not attached to the document
         let thumbnail: HTMLCanvasElement | HTMLImageElement;
@@ -673,7 +672,7 @@ onload = async () => {
             if (turnPassed = 1) {
               // move the camera too
               const toCameraPosition = [...to, 0] as Vector3;
-              const animationFactory = createTweenAnimationFactory(party, party, 'cpos', toCameraPosition, easeInQuad, 300);
+              const animationFactory = createTweenAnimationFactory(party, party, 'cpos', toCameraPosition, easeInQuad, 299);
               cameraMovePromise = addEvents(party.animationQueue, animationFactory); 
             }
             // animate and update resources
@@ -681,12 +680,10 @@ onload = async () => {
               if (partyMember) {
                 if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
                   // retain some power if we have the battery
-                  partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary = Math.min(
-                      partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity + (partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary || 0),
+                  partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity = Math.min(
+                      partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity,
                       partyMember.secondary && partyMember.secondary.entityType == ENTITY_TYPE_BATTERY ? 1: 0,
                   );
-                  partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity = 0;
-                  partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].temporary = 0;
                 }                  
                 return await moveNaturallyToSlotPosition(party, partyMember, i);
               }
@@ -705,7 +702,7 @@ onload = async () => {
           party.orientated = toOrientation as Orientation;
           let cameraRotationPromise: Promise<any>;        
           if(turnPassed = 1) {
-            const cameraAnimationFactory = createTweenAnimationFactory(party, party, 'czr', party['czr'] + deltaOrientation * CONST_PI_ON_2_2DP, easeInQuad, 300);
+            const cameraAnimationFactory = createTweenAnimationFactory(party, party, 'czr', party['czr'] + deltaOrientation * CONST_PI_ON_2_2DP, easeInQuad, 299);
             cameraRotationPromise = addEvents(party.animationQueue, cameraAnimationFactory);
           }
 
@@ -753,7 +750,7 @@ onload = async () => {
                   const [x, y, z] = toSlot['pos'];
                   // destroy the key
                   turnPassed = itemDestroyed = 1;
-                  fromSlotPromise = addEvents(toSlot.animationQueue, createTweenAnimationFactory(toSlot, toSlot, 'pos', [x, y, z+1], easeInQuad, 400)).then(() => {
+                  fromSlotPromise = addEvents(toSlot.animationQueue, createTweenAnimationFactory(toSlot, toSlot, 'pos', [x, y, z+1], easeInQuad, 399)).then(() => {
                     // remove the door entirely
                     e.to.party.members[e.to.slot] = 0;
                     e.to.party.partyType = PARTY_TYPE_FLOOR;
@@ -823,7 +820,7 @@ onload = async () => {
             const allAttacks = attacker.weapon && attacker.weapon.attacks || attackerEntity.attacks;
             
             // find best attack
-            const power = attackerEntity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity + (attackerEntity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary || 0);
+            const power = attackerEntity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity;
             const row = (slot / 2) | 0;
             const column = slot % 2;
             const allSlotIds: [[number, number, number, number], [number, number, number, number]] = [
@@ -852,21 +849,13 @@ onload = async () => {
                     // remove power equivalent to attack index
                     ? new Array(attackIndex).fill(ATTACK_POWER_DRAIN)
                     // everyone else should gain 1 power and lose all temporary power (unless they have the battery)
-                    : new Array(
-                            Mathmax(
-                                ((partyMember.entity as ActorEntity).res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].temporary||0)
-                                    - (partyMember.secondary && partyMember.secondary.entityType == ENTITY_TYPE_BATTERY ? 1 : 0),
-                                0,
-                            ),
-                        )
-                        .fill(ATTACK_POWER_DRAIN_TEMPORARY)
-                        .concat(ATTACK_POWER_GAIN)
+                    : [ATTACK_POWER_GAIN]
                 );
               }
             }
             // add in stabbing attack if we have the bayonet and are in the front row
             if (!row && attacker.secondary && attacker.secondary.entityType == ENTITY_TYPE_BAYONET) {
-              attacks[4] = (attacks[4]||[]).concat(ATTACK_CUTTING);
+              attacks[4] = (attacks[4]||[]).concat(ATTACK_PIERCING);
             }
             if (FLAG_MARINE_DIMORPHISM && attacker.entity.entityType == ENTITY_TYPE_MARINE
                   && (!row && (attacker.entity as ActorEntity).variation == MARINE_VARIATION_YELLOW
@@ -902,7 +891,7 @@ onload = async () => {
               const targetPartySlot = targetSlotIds[filledTargetPartyIndex];
               const targetPartyMember = targetParty.members[targetPartySlot] as PartyMember;
               if (!targetPartyMember.activeAttackStartTime) {
-                targetPartyMember.activeAttackStartTime = game.time;
+                targetPartyMember.activeAttackStartTime = game.timeMillis;
                 targetPartyMember.attackAnimations = [];
               }
               const attackAnimations = (targetAttacks || []).map((attack) => {
@@ -1172,7 +1161,7 @@ onload = async () => {
   };
 
   const game: Game = {
-    time: 0,
+    timeMillis: 0,
   };
   let depth = 0;
   const DEFAULT_PARTY_POSITION: Vector2 = [LEVEL_DIMENSION/2 | 0, 0];
@@ -1186,7 +1175,7 @@ onload = async () => {
     anims: [],
     animationQueue: createAnimationEventQueue(game),
   };
-  playerParty.members[2] = {
+  playerParty.members[0] = {
     ...BASE_PARTY_MEMBER,
     ['zr']: CONST_PI_ON_2_1DP,
     animationQueue: createAnimationEventQueue(game),
@@ -1324,7 +1313,7 @@ onload = async () => {
   }
 
   const onStartDrag = (target: EventTarget, p: { clientX: number, clientY: number }) => {
-    if (!dragContext && (!lastDragEnded || lastDragEnded < game.time - 99)) {
+    if (!dragContext && (!lastDragEnded || lastDragEnded < game.timeMillis - 99)) {
       const locationAndEntity = getLocationAndMaybeEntity(target, p);
       let fromLocation: EntityLocation;
       let entity: Entity;
@@ -1336,7 +1325,7 @@ onload = async () => {
         }
       }
       dragContext = {
-        startTime: game.time,
+        startTime: game.timeMillis,
         startPosition: p,
         fromLocation,
         entity,
@@ -1400,7 +1389,7 @@ onload = async () => {
               to: toLocation,
             });  
           }    
-        } else if (game.time - startTime < CONST_DRAG_DURATION){
+        } else if (game.timeMillis - startTime < CONST_DRAG_DURATION){
           if (l > Z.clientWidth/6) {
             // reversed coordinates
             const a = Mathatan2(-dy, dx) + CONST_PI_1DP * 2;
@@ -1424,7 +1413,7 @@ onload = async () => {
             }
           }
         }
-      } else if (game.time - startTime < CONST_CLICK_DURATION && fromLocation) {
+      } else if (game.timeMillis - startTime < CONST_CLICK_DURATION && fromLocation) {
         const attacker = fromLocation.party.members[fromLocation.slot]
         if (game.pendingMember == attacker && fromLocation.party == playerParty) {
           addEvents(gameEventQueue, {
@@ -1457,7 +1446,7 @@ onload = async () => {
       if (dragContext.startPosition != dragContext.lastPosition && dragContext.dragImage) {
         O.removeChild(dragContext.dragImage);
       }
-      lastDragEnded = game.time;  
+      lastDragEnded = game.timeMillis;  
       dragContext = 0;
     }
   }
@@ -1467,21 +1456,21 @@ onload = async () => {
   }
   onmouseleave = cleanUpDrag;
 
-  const renderEntityToContext = (entity: Entity, ctx: CanvasRenderingContext2D, width: number, height: number, party?: Party, slot?: number) => {
+  const renderEntityToContext = (entity: Entity, stx: CanvasRenderingContext2D, width: number, height: number, party?: Party, slot?: number) => {
     // render status
     if (entity.purpose == ENTITY_PURPOSE_ACTOR && party) {
       const member = party.members[slot] as PartyMember;
       const symbolDimension = width/5.7;
       const startingY = symbolDimension/6;
       let y = startingY + symbolDimension/6;
-      ctx.save();
+      stx.save();
       if (FLAG_ROTATE_COLORS && member == game.pendingMember) {
-        ctx.filter = `hue-rotate(${Mathmin((game.time - member.activeAttackStartTime) | 0, 180)}deg)`;
+        stx.filter = `hue-rotate(${Mathmin((game.timeMillis - member.activeAttackStartTime) | 0, 180)}deg)`;
       }
-      ctx.lineWidth = symbolDimension/15;
+      stx.lineWidth = symbolDimension/15;
       const symbolScale = symbolDimension / VOLUME_DIMENSION;
 
-      const resources = member.activeAttackStartTime && ((game.time - member.activeAttackStartTime)/CONST_EFFECT_INTERVAL | 0)%2
+      const resources = member.activeAttackStartTime && ((game.timeMillis - member.activeAttackStartTime)/CONST_EFFECT_INTERVAL | 0)%2
           ? applyAttacks(party, slot)[0]
           : entity.res;
 
@@ -1489,23 +1478,18 @@ onload = async () => {
         let {
           quantity,
           max: maximum = quantity,
-          temporary = 0,
         } = v;
-        const symbols = entityRenderables[ENTITY_TYPE_RESOURCE].slice(i * 4);
+        const symbols = entityRenderables[ENTITY_TYPE_RESOURCE].slice(i * 2);
         let x = symbolDimension/2;
         
         let missing = maximum - quantity;
-        const temporaryMissing = Mathmin(missing, temporary);
-        missing -= temporaryMissing;
-        temporary -= temporaryMissing;
-        quantity -= temporary;
 
-        [quantity, temporary, missing, temporaryMissing].forEach((value, i) => {
+        [quantity, missing].forEach((value, i) => {
           new Array(Mathmax(value, 0)).fill(symbols[i]).forEach((symbol: EntityRenderables) => {
             const thumbnail = symbol.thumbnail;
             const w = thumbnail.width * symbolScale;
             const h = thumbnail.height * symbolScale;
-            ctx.drawImage(symbol.thumbnail, x + (symbolDimension - w)/2, y + (symbolDimension - h)/2, w, h);
+            stx.drawImage(symbol.thumbnail, x + (symbolDimension - w)/2, y + (symbolDimension - h)/2, w, h);
             
             x += symbolDimension;
           });
@@ -1513,28 +1497,28 @@ onload = async () => {
         y += symbolDimension;
       });
 
-      ctx.strokeStyle = ctx.fillStyle = `hsl(${FLAG_ROTATE_COLORS || member != game.pendingMember ? 180 : 180 - Mathmin((game.time - member.activeAttackStartTime) | 0, 180)},50%,${50 + (member == game.pendingMember ? Mathsin((game.time - member.activeAttackStartTime)/99)*30 | 0 : 0)}%)`;
-      ctx.globalCompositeOperation = 'destination-over';
-      ctx.beginPath(); // required to prevent weirdness with clearRect
-      ctx.rect(symbolDimension/3, startingY + symbolDimension/6, width - symbolDimension/3, entity.res.length * symbolDimension);
+      stx.strokeStyle = stx.fillStyle = `hsl(${FLAG_ROTATE_COLORS || member != game.pendingMember ? 180 : 180 - Mathmin((game.timeMillis - member.activeAttackStartTime) | 0, 180)},50%,${50 + (member == game.pendingMember ? Mathsin((game.timeMillis - member.activeAttackStartTime)/99)*30 | 0 : 0)}%)`;
+      stx.globalCompositeOperation = 'destination-over';
+      stx.beginPath(); // required to prevent weirdness with clearRect
+      stx.rect(symbolDimension/3, startingY + symbolDimension/6, width - symbolDimension/3, entity.res.length * symbolDimension);
       //ctx.closePath();
-      ctx.stroke();
-      ctx.globalAlpha = .3;
-      ctx.fill();
-      ctx.restore();
+      stx.stroke();
+      stx.globalAlpha = .3;
+      stx.fill();
+      stx.restore();
 
       member.attackAnimations?.forEach(({ attackType: attack, x, y, ['s']: scale }) => {
         if (scale) {
           const thumbnail = entityRenderables[ENTITY_TYPE_SYMBOL][attack].thumbnail;
-          ctx.save();
+          stx.save();
           const sx = width * x;
           const sy = height * y;
-          ctx.translate(sx, sy);
-          ctx.scale(scale, scale);
+          stx.translate(sx, sy);
+          stx.scale(scale, scale);
           const w = thumbnail.width * symbolScale;
           const h = thumbnail.height * symbolScale;
-          ctx.drawImage(thumbnail, -w/2, -h/2, w, h);
-          ctx.restore();  
+          stx.drawImage(thumbnail, -w/2, -h/2, w, h);
+          stx.restore();  
         }
       });
     }
@@ -1543,16 +1527,16 @@ onload = async () => {
   const renderEntityToCanvas = (entity: Entity | Falseish, canvas: HTMLCanvasElement, party?: Party, slot?: number) => {
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;  
-    const ctx = canvas.getContext('2d');
+    const stx = canvas['stx'] || (canvas['stx'] = shortenMethods(canvas.getContext('2d')));
     
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    stx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (entity) {
       if ((!dragContext || dragContext.startPosition == dragContext.lastPosition || entity != dragContext?.entity)) {
         slotsToEntities.set(canvas, entity);
         const thumbnail = entity.renderables.thumbnail;
         const scale = Mathmin(canvas.width*.9/thumbnail.width, canvas.height*.8/thumbnail.height);
-        ctx.drawImage(
+        stx.drawImage(
             thumbnail,
             (canvas.width - thumbnail.width*scale)/2,
             (canvas.height - thumbnail.height*scale),
@@ -1561,7 +1545,7 @@ onload = async () => {
         );
       }
 
-      renderEntityToContext(entity, ctx, canvas.width, canvas.height, party, slot);
+      renderEntityToContext(entity, stx, canvas.width, canvas.height, party, slot);
     }
   }
 
@@ -1593,7 +1577,7 @@ onload = async () => {
 
     gl.clear(CONST_GL_COLOR_BUFFER_BIT | CONST_GL_DEPTH_BUFFER_BIT);
     
-    game.time = now;
+    game.timeMillis = now;
     
 
     const cameraRotationMatrix = matrix4Rotate(playerParty['czr'], 0, 0, 1);
@@ -1672,7 +1656,7 @@ onload = async () => {
         if (partyMember.secondary && partyMember.secondary?.entityType == ENTITY_TYPE_TORCH) {
           light = {
             ['pos']: partyMember['pos'],
-            light: [.75, .75, .7, 2],
+            light: [.75, .75, .7, 4],
             lightTransform: matrix4Multiply(
                 matrix4Translate(...partyMember['pos']),
                 matrix4Rotate(party['czr'] + CONST_PI_1DP, 0, 0, 1),
@@ -1719,28 +1703,28 @@ onload = async () => {
         if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
           if (!partyMember.anims.length) {
             if (Mathrandom() > .1) {
-              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zs', partyMember.entity.side ? 1.05 : .97, easeSinBackToStart, 3000));
+              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zs', partyMember.entity.side ? 1.05 : .97, easeSinBackToStart, 2999));
             } else {
-              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr2', (partyMember['zr2'] || 0) + (Mathrandom() - .5) * CONST_PI_ON_3_1DP, easeSquareBackToStart, 2000, 0));
+              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr2', (partyMember['zr2'] || 0) + (Mathrandom() - .5) * CONST_PI_ON_3_1DP, easeSquareBackToStart, 1999, 0));
             }
           }
-          const ctx = statusCanvas.getContext('2d');
+          const stx: CanvasRenderingContext2D = statusCanvas['stx'] || (statusCanvas['stx'] = shortenMethods(statusCanvas.getContext('2d')));
           // note reversed because we actually are facing to the right
           const w = (bounds[1][1] - bounds[0][1] + 1) * STATUS_SCALE;
           const h = (bounds[1][2] - bounds[0][2] + 1) * STATUS_SCALE;
-          ctx.clearRect(0, 0, w, h);
+          stx.clearRect(0, 0, w, h);
           if (partyMember['sds'] > 0) {
             // const g = ctx.createLinearGradient(0, 0, w, h);
             // g.addColorStop(0, '#f00');
             // g.addColorStop(1, '#00f');
             // ctx.fillStyle = g;
             //ctx.fillRect(0, 0, w, h);
-            ctx.save();
-            ctx.translate(w/2, 0);
-            ctx.scale(-partyMember['sds'], partyMember['sds']/partyMember['zs']);
-            ctx.translate(-w/2, 0);
-            renderEntityToContext(partyMember.entity, ctx, w, h, party, i);
-            ctx.restore();
+            stx.save();
+            stx.translate(w/2, 0);
+            stx.scale(-partyMember['sds'], partyMember['sds']/partyMember['zs']);
+            stx.translate(-w/2, 0);
+            renderEntityToContext(partyMember.entity, stx, w, h, party, i);
+            stx.restore();
           }
           // update status texture
           gl.bindTexture(CONST_GL_TEXTURE_2D, statusTexture);
@@ -1748,7 +1732,7 @@ onload = async () => {
         }
         if (FLAG_ROTATING_ITEMS && (partyMember.entity.purpose == ENTITY_PURPOSE_WEAPON || partyMember.entity.purpose == ENTITY_PURPOSE_SECONDARY)) {
           if (!partyMember.anims.length) {
-            partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr', partyMember['zr'] + CONST_2_PI_0DP, easeLinear, 4000));
+            partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr', partyMember['zr'] + CONST_2_PI_0DP, easeLinear, 3999));
           }
         }
 

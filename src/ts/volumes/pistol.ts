@@ -153,14 +153,6 @@ const VOLUMETRIC_COMMANDS_PISTOL: VolumetricDrawCommand[] = [
   ],
   // grip
   [
-    TYPE_MATERIAL_ID,
-    {
-      type: 'numeric',
-      range: 'positive-integer',
-      value: 2,
-    },
-  ],
-  [
     TYPE_TRANSLATE_Y,
     {
       type: 'numeric',
@@ -189,7 +181,7 @@ const VOLUMETRIC_COMMANDS_PISTOL: VolumetricDrawCommand[] = [
     {
       type: 'numeric',
       range: 'positive-integer',
-      value: 7,
+      value: 5,
     },
     {
       type: 'numeric',
@@ -202,16 +194,42 @@ const VOLUMETRIC_COMMANDS_PISTOL: VolumetricDrawCommand[] = [
       value: 16,
     },
   ],
+  [
+    TYPE_MATERIAL_ID,
+    {
+      type: 'numeric',
+      range: 'positive-integer',
+      value: 2,
+    },
+  ],
+  [
+    TYPE_SHAPE_BOX,
+    {
+      type: 'numeric',
+      range: 'positive-integer',
+      value: 7,
+    },
+    {
+      type: 'numeric',
+      range: 'positive-integer',
+      value: 7,
+    },
+    {
+      type: 'numeric',
+      range: 'positive-integer',
+      value: 12,
+    },
+  ],  
 ];
 
-const VOLUMETRIC_TEMPLATE_PISTOL = 'Rzy`D<BBB.y^D>DDB-z^B@NB.Zj#;DN>>@%#<yQzTXWBACJ';
+const VOLUMETRIC_TEMPLATE_PISTOL = 'Rzy`D<BBB.y^D>DDB-z^B@NB.Zj#;DN>>@%yQzTXWB?CJ#<BAAF';
 const VOLUMETRIC_PISTOL = FLAG_USE_VOLUME_COMMANDS ? VOLUMETRIC_COMMANDS_PISTOL : VOLUMETRIC_TEMPLATE_PISTOL;
 
 const VOLUMETRIC_PARAMS_PISTOL:  [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
   // regular
   [[COLOR_GUNMETAL, COLOR_BLACK, COLOR_LEATHER]],
-  // fire
-  [[COLOR_RED_SHINY, COLOR_BLACK, COLOR_YELLOW_SHUNY]],
   // poison
   [[COLOR_GREEN_SHINY, COLOR_BLACK, COLOR_GUNMETAL]],
+  // electric
+  [[COLOR_BLUE_SHINY, COLOR_BLACK, COLOR_YELLOW_SHUNY]],
 ];

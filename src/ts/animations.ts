@@ -5,14 +5,14 @@ type AnimationHolder = {
 };
 
 type TimeHolder = {
-  time: number,
+  timeMillis: number,
 };
 
 type AnimationFactory = (startTime: number) => Promise<void>;
 
 const createAnimationEventQueue = (timeHolder: TimeHolder): EventQueue<AnimationFactory, void> => ({
   handler: (animationFactory: AnimationFactory) => {
-    return animationFactory(timeHolder.time);
+    return animationFactory(timeHolder.timeMillis);
   },
 });
 

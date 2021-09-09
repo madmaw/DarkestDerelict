@@ -369,13 +369,13 @@ const processVolumetricDrawCommandString = (
         const canvasDimension = VOLUME_DIMENSION;
         canvas.width = canvasDimension;
         canvas.height = canvasDimension;
-        const ctx = canvas.getContext('2d');
+        const stx = shortenMethods(canvas.getContext('2d'));
         // center to maximise chance of not overflowing
         const baseline = (VOLUME_DIMENSION + letterHeight)/2;
-        ctx.font = `${letterHeight}px serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText(symbol, VOLUME_MIDPOINT, baseline);
-        const pixels = ctx.getImageData(0, 0, canvasDimension, canvasDimension);
+        stx.font = `${letterHeight}px serif`;
+        // stx.textAlign = 'center';
+        stx.fillText(symbol, (VOLUME_DIMENSION - letterHeight)/2, baseline);
+        const pixels = stx.getImageData(0, 0, canvasDimension, canvasDimension);
         renderShape(
             volume, 
             (test: Vector3, force?: Booleanish): Vector3 => {

@@ -147,9 +147,9 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     variation: 0,
   }] as Entity[]).concat(
       new Array(Mathmin(Mathrandom()*depth | 0, 3)).fill(0).map<Entity>(() => {
-        const entityType = (ENTITY_TYPE_FOOD + Mathpow(Math.random(), Mathmax(depth - 5, 1)) * 4 | 0) as EntityType;
+        const entityType = (ENTITY_TYPE_FOOD + Mathpow(Mathrandom(), Mathmax(depth - 5, 1)) * 4 | 0) as EntityType;
         const thingRenderables = entityRenderables[entityType];
-        const variation = thingRenderables.length * (Mathpow(Math.random(), Mathmax(depth - 5, 1)) | 0);
+        const variation = thingRenderables.length * (Mathpow(Mathrandom(), Mathmax(depth - 5, 1)) | 0);
         return {
           renderables: thingRenderables[variation],
           entityType,
@@ -181,67 +181,69 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
               entityType: ENTITY_TYPE_SHOTGUN,
               purpose: ENTITY_PURPOSE_WEAPON,
               renderables: entityRenderables[ENTITY_TYPE_SHOTGUN][0],
-              attacks: [
-                // power level 0
-                [
-                  // attacker in front row
-                  [
-                    // reload
-                    [ATTACK_POWER_GAIN, ATTACK_POWER_GAIN], // front row, same side
-                  ], 
-                  // attacker in back row
-                  [
-                    // reload
-                    , // front row, same side
-                    , // front row, opposide side
-                    [ATTACK_POWER_GAIN, ATTACK_POWER_GAIN], // back row, same side
-                  ], 
-                ],
-                // power level 1
-                [
-                  // attacker in front row
-                  [
-                    // one barrel, point blank
-                    [ATTACK_MOVE_MEDIAL], // front row, same side
-                    , // front row, opposide side
-                    , // back row, same side
-                    , // back row, opposite side
-                    [ATTACK_PIERCING, ATTACK_PIERCING, ATTACK_MOVE_MEDIAL], // enemy front row, same side
-                  ], 
-                  // attacker in back row
-                  [
-                    // buckshot
-                    , // front row, same side
-                    , // front row, opposide side
-                    , // back row, same side
-                    , // back row, opposite side
-                    [ATTACK_PIERCING], // enemy front row, same side    
-                  ], 
-                ],
-                // power level 2
-                [
-                  // attacker in front row
-                  [
-                    // let them have it with both barrels 
-                    [ATTACK_MOVE_MEDIAL], // front row, same side
-                    , // front row, opposide side
-                    , // back row, same side
-                    , // back row, opposite side
-                    [ATTACK_PIERCING, ATTACK_PIERCING, ATTACK_MOVE_MEDIAL], // enemy front row, same side
-                    [ATTACK_PIERCING, ATTACK_PIERCING, ATTACK_MOVE_MEDIAL], // enemy front row, opposite side
-                  ], 
-                  // attacker in back row
-                  [
-                    // buckshot
-                    , // front row, same side
-                    , // front row, opposide side
-                    , // back row, same side
-                    , // back row, opposite side
-                    [ATTACK_PIERCING], // enemy front row, same side
-                    [ATTACK_PIERCING], // enemy front row, opposite side
-                  ], 
-                ],
-              ],
+              attacks: FLAG_USE_ATTACK_MATRICES
+                ? [
+                    // power level 0
+                    [
+                      // attacker in front row
+                      [
+                        // reload
+                        [ATTACK_POWER_GAIN, ATTACK_POWER_GAIN], // front row, same side
+                      ], 
+                      // attacker in back row
+                      [
+                        // reload
+                        , // front row, same side
+                        , // front row, opposide side
+                        [ATTACK_POWER_GAIN, ATTACK_POWER_GAIN], // back row, same side
+                      ], 
+                    ],
+                    // power level 1
+                    [
+                      // attacker in front row
+                      [
+                        // one barrel, point blank
+                        [ATTACK_MOVE_MEDIAL], // front row, same side
+                        , // front row, opposide side
+                        , // back row, same side
+                        , // back row, opposite side
+                        [ATTACK_PIERCING, ATTACK_PIERCING, ATTACK_MOVE_MEDIAL], // enemy front row, same side
+                      ], 
+                      // attacker in back row
+                      [
+                        // buckshot
+                        , // front row, same side
+                        , // front row, opposide side
+                        , // back row, same side
+                        , // back row, opposite side
+                        [ATTACK_PIERCING], // enemy front row, same side    
+                      ], 
+                    ],
+                    // power level 2
+                    [
+                      // attacker in front row
+                      [
+                        // let them have it with both barrels 
+                        [ATTACK_MOVE_MEDIAL], // front row, same side
+                        , // front row, opposide side
+                        , // back row, same side
+                        , // back row, opposite side
+                        [ATTACK_PIERCING, ATTACK_PIERCING, ATTACK_MOVE_MEDIAL], // enemy front row, same side
+                        [ATTACK_PIERCING, ATTACK_PIERCING, ATTACK_MOVE_MEDIAL], // enemy front row, opposite side
+                      ], 
+                      // attacker in back row
+                      [
+                        // buckshot
+                        , // front row, same side
+                        , // front row, opposide side
+                        , // back row, same side
+                        , // back row, opposite side
+                        [ATTACK_PIERCING], // enemy front row, same side
+                        [ATTACK_PIERCING], // enemy front row, opposite side
+                      ], 
+                    ],
+                  ]
+                : arrayFromBase64<Attack[][][][]>([...('=<;<__=::<__<?;^:::=ZZ^?::::;Z<@;^:::=ZZ^=ZZ^@::::;Z;Z')],4)
             };
         }
       })
@@ -302,45 +304,73 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
                   side: 1,
                   renderables: entityRenderables[ENTITY_TYPE_SPIDER][0],
                   entityType: ENTITY_TYPE_SPIDER,
-                  attacks: [
-                    // power level 0
-                    [
-                      // attacker in front row
-                      [
-                        // dodge
-                        [ATTACK_MOVE_LATERAL, ATTACK_POWER_GAIN], // front row, same side
-                      ], 
-                      // attacker in back row
-                      [
-                        // dodge
-                        , // front row, same side
-                        , // front row, opposide side
-                        [ATTACK_MOVE_LATERAL, ATTACK_POWER_GAIN], // back row, same side
-                      ], 
-                    ],
-                    // power level 1
-                    [
-                      // attacker in front row
-                      [
-                        // venomous bite
-                        , // front row, same side
-                        , // front row, opposide side
-                        , // back row, same side
-                        , // back row, opposite side
-                        [ATTACK_POISON], // enemy front row, same side
-                      ], 
-                      // attacker in back row
-                      [
-                        // web
-                        , // front row, same side
-                        , // front row, opposide side
-                        , // back row, same side
-                        , // back row, opposite side
-                        [ATTACK_WEBBING], // enemy front row, same side
-                        [ATTACK_WEBBING], // enemy front row, opposite side
-                      ], 
-                    ],                
-                  ],
+                  attacks: FLAG_USE_ATTACK_MATRICES
+                    ? 
+                        [
+                          // power level 0
+                          [
+                            // attacker in front row
+                            [
+                              // dodge
+                              [ATTACK_MOVE_LATERAL, ATTACK_POWER_GAIN], // front row, same side
+                            ], 
+                            // attacker in back row
+                            [
+                              // dodge
+                              , // front row, same side
+                              , // front row, opposide side
+                              [ATTACK_MOVE_LATERAL, ATTACK_POWER_GAIN], // back row, same side
+                            ], 
+                          ],
+                          // power level 1
+                          [
+                            // attacker in front row
+                            [
+                              // venomous bite
+                              , // front row, same side
+                              , // front row, opposide side
+                              , // back row, same side
+                              , // back row, opposite side
+                              [ATTACK_POISON], // enemy front row, same side
+                            ], 
+                            // attacker in back row
+                            [
+                              // web
+                              , // front row, same side
+                              , // front row, opposide side
+                              , // back row, same side
+                              , // back row, opposite side
+                              [ATTACK_WEBBING], // enemy front row, same side
+                              [ATTACK_WEBBING], // enemy front row, opposite side
+                            ], 
+                          ],         
+                          // power level 2
+                          [
+                            // attacker in front row
+                            [
+                              // venomous bite
+                              , // front row, same side
+                              , // front row, opposide side
+                              , // back row, same side
+                              , // back row, opposite side
+                              [ATTACK_POISON], // enemy front row, same side
+                              [ATTACK_POISON], // enemy front row, opposite side
+                            ], 
+                            // attacker in back row
+                            [
+                              // web
+                              , // front row, same side
+                              , // front row, opposide side
+                              , // back row, same side
+                              , // back row, opposite side
+                              [ATTACK_WEBBING], // enemy front row, same side
+                              [ATTACK_WEBBING], // enemy front row, opposite side
+                              [ATTACK_WEBBING], // enemy back row, same side
+                              [ATTACK_WEBBING], // enemy back row, opposite side
+                            ], 
+                          ],                           
+                        ] 
+                    : arrayFromBase64<Attack[][][][]>([...('=<;<]_=::<]_<?::::;[@::::;a;a<@::::;[;[B::::;a;a;a;a')], 4)
                 }
                 break;
               case 2:
@@ -517,7 +547,7 @@ const getFavorableOrientation = (party: Party, level: Level): Orientation | unde
 }
 
 const createMarine = (renderables: EntityRenderables[], color: number): ActorEntity => {
-  const maxHealth = 5 - (color < 3 ? 2 : color > 4 ? 1 : 3);
+  const maxHealth = (color < 3 ? 3 : color > 3 ? 4 : 2);
   const maxPower = 5 - maxHealth;
 
   return {
@@ -525,7 +555,6 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
       {
         quantity: maxHealth,
         max: maxHealth,
-        temporary: 0,
       }, {
         quantity: 0,
         max: maxPower,
@@ -536,49 +565,52 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
     renderables: renderables[color],
     entityType: ENTITY_TYPE_MARINE,
     variation: color,
-    attacks: [
-      // power level 0
-      [
-        // attacker in front row
-        [
-          // shove and retreat
-          [ATTACK_MOVE_MEDIAL], // front row, same side
-          , // front row, opposide side
-          , // back row, same side
-          , // back row, opposite side
-          [ATTACK_MOVE_MEDIAL], // enemy front row, same side
+    attacks: FLAG_USE_ATTACK_MATRICES
+        ? 
+          [
+            // power level 0
+            [
+              // attacker in front row
+              [
+                // shove and retreat
+                [ATTACK_MOVE_MEDIAL], // front row, same side
+                , // front row, opposide side
+                , // back row, same side
+                , // back row, opposite side
+                [ATTACK_MOVE_MEDIAL], // enemy front row, same side
 
-        ], 
-        // attacker in back row
-        [
-          // move up
-          , // front row, same side
-          , // front row, opposide side
-          [ATTACK_MOVE_MEDIAL, ATTACK_POWER_GAIN], // back row, same side
-        ], 
-      ],
-      // power level 1
-      [
-        // attacker in front row
-        [
-          // violent shove
-          , // front row, same side
-          , // front row, opposide side
-          , // back row, same side
-          , // back row, opposite side
-          [ATTACK_BLUDGEONING, ATTACK_MOVE_MEDIAL], // enemy front row, same side
-        ], 
-        // attacker in back row
-        [
-          // running strike
-          , // front row, same side
-          , // front row, opposide side
-          [ATTACK_MOVE_MEDIAL], // back row, same side
-          , // back row, opposite side
-          [ATTACK_BLUDGEONING, ATTACK_MOVE_MEDIAL], // enemy front row, same side
-        ], 
-      ],
-    ],
+              ], 
+              // attacker in back row
+              [
+                // move up
+                , // front row, same side
+                , // front row, opposide side
+                [ATTACK_MOVE_MEDIAL, ATTACK_POWER_GAIN], // back row, same side
+              ], 
+            ],
+            // power level 1
+            [
+              // attacker in front row
+              [
+                // violent shove
+                , // front row, same side
+                , // front row, opposide side
+                , // back row, same side
+                , // back row, opposite side
+                [ATTACK_PIERCING, ATTACK_MOVE_MEDIAL], // enemy front row, same side
+              ], 
+              // attacker in back row
+              [
+                // running strike
+                , // front row, same side
+                , // front row, opposide side
+                [ATTACK_MOVE_MEDIAL], // back row, same side
+                , // back row, opposite side
+                [ATTACK_PIERCING, ATTACK_MOVE_MEDIAL], // enemy front row, same side
+              ], 
+            ],
+          ]
+        : arrayFromBase64<Attack[][][][]>([...('<<?;^:::;^=::<^_<?::::<Z^?::;^:<Z^')],4),
   };
 }
 
@@ -587,93 +619,101 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
     renderables: renderables[attackType],
     entityType: ENTITY_TYPE_PISTOL,
     purpose: ENTITY_PURPOSE_WEAPON,
-    attacks: [
-      // power level 0
-      [
-        // attacker in front row
-        [
-          // pistol whip
-          , // front row, same side
-          , // front row, opposide side
-          , // back row, same side
-          , // back row, opposite side
-          [ATTACK_POWER_DRAIN], // enemy front row, same side
-        ], 
-        // attacker in back row
-        [
-          // reload
-          , // front row, same side
-          , // front row, opposide side
-          [ATTACK_POWER_GAIN, ATTACK_POWER_GAIN], // back row, same side
-        ],
-      ], 
-      // power level 1
-      [
-        // attacker in front row
-        [
-          // shoot
-          , // front row, same side
-          , // front row, opposide side
-          , // back row, same side
-          , // back row, opposite side
-          [attackType], // enemy front row, same side
-        ], 
-        // attacker in back row
-        [
-          // shoot
-          , // front row, same side
-          , // front row, opposide side
-          , // back row, same side
-          , // back row, opposite side
-          [attackType], // enemy front row, same side
-        ],
-      ],
-      // power level 2
-      [
-        // attacker in front row
-        [
-          // empty clip
-          , // front row, same side
-          , // front row, opposide side
-          , // back row, same side
-          , // back row, opposite side
-          [attackType, attackType], // enemy front row, same side
-        ], 
-        // attacker in back row
-        [
-          // spray clip
-          , // front row, same side
-          , // front row, opposide side
-          , // back row, same side
-          , // back row, opposite side
-          [attackType], // enemy front row, same side
-          , // enemy front row, opposite side
-          [attackType], // enemy back row, same side
-        ],
-      ],
-      // power level 3
-      [
-        // attacker in front row
-        [
-          // empty clip
-          , // front row, same side
-          , // front row, opposide side
-          , // back row, same side
-          , // back row, opposite side
-          [attackType, attackType, attackType], // enemy front row, same side
-        ], 
-        // attacker in back row
-        [
-          // spray clip
-          , // front row, same side
-          , // front row, opposide side
-          , // back row, same side
-          , // back row, opposite side
-          [attackType, attackType], // enemy front row, same side
-          , // enemy front row, opposite side
-          [attackType, attackType], // enemy back row, same side
-        ],
-      ],      
-    ],
+    attacks: FLAG_USE_ATTACK_MATRICES
+      ? [
+          // power level 0
+          [
+            // attacker in front row
+            [
+              // pistol whip
+              [ATTACK_MOVE_MEDIAL], // front row, same side
+              , // front row, opposide side
+              , // back row, same side
+              , // back row, opposite side
+              [ATTACK_POWER_DRAIN], // enemy front row, same side
+            ], 
+            // attacker in back row
+            [
+              // reload
+              , // front row, same side
+              , // front row, opposide side
+              [ATTACK_POWER_GAIN, ATTACK_POWER_GAIN], // back row, same side
+            ],
+          ], 
+          // power level 1
+          [
+            // attacker in front row
+            [
+              // shoot
+              , // front row, same side
+              , // front row, opposide side
+              , // back row, same side
+              , // back row, opposite side
+              [attackType], // enemy front row, same side
+            ], 
+            // attacker in back row
+            [
+              // shoot
+              , // front row, same side
+              , // front row, opposide side
+              , // back row, same side
+              , // back row, opposite side
+              [attackType], // enemy front row, same side
+            ],
+          ],
+          // power level 2
+          [
+            // attacker in front row
+            [
+              // empty clip
+              , // front row, same side
+              , // front row, opposide side
+              , // back row, same side
+              , // back row, opposite side
+              [attackType, attackType], // enemy front row, same side
+            ], 
+            // attacker in back row
+            [
+              // spray clip
+              , // front row, same side
+              , // front row, opposide side
+              , // back row, same side
+              , // back row, opposite side
+              [attackType], // enemy front row, same side
+              , // enemy front row, opposite side
+              [attackType], // enemy back row, same side
+            ],
+          ],
+          // power level 3
+          [
+            // attacker in front row
+            [
+              // empty clip
+              , // front row, same side
+              , // front row, opposide side
+              , // back row, same side
+              , // back row, opposite side
+              [attackType, attackType, attackType], // enemy front row, same side
+            ], 
+            // attacker in back row
+            [
+              // spray clip
+              , // front row, same side
+              , // front row, opposide side
+              , // back row, same side
+              , // back row, opposite side
+              [attackType, attackType], // enemy front row, same side
+              , // enemy front row, opposite side
+              [attackType, attackType], // enemy back row, same side
+            ],
+          ],      
+        ]
+      : arrayFromBase64<Attack[][][][]>([...('><?;^:::;`=::<__<?::::;Y?::::;Y<?::::<YYA::::;Y:;Y<?::::=YYYA::::<YY:<YY')],4,[attackType]),
   };
+};
+
+const convertAttackMatrixToString = (matrix: (Attack | -1)[][][][], name: string) => {
+  const s = arrayToBase64(matrix, 4);
+  console.log(`attack ${name} : "${s}"`);
+  return s;
 };
