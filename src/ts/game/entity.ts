@@ -23,14 +23,14 @@ type EntityTypeShotgun = 9;
 const ENTITY_TYPE_SHOTGUN: EntityTypeShotgun = 9;
 type EntityTypeFood = 10;
 const ENTITY_TYPE_FOOD: EntityTypeFood = 10;
-type EntityTypeKey = 11;
-const ENTITY_TYPE_KEY: EntityTypeKey = 11;
-type EntityTypeBattery = 12;
-const ENTITY_TYPE_BATTERY: EntityTypeBattery = 12;
-type EntityTypeBayonet = 13;
-const ENTITY_TYPE_BAYONET: EntityTypeBayonet = 13;
-type EntityTypeTorch = 14;
-const ENTITY_TYPE_TORCH: EntityTypeTorch = 14;
+type EntityTypeBattery = 11;
+const ENTITY_TYPE_BATTERY: EntityTypeBattery = 11;
+type EntityTypeBayonet = 12;
+const ENTITY_TYPE_BAYONET: EntityTypeBayonet = 12;
+type EntityTypeTorch = 13;
+const ENTITY_TYPE_TORCH: EntityTypeTorch = 13;
+type EntityTypeKey = 14;
+const ENTITY_TYPE_KEY: EntityTypeKey = 14;
 
 type EntityType = EntityTypeCeiling
     | EntityTypeWallInset
@@ -44,10 +44,10 @@ type EntityType = EntityTypeCeiling
     | EntityTypePistol
     | EntityTypeShotgun
     | EntityTypeFood
-    | EntityTypeKey
     | EntityTypeBattery
     | EntityTypeBayonet
     | EntityTypeTorch
+    | EntityTypeKey
     ;
 
 const ENTITY_NAMES = [
@@ -62,10 +62,10 @@ const ENTITY_NAMES = [
   'pistol',
   'shotgun',
   'food',
-  'key',
   'battery',
   'bayonet',
   'torch',
+  'key',
 ];
 
 const MARINE_VARIATION_RED = 2;

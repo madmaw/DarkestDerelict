@@ -18,4 +18,5 @@ const COLOR_CYAN_GLOWING: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'Byyy' : [
 const COLOR_GREEN_GLOWING: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'ByBy' : [32, 255, 32, 255];
 const COLOR_CHITIN: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'BBB<' : [32, 32, 32, 9];
 const COLOR_BLUE_SHINY: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'EEQ<' : [44, 44, 92, 9];
+const COLOR_BLUE_GLOWING: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'EEyy' : [44, 44, 255, 255];
 const COLOR_BLACK: Vector4 | string = FLAG_USE_PACKED_COLORS ? ':::y' : [0, 0, 0, 254];

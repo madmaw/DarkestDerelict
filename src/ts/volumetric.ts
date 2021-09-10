@@ -347,7 +347,7 @@ const processVolumetricDrawCommandString = (
                 const inPolySurface = cosStepAngleDiv2*rInner<rz
                 
                 if (Mathabs(x) <= widthDiv2 && inPoly || force) {
-                  return widthMinus1pxDiv2 > Math.abs(x) || inPolySurface
+                  return widthMinus1pxDiv2 > Mathabs(x) || inPolySurface
                       ? Mathabs(ry) - rInner * sinStepAngleDiv2 > 0
                           ? ry > 0
                               ? [sin, Mathsin(sectorAngle+stepAngle/2)*cos, Mathcos(sectorAngle+stepAngle/2)*cos]

@@ -11,7 +11,7 @@ body {
   grid-template-columns: 100%;
   grid-template-rows: 55% 45%;
   overflow: hidden;
-  background: #000;
+  background: #011;
 }
 
 #O, #O * {
@@ -32,7 +32,7 @@ body {
 }
 
 #P {
-  background: #000;
+  background: #011;
   height: 2vh;
 }
 

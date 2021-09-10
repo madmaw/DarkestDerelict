@@ -1,5 +1,3 @@
-///<reference path="../math/random.ts"/>
-
 const LEVEL_SPACING = 3;
 const LEVEL_DIMENSION = 9;
 const LEVEL_MIDDLE_X = LEVEL_DIMENSION/2 | 0;
@@ -37,6 +35,13 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
   const tiles = new Array(LEVEL_DIMENSION + LEVEL_SPACING*2).fill(0).map(() => new Array(LEVEL_DIMENSION).fill(0).map<Tile>(() => ({
     parties: [],
   })));
+
+  const food: Entity = {
+    renderables: entityRenderables[ENTITY_TYPE_FOOD][0],
+    entityType: ENTITY_TYPE_FOOD,
+    purpose: ENTITY_PURPOSE_SECONDARY,
+    variation: 0,
+  };  
 
   iterateLevel(tiles, (t, position) => {
     const [x, y] = position;
@@ -140,12 +145,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     entityType: ENTITY_TYPE_KEY,
     purpose: ENTITY_PURPOSE_SECONDARY,
     variation: doorType,
-  }, {
-    renderables: entityRenderables[ENTITY_TYPE_FOOD][0],
-    entityType: ENTITY_TYPE_FOOD,
-    purpose: ENTITY_PURPOSE_SECONDARY,
-    variation: 0,
-  }] as Entity[]).concat(
+  }, food] as Entity[]).concat(
       new Array(Mathmin(Mathrandom()*depth | 0, 3)).fill(0).map<Entity>(() => {
         const entityType = (ENTITY_TYPE_FOOD + Mathpow(Mathrandom(), Mathmax(depth - 5, 1)) * 4 | 0) as EntityType;
         const thingRenderables = entityRenderables[entityType];
@@ -388,6 +388,8 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
               // give it a gun too
               partyMember.weapon = createPistol(entityRenderables[ENTITY_TYPE_PISTOL], ATTACK_PIERCING);
             }
+            // maybe drop food
+            Mathrandom() < enemyId/5  && (partyMember.secondary = food);
             // TODO maybe give something to drop on death (e.g. food)
             partyMembers.push(partyMember);
           }
@@ -615,6 +617,7 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
 }
 
 const createPistol = (renderables: EntityRenderables[], attackType: Attack): WeaponEntity => {
+  const bonusAttacks = attackType == ATTACK_ELECTRIC ? [attackType] : [];
   return {
     renderables: renderables[attackType],
     entityType: ENTITY_TYPE_PISTOL,
@@ -649,7 +652,7 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [attackType], // enemy front row, same side
+              [attackType, ...bonusAttacks], // enemy front row, same side
             ], 
             // attacker in back row
             [
@@ -658,7 +661,7 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [attackType], // enemy front row, same side
+              [attackType, ...bonusAttacks], // enemy front row, same side
             ],
           ],
           // power level 2
@@ -670,7 +673,7 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [attackType, attackType], // enemy front row, same side
+              [attackType, attackType, ...bonusAttacks], // enemy front row, same side
             ], 
             // attacker in back row
             [
@@ -679,9 +682,9 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [attackType], // enemy front row, same side
+              [attackType, ...bonusAttacks], // enemy front row, same side
               , // enemy front row, opposite side
-              [attackType], // enemy back row, same side
+              [attackType, ...bonusAttacks], // enemy back row, same side
             ],
           ],
           // power level 3
@@ -693,7 +696,7 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [attackType, attackType, attackType], // enemy front row, same side
+              [attackType, attackType, attackType, ...bonusAttacks], // enemy front row, same side
             ], 
             // attacker in back row
             [
@@ -702,9 +705,9 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [attackType, attackType], // enemy front row, same side
+              [attackType, attackType, ...bonusAttacks], // enemy front row, same side
               , // enemy front row, opposite side
-              [attackType, attackType], // enemy back row, same side
+              [attackType, attackType, ...bonusAttacks], // enemy back row, same side
             ],
           ],      
         ]

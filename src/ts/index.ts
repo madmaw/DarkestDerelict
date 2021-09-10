@@ -137,11 +137,11 @@ const VERTEX_SHADER = `
   const CONST_TARGET_NUM_STEPS = 32;
   const MAX_DEPTH = (VOLUME_DIMENSION + VOLUME_DEPTH_OFFSET)/TEXTURE_DIMENSION;
   const C_MAX_DEPTH = `${MAX_DEPTH}`;
-  const C_MIN_DEPTH = -VOLUME_DEPTH_OFFSET/TEXTURE_DIMENSION;
-  const BASE_STEP_DEPTH = MAX_DEPTH/CONST_TARGET_NUM_STEPS;
-  const MIN_STEP_DEPTH = MAX_DEPTH/CONST_MAX_NUM_STEPS;
+  const C_MIN_DEPTH = FLAG_USE_HAND_ROLLED_GLSL_CONSTANTS ? -.0078 : -VOLUME_DEPTH_OFFSET/TEXTURE_DIMENSION;
+  const BASE_STEP_DEPTH = FLAG_USE_HAND_ROLLED_GLSL_CONSTANTS ? .0022 : MAX_DEPTH/CONST_TARGET_NUM_STEPS;
+  const MIN_STEP_DEPTH = FLAG_USE_HAND_ROLLED_GLSL_CONSTANTS ? .0011 : MAX_DEPTH/CONST_MAX_NUM_STEPS;
   const DEPTH_SCALE = 256/VOLUME_DIMENSION*MAX_DEPTH;
-  const C_DEPTH_SCALE = `${DEPTH_SCALE}${DEPTH_SCALE==Mathround(DEPTH_SCALE)?'.':''}`;
+  const C_DEPTH_SCALE = `${DEPTH_SCALE}`;
   const C_MAX_NUM_LIGHTS = 4;
   const C_MAX_LIGHT_REACH = `6.`;
   // need to ensure that we will actually have enough space on the texture
@@ -168,8 +168,9 @@ const VERTEX_SHADER = `
   void main() {
     vec3 ${L_CAMERA_NORMAL} = normalize(${V_WORLD_POSITION}.xyz - ${U_CAMERA_POSITION});
     vec3 ${L_CAMERA_DIRECTION} = ${V_SURFACE_ROTATION} * ${L_CAMERA_NORMAL};
-    vec2 ${L_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD}+${C_MIN_DEPTH}*${L_CAMERA_DIRECTION}.xy/(${L_CAMERA_DIRECTION}.z);
-    vec4 ${L_DEPTH_TEXTURE} = vec4(0.);
+    vec2 ${L_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD}+${C_MIN_DEPTH}*${L_CAMERA_DIRECTION}.xy/${L_CAMERA_DIRECTION}.z;
+    // trick CC into maintaining the quote style here so our post-compilation regex don't munge everything
+    vec4 ${L_DEPTH_TEXTURE} = vec4(${FLAG_PRODUCTION_MINIMAL ? Mathrandom()/999 : '0.'});
     
     float ${L_PIXEL_DEPTH}=0.;
     float ${L_DEPTH}=${C_MIN_DEPTH};
@@ -283,7 +284,7 @@ onload = async () => {
 
   const SURFACE_COLORS: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
     [[COLOR_WHITE_SHINY]],
-    [[COLOR_GUNMETAL, COLOR_RED_CARPET, COLOR_SILVER_SHINY]],
+    [[COLOR_GUNMETAL, COLOR_GUNMETAL, COLOR_SILVER_SHINY]],
     [[COLOR_DULLMETAL, COLOR_BLUE_CARPET, COLOR_SILVER_SHINY]],
   ];
 
@@ -300,7 +301,7 @@ onload = async () => {
     [VOLUMETRIC_FLOOR,  MODEL_SCALE_MATRIX, SURFACE_COLORS],
     // door
     [VOLUMETRIC_DOOR, MODEL_SCALE_MATRIX, [
-      [[COLOR_RED_SHINY, COLOR_RED_GLOWING]],
+      [[COLOR_BLUE_SHINY, COLOR_BLUE_GLOWING]],
       [[COLOR_GREEN_SHINY, COLOR_GREEN_GLOWING]],
       [[COLOR_YELLOW_SHUNY, COLOR_YELLOW_GLOWING]],
     ]],
@@ -326,18 +327,18 @@ onload = async () => {
     [VOLUMETRIC_SHOTGUN, matrix4Scale(MODEL_SCALE * .4), VOLUMETRIC_PARAMS_SHOTGUN],
     // food
     [VOLUMETRIC_FOOD, matrix4Scale(MODEL_SCALE * .2), VOLUMETRIC_PARAMS_FOOD],
-    // key
-    [VOLUMETRIC_KEY, matrix4Scale(MODEL_SCALE * .2), [
-      [[COLOR_RED_GLOWING]],
-      [[COLOR_GREEN_GLOWING]],
-      [[COLOR_YELLOW_GLOWING]],
-    ]],
     // battery
     [VOLUMETRIC_BATTERY, matrix4Scale(MODEL_SCALE * .1), VOLUMETRIC_PARAMS_BATTERY],
     // bayonet
     [VOLUMETRIC_BAYONET, matrix4Scale(MODEL_SCALE * .2), VOLUMETRIC_PARAMS_BAYONET],
     // torch
     [VOLUMETRIC_TORCH, matrix4Scale(MODEL_SCALE * .2), VOLUMETRIC_PARAMS_TORCH],
+    // key
+    [VOLUMETRIC_KEY, matrix4Scale(MODEL_SCALE * .2), [
+      [[COLOR_BLUE_GLOWING]],
+      [[COLOR_GREEN_GLOWING]],
+      [[COLOR_YELLOW_GLOWING]],
+    ]],
   ];
 
   const loadingEventQueue: EventQueue<LoadingEvent, EntityRenderables[]> = {
@@ -637,13 +638,28 @@ onload = async () => {
     let turnPassed: Booleanish;
 
     if (e.eventType != GAME_EVENT_TYPE_CONFIRM_ATTACK) {
-      game.pendingMember = 0;
-      // clear any pending attacks on the level
-      iterateLevelMembers(game.level, partyMember => {
-        partyMember.activeAttackStartTime = 0;
-        partyMember.attackAnimations = [];
+      // clear all outstanding attacks
+      iterateLevelMembers(game.level, m => {
+        m.attackAnimations = [];
       });
     }
+
+    if (
+        (party.partyType == PARTY_TYPE_HOSTILE || party.partyType == PARTY_TYPE_PLAYER)
+        &&
+        (e.eventType == GAME_EVENT_TYPE_CHANGE_LOADOUT || e.eventType == GAME_EVENT_TYPE_TURN || e.eventType == GAME_EVENT_TYPE_PROPOSE_ATTACK)
+    ) {
+      party.members.forEach((partyMember, i) => {
+        if (partyMember && !(e.eventType == GAME_EVENT_TYPE_CHANGE_LOADOUT && e.entity == partyMember.entity || e.eventType == GAME_EVENT_TYPE_PROPOSE_ATTACK && i == e.slot)) {
+          // everyone not acting should gain 1 power 
+          partyMember.attackAnimations = [{
+            attackType: ATTACK_POWER_GAIN,
+            ['s']: 0,
+          }];
+        }
+      });
+    }
+
 
     switch (e.eventType) {
       case GAME_EVENT_TYPE_MOVE:
@@ -680,7 +696,7 @@ onload = async () => {
               if (partyMember) {
                 if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
                   // retain some power if we have the battery
-                  partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity = Math.min(
+                  partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity = Mathmin(
                       partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity,
                       partyMember.secondary && partyMember.secondary.entityType == ENTITY_TYPE_BATTERY ? 1: 0,
                   );
@@ -841,18 +857,9 @@ onload = async () => {
             );
 
             const attacks: Attack[][] = [...allAttacks[attackIndex][row]];
-            for (let i=0; i<4; i++) {
-              const slotId = slotIds[i];
-              const partyMember = party.members[slotId];
-              if (partyMember) {
-                attacks[i] = (attacks[i]||[]).concat(slotId == slot
-                    // remove power equivalent to attack index
-                    ? new Array(attackIndex).fill(ATTACK_POWER_DRAIN)
-                    // everyone else should gain 1 power and lose all temporary power (unless they have the battery)
-                    : [ATTACK_POWER_GAIN]
-                );
-              }
-            }
+            // drain power from self equal to attackIndex
+            attacks[slotIds[slot]] = (attacks[slotIds[slot]] || []).concat(new Array(attackIndex).fill(ATTACK_POWER_DRAIN));
+            
             // add in stabbing attack if we have the bayonet and are in the front row
             if (!row && attacker.secondary && attacker.secondary.entityType == ENTITY_TYPE_BAYONET) {
               attacks[4] = (attacks[4]||[]).concat(ATTACK_PIERCING);
@@ -892,7 +899,6 @@ onload = async () => {
               const targetPartyMember = targetParty.members[targetPartySlot] as PartyMember;
               if (!targetPartyMember.activeAttackStartTime) {
                 targetPartyMember.activeAttackStartTime = game.timeMillis;
-                targetPartyMember.attackAnimations = [];
               }
               const attackAnimations = (targetAttacks || []).map((attack) => {
                 return {
@@ -906,7 +912,7 @@ onload = async () => {
             const attackAnimationPromises: Promise<any>[] = [];
             iterateLevelMembers(game.level, (partyMember) => {
               const attackAnimations = partyMember.attackAnimations;
-              partyMember.attackAnimations.map((attackAnimation, i) => {
+              partyMember.attackAnimations?.forEach((attackAnimation, i) => {
                 const a = Mathrandom() * CONST_PI_0DP;
                 const r = i * .5/attackAnimations.length;
                 attackAnimation.x = .5 + Mathcos(a) * r;
@@ -932,7 +938,6 @@ onload = async () => {
         {
           const { slot } = e;
           turnPassed = 1;
-          const promises: Promise<any>[] = [];
           const attacker = party.members[slot] as PartyMember;
           const originalPosition = attacker['pos'];
           FLAG_ATTACK_ANIMATION && await addEvents(
@@ -947,133 +952,6 @@ onload = async () => {
               ),
               createTweenAnimationFactory(attacker, attacker, 'yr', 0, easeOutQuad, 99),
           );
-          iterateLevelMembers(game.level, (partyMember, party, slot) => {
-            if(partyMember.attackAnimations?.length) {
-              const [resources, toSlot] = applyAttacks(party, slot);
-              
-              const actor = partyMember.entity as ActorEntity;
-              const damaged = actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity > resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity;
-              const dead = resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity <= 0;
-              let promise: Promise<any> = Promise.all(partyMember.attackAnimations.map(attackAnimation => addEvents(
-                  partyMember.animationQueue,
-                  createTweenAnimationFactory(
-                      partyMember,
-                      attackAnimation,
-                      's',
-                      0,
-                      easeInQuad,
-                      CONST_ATTACK_DURATION,
-                  ),
-              ))).then(async () => {
-                if (damaged) {
-                  FLAG_DAMAGE_ANIMATION && await addEvents(
-                      partyMember.animationQueue,
-                      createTweenAnimationFactory(
-                          partyMember,
-                          partyMember,
-                          'yr',
-                          -CONST_PI_ON_5_1DP,
-                          easeInOutExp4BackToStart,
-                          299,
-                          0,
-                      ),
-                  );
-                  FLAG_SCREEN_SHAKE && party == playerParty && !playerParty.anims.length && await addEvents(
-                      playerParty.animationQueue,
-                      ...new Array(4).fill(0).map(() => 
-                          createTweenAnimationFactory(
-                              playerParty,
-                              playerParty,
-                              'cpos',
-                              playerParty['cpos'].map(v => v + (Mathrandom()-.5)*partyMember.attackAnimations.length/9) as Vector3,
-                              easeInOutExp4BackToStart,
-                              99,
-                          )
-                      ),
-                  );
-                }
-                // clear attacks and move
-                partyMember.activeAttackStartTime = 0;
-                partyMember.attackAnimations = [];
-                actor.res = resources;
-                if (toSlot != slot) {
-                  const replacedPartyMember = party.members[toSlot];
-                  party.members[slot] = replacedPartyMember;
-                  party.members[toSlot] = partyMember;  
-                  await Promise.all([
-                    moveNaturallyToSlotPosition(party, partyMember, toSlot),
-                    replacedPartyMember && moveNaturallyToSlotPosition(party, replacedPartyMember, slot),
-                  ]);
-                }
-                // is it dead?
-                if (dead) {
-                  FLAG_DEATH_ANIMATION && await addEvents(
-                    partyMember.animationQueue,
-                    createParallelAnimationFactory(
-                        createTweenAnimationFactory(
-                            partyMember,
-                            partyMember,
-                            'sds',
-                            0,
-                            easeInQuad,
-                            99,
-                        ),
-                        createTweenAnimationFactory(
-                            partyMember,
-                            partyMember,
-                            'zs',
-                            0,
-                            easeInQuad,
-                            CONST_DEATH_DURATION,
-                        ),
-                        createTweenAnimationFactory(
-                            partyMember,
-                            partyMember,
-                            'zr',
-                            partyMember['zr'] + 9,
-                            easeOutQuad,
-                            CONST_DEATH_DURATION,
-                        ),
-                    )
-                  );
-                  party.members[toSlot] = 0;
-                  // add in any items they were carrying
-                  const tile  = game.level[party.tile[1]][party.tile[0]] as Tile;
-                  let items: Party = tile.parties.find(p => p.partyType == PARTY_TYPE_ITEM);
-                  if (!items) {
-                    items = {
-                      animationQueue: createAnimationEventQueue(game),
-                      anims: [],
-                      members: [],
-                      partyType: PARTY_TYPE_ITEM,
-                      tile: party.tile,
-                      orientated: 0,
-                    };
-                    tile.parties.push(items);  
-                  }
-                  items.members.push(...[partyMember.weapon, partyMember.secondary]
-                      .filter(v => !!v)
-                      .map<PartyMember>((item: Entity) => ({
-                        ...BASE_PARTY_MEMBER,
-                        animationQueue: createAnimationEventQueue(game),
-                        anims: [],
-                        entity: item,
-                        ['pos']: partyMember['pos'],
-                      }))
-                  );
-                  // is the entire party dead?
-                  if (party.members.every(m => !m)) {
-                    tile.parties = tile.parties.filter(p => p != party);
-                  }
-                } else if (party.partyType == PARTY_TYPE_HOSTILE){
-                  await delay(499);
-                }
-              });
-              promises.push(promise);
-            }
-          });
-          await Promise.all(promises);
-          game.pendingMember = 0;
         }
         break;
       case GAME_EVENT_TYPE_WAIT:
@@ -1081,7 +959,134 @@ onload = async () => {
         break;
     }
     if (turnPassed) {
-      
+      const promises: Promise<any>[] = [];
+      iterateLevelMembers(game.level, (partyMember, party, slot) => {
+        if(partyMember.attackAnimations?.length) {
+          const [resources, toSlot] = applyAttacks(party, slot);
+          
+          const actor = partyMember.entity as ActorEntity;
+          const damaged = actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity > resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity;
+          const dead = resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity <= 0;
+          let promise: Promise<any> = Promise.all(partyMember.attackAnimations.map(attackAnimation => addEvents(
+              partyMember.animationQueue,
+              createTweenAnimationFactory(
+                  partyMember,
+                  attackAnimation,
+                  's',
+                  0,
+                  easeInQuad,
+                  CONST_ATTACK_DURATION,
+              ),
+          ))).then(async () => {
+            if (damaged) {
+              FLAG_DAMAGE_ANIMATION && await addEvents(
+                  partyMember.animationQueue,
+                  createTweenAnimationFactory(
+                      partyMember,
+                      partyMember,
+                      'yr',
+                      -CONST_PI_ON_5_1DP,
+                      easeInOutExp4BackToStart,
+                      299,
+                      0,
+                  ),
+              );
+              FLAG_SCREEN_SHAKE && party == playerParty && !playerParty.anims.length && await addEvents(
+                  playerParty.animationQueue,
+                  ...new Array(4).fill(0).map(() => 
+                      createTweenAnimationFactory(
+                          playerParty,
+                          playerParty,
+                          'cpos',
+                          playerParty['cpos'].map(v => v + (Mathrandom()-.5)*partyMember.attackAnimations.length/9) as Vector3,
+                          easeInOutExp4BackToStart,
+                          99,
+                      )
+                  ),
+              );
+            }
+            // clear attacks and move
+            partyMember.activeAttackStartTime = 0;
+            partyMember.attackAnimations = [];
+            actor.res = resources;
+            if (toSlot != slot) {
+              const replacedPartyMember = party.members[toSlot];
+              party.members[slot] = replacedPartyMember;
+              party.members[toSlot] = partyMember;  
+              await Promise.all([
+                moveNaturallyToSlotPosition(party, partyMember, toSlot),
+                replacedPartyMember && moveNaturallyToSlotPosition(party, replacedPartyMember, slot),
+              ]);
+            }
+            // is it dead?
+            if (dead) {
+              FLAG_DEATH_ANIMATION && await addEvents(
+                partyMember.animationQueue,
+                createParallelAnimationFactory(
+                    createTweenAnimationFactory(
+                        partyMember,
+                        partyMember,
+                        'sds',
+                        0,
+                        easeInQuad,
+                        99,
+                    ),
+                    createTweenAnimationFactory(
+                        partyMember,
+                        partyMember,
+                        'zs',
+                        0,
+                        easeInQuad,
+                        CONST_DEATH_DURATION,
+                    ),
+                    createTweenAnimationFactory(
+                        partyMember,
+                        partyMember,
+                        'zr',
+                        partyMember['zr'] + 9,
+                        easeOutQuad,
+                        CONST_DEATH_DURATION,
+                    ),
+                )
+              );
+              party.members[toSlot] = 0;
+              // add in any items they were carrying
+              const tile  = game.level[party.tile[1]][party.tile[0]] as Tile;
+              let items: Party = tile.parties.find(p => p.partyType == PARTY_TYPE_ITEM);
+              if (!items) {
+                items = {
+                  animationQueue: createAnimationEventQueue(game),
+                  anims: [],
+                  members: [],
+                  partyType: PARTY_TYPE_ITEM,
+                  tile: party.tile,
+                  orientated: 0,
+                };
+                tile.parties.push(items);  
+              }
+              items.members.push(...[partyMember.weapon, partyMember.secondary]
+                  .filter(v => !!v)
+                  .map<PartyMember>((item: Entity) => ({
+                    ...BASE_PARTY_MEMBER,
+                    animationQueue: createAnimationEventQueue(game),
+                    anims: [],
+                    entity: item,
+                    ['pos']: partyMember['pos'],
+                  }))
+              );
+              // is the entire party dead?
+              if (party.members.every(m => !m)) {
+                tile.parties = tile.parties.filter(p => p != party);
+              }
+            } else if (party.partyType == PARTY_TYPE_HOSTILE){
+              await delay(499);
+            }
+          });
+          promises.push(promise);
+        }
+      });
+      await Promise.all(promises);
+      game.pendingMember = 0;
 
       if (party == playerParty) {
         // AI moves after player
@@ -1212,7 +1217,7 @@ onload = async () => {
     fromLocation?: EntityLocation,
     dragImage?: HTMLElement,
     currTarget?: EventTarget,
-    startTime: number,
+    dragStartTime: number,
     startPosition: {
       clientX: number,
       clientY: number,
@@ -1325,7 +1330,7 @@ onload = async () => {
         }
       }
       dragContext = {
-        startTime: game.timeMillis,
+        dragStartTime: game.timeMillis,
         startPosition: p,
         fromLocation,
         entity,
@@ -1373,7 +1378,7 @@ onload = async () => {
     const target = onDrag(p);
     const location = getLocationAndMaybeEntity(target, p);
     if (dragContext && location) {
-      const { startTime, startPosition, lastPosition, fromLocation, entity, dragImage } = dragContext;
+      const { dragStartTime: startTime, startPosition, lastPosition, fromLocation, entity, dragImage } = dragContext;
       const dx = lastPosition.clientX - startPosition.clientX;
       const dy = lastPosition.clientY - startPosition.clientY;
       const l = Mathsqrt(dx*dx+dy*dy);
