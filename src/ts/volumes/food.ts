@@ -147,9 +147,8 @@ const VOLUMETERIC_COMMANDS_FOOD: VolumetricDrawCommand[] = [
           value: 8,
         },
         {
-          type: 'numeric',
-          range: 'positive-integer',
-          value: 8,
+          type: 'ref',
+          index: 0,
         },
       ],
     [
@@ -164,6 +163,30 @@ const VOLUMETRIC_FOOD = FLAG_USE_VOLUME_COMMANDS ? VOLUMETERIC_COMMANDS_FOOD : '
 
 const VOLUMETRIC_PARAMS_FOOD: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
   [
-    [COLOR_GUNMETAL, COLOR_RED_SHINY, COLOR_WHITE_SHINY], 
+    [COLOR_GUNMETAL, COLOR_RED_SHINY, COLOR_WHITE_SHINY],
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'numeric',
+          range: 'positive-integer',
+          value: 8,
+        }] : ''     
+  ],
+  [
+    [COLOR_GUNMETAL, COLOR_BLUE_SHINY, COLOR_WHITE_SHINY],
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'numeric',
+          range: 'positive-integer',
+          value: 4,
+        }] : ''     
+  ],
+  [
+    [COLOR_GUNMETAL, COLOR_GREEN_SHINY, COLOR_WHITE_SHINY], 
+    FLAG_USE_VOLUME_COMMANDS 
+        ? [{
+          type: 'numeric',
+          range: 'positive-integer',
+          value: 3,
+        }] : ''     
   ],
 ];

@@ -61,42 +61,7 @@ const VOLUMETRIC_COMMANDS_FLOOR: VolumetricDrawCommand[] = [
   [
     TYPE_CONTEXT_END_REMATERIAL,
   ],
-  [
-    TYPE_MATERIAL_ID,
-    {
-      type: 'numeric',
-      range: 'positive-integer',
-      value: 2,
-    },
-  ],
-  [
-    TYPE_MATERIAL_OUT_OF_BOUNDS,
-  ], 
-  [
-    TYPE_TRANSLATE_Z,
-    {
-      type: 'numeric',
-      range: 'integer',
-      value: -FLOOR_DEPTH/2,
-    },    
-  ],
-  [
-    TYPE_SCALE_Z,
-    {
-      type: 'numeric',
-      range: 'positive-float',
-      value: .4,
-    },
-  ],
-  [
-    TYPE_SHAPE_SPHERE,
-    {
-      type: 'numeric',
-      range: 'positive-integer',
-      value: 6,
-    },
-  ],
 ];
 
-const VOLUMETRIC_TEMPLATE_FLOOR = 'BVV<.#;z[BTT<%#<?zYdGS@';
+const VOLUMETRIC_TEMPLATE_FLOOR = 'BVV<.#;z[BTT<%';
 const VOLUMETRIC_FLOOR = FLAG_USE_VOLUME_COMMANDS ? VOLUMETRIC_COMMANDS_FLOOR : VOLUMETRIC_TEMPLATE_FLOOR;

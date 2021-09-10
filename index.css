@@ -24,16 +24,10 @@ body {
   height: 100%;
 }
 
-#Y {
-  height: 2vh;
-  margin: 2vh;
-  padding: 1vh;
-  background:  #fff;
-}
-
 #P {
-  background: #011;
+  background: #0ff;
   height: 2vh;
+  margin: 1vh 0;
 }
 
 #X {

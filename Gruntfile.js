@@ -128,8 +128,8 @@ module.exports = function (grunt) {
               src: ['dist/out.min.js'],
               overwrite: true,
               replacements: [{
-                  from: "'use strict';",
-                  to:""
+                from: "'use strict';",
+                to:""
               }, {
                 from: /\/\/([^\n])*\n/g,
                 to:""
@@ -169,6 +169,12 @@ module.exports = function (grunt) {
               }, {
                 from: "${Math.random()/999}",
                 to: "0.",
+              }, {
+                from: "forEach",
+                to: "map"
+              }, {
+                from: "-58-32",
+                to:"-90",
               }]
           },
           js2: { // second pass for the bits that we changed above

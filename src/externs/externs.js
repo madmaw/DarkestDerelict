@@ -1,4 +1,3 @@
-var Y;
 var Z;
 var X;
 var O;

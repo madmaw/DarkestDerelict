@@ -139,11 +139,16 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
   return [targetPosition, toAngle, walkAngle] as const;
 }
 
-const applyAttacks = (party: Party, slot: number): [ActorEntityResourceValues[], number] => {
+const applyAttacks = (party: Party, slot: number): [[ActorEntityResourceValues, ActorEntityResourceValues, ActorEntityResourceValues], number] => {
   const partyMember = party.members[slot];
   if (partyMember) {
     const entity = partyMember.entity as ActorEntity;
     const attacks = partyMember.attackAnimations;
+    const resourcesAfterPoison = entity.res.map(r => ({...r}));
+    if (resourcesAfterPoison[ACTOR_ENTITY_RESOURCE_TYPE_POISON].quantity) {
+      resourcesAfterPoison[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity -= resourcesAfterPoison[ACTOR_ENTITY_RESOURCE_TYPE_POISON].quantity;
+      resourcesAfterPoison[ACTOR_ENTITY_RESOURCE_TYPE_POISON].quantity--;
+    }
     const [resources, newSlot] = attacks.sort().reduce(
         ([resources, slot], { attackType: attack }) => {
           switch (attack) {
@@ -157,9 +162,11 @@ const applyAttacks = (party: Party, slot: number): [ActorEntityResourceValues[],
               }
               // electric attacks fall through to doing damage on enemies that have no energy
             case ATTACK_PIERCING:
-              // TODO poison should damage over time
-            case ATTACK_POISON:
+              // poison should damage over time
               resources[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity--;
+              break;
+            case ATTACK_POISON:
+              resources[ACTOR_ENTITY_RESOURCE_TYPE_POISON].quantity++;
               break;
               // if (attack != ATTACK_ELECTRIC) {
               //   break;  
@@ -176,13 +183,13 @@ const applyAttacks = (party: Party, slot: number): [ActorEntityResourceValues[],
           }
           return [resources, slot];
         },
-        [entity.res.map(r => ({...r})), slot], 
+        [resourcesAfterPoison, slot], 
     );
     return [
       resources.map(r => {
         r.quantity = Mathmin(Mathmax(0, r.quantity), r.max || r.quantity);
         return r;
-      }),
+      }) as [ActorEntityResourceValues, ActorEntityResourceValues, ActorEntityResourceValues],
       newSlot,
     ];
   }

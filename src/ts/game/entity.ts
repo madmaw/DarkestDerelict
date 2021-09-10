@@ -111,15 +111,19 @@ type EntityBase = {
 type ActorEntity = {
   purpose: EntityPurposeActor,
   side: number,
-  res: ActorEntityResourceValues[],
+  // health, power, poison
+  res: [ActorEntityResourceValues, ActorEntityResourceValues, ActorEntityResourceValues],
   variation?: number,
 } & EntityBase & HasAttack;
 
 type ActorEntityResourceTypeHealth = 0;
-const ACTOR_ENTITY_RESOURCE_TYPE_HEALTH = 0;
+const ACTOR_ENTITY_RESOURCE_TYPE_HEALTH: ActorEntityResourceTypeHealth = 0;
 type ActorEntityResourceTypePower = 1;
-const ACTOR_ENTITY_RESOURCE_TYPE_POWER = 1;
-type ActorEntityResourceType = ActorEntityResourceTypeHealth | ActorEntityResourceTypePower;
+const ACTOR_ENTITY_RESOURCE_TYPE_POWER: ActorEntityResourceTypePower = 1;
+type ActorEntityResourceTypePoison = 2;
+const ACTOR_ENTITY_RESOURCE_TYPE_POISON = 2;
+type ActorEntityResourceType = ActorEntityResourceTypeHealth | ActorEntityResourceTypePower | ActorEntityResourceTypePoison;
+
 
 type ActorEntityResourceValues = {
   quantity: number,

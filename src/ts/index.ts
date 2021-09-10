@@ -54,8 +54,8 @@ const U_LIGHTS = FLAG_LONG_SHADER_NAMES ? 'uLights' : 'H';
 const U_LIGHT_TRANSFORMS_INDEX = 8;
 const U_LIGHT_TRANSFORMS = FLAG_LONG_SHADER_NAMES ? 'uLightTransforms': 'I';
 
-const U_AMBIENT_LIGHT_INDEX = 9;
-const U_AMBIENT_LIGHT = FLAG_LONG_SHADER_NAMES ? 'uAmbientLight' : 'J';
+// const U_AMBIENT_LIGHT_INDEX = 9;
+// const U_AMBIENT_LIGHT = FLAG_LONG_SHADER_NAMES ? 'uAmbientLight' : 'J';
 
 const UNIFORM_NAMES = FLAG_LONG_SHADER_NAMES
     ? [
@@ -68,9 +68,9 @@ const UNIFORM_NAMES = FLAG_LONG_SHADER_NAMES
       U_STATUS_TEXTURE_SAMPLER,
       U_LIGHTS,
       U_LIGHT_TRANSFORMS,
-      U_AMBIENT_LIGHT,
+      // U_AMBIENT_LIGHT,
     ]
-    : [...'ABCDEFGHIJ'];
+    : [...'ABCDEFGHI'];
 
 const V_SURFACE_TEXTURE_COORD = FLAG_LONG_SHADER_NAMES ? 'vSurfaceTextureCoord' : 'Z';
 const V_SURFACE_TEXTURE_BOUNDS = FLAG_LONG_SHADER_NAMES ? 'vSurfaceTextureBounds' : 'Y';
@@ -94,7 +94,7 @@ const VERTEX_SHADER = `
   uniform mat4 ${U_MODEL_VIEW_MATRIX};
   uniform mat4 ${U_MODEL_ROTATION_MATRIX};
   uniform mat4 ${U_PROJECTION_MATRIX};
-  uniform vec3 ${U_CAMERA_POSITION};
+  uniform vec4 ${U_CAMERA_POSITION};
 
   varying vec2 ${V_SURFACE_TEXTURE_COORD};
   varying vec4 ${V_SURFACE_TEXTURE_BOUNDS};
@@ -103,7 +103,7 @@ const VERTEX_SHADER = `
 
   void main() {
     ${V_WORLD_POSITION} = ${U_MODEL_VIEW_MATRIX} * vec4(${A_VERTEX_POSITION}, 1.);
-    gl_Position = ${U_PROJECTION_MATRIX} * vec4(${V_WORLD_POSITION}.xyz-${U_CAMERA_POSITION}, 1.);
+    gl_Position = ${U_PROJECTION_MATRIX} * vec4(${V_WORLD_POSITION}.xyz-${U_CAMERA_POSITION}.xyz, 1.);
     ${V_SURFACE_TEXTURE_COORD} = ${A_SURFACE_TEXTURE_COORD};
     ${V_SURFACE_TEXTURE_BOUNDS} = ${A_SURFACE_TEXTURE_BOUNDS};
     ${V_SURFACE_ROTATION} = mat3(${A_SURFACE_ROTATION}*${U_MODEL_ROTATION_MATRIX});
@@ -125,7 +125,7 @@ const VERTEX_SHADER = `
   const L_PIXEL_DEPTH = FLAG_LONG_SHADER_NAMES ? 'lPixelDepth' : 'p';
   const L_DEPTH = FLAG_LONG_SHADER_NAMES ? 'lDepth' : 'o';
   const L_STEP_DEPTH = FLAG_LONG_SHADER_NAMES ? 'lStepDepth' : 'n';
-  const L_FOG = FLAG_LONG_SHADER_NAMES ? 'lFog' : 'm';
+  //const L_FOG = FLAG_LONG_SHADER_NAMES ? 'lFog' : 'm';
   const L_LIGHT = FLAG_LONG_SHADER_NAMES ? 'lLight' : 'l';
   const L_BRIGHTNESS = FLAG_LONG_SHADER_NAMES ? 'lBrightness' : 'k';
   // i, j reserved for loops
@@ -135,9 +135,8 @@ const VERTEX_SHADER = `
   
   const CONST_MAX_NUM_STEPS = 64;
   const CONST_TARGET_NUM_STEPS = 32;
-  const MAX_DEPTH = (VOLUME_DIMENSION + VOLUME_DEPTH_OFFSET)/TEXTURE_DIMENSION;
+  const MAX_DEPTH = VOLUME_DIMENSION/TEXTURE_DIMENSION;
   const C_MAX_DEPTH = `${MAX_DEPTH}`;
-  const C_MIN_DEPTH = FLAG_USE_HAND_ROLLED_GLSL_CONSTANTS ? -.0078 : -VOLUME_DEPTH_OFFSET/TEXTURE_DIMENSION;
   const BASE_STEP_DEPTH = FLAG_USE_HAND_ROLLED_GLSL_CONSTANTS ? .0022 : MAX_DEPTH/CONST_TARGET_NUM_STEPS;
   const MIN_STEP_DEPTH = FLAG_USE_HAND_ROLLED_GLSL_CONSTANTS ? .0011 : MAX_DEPTH/CONST_MAX_NUM_STEPS;
   const DEPTH_SCALE = 256/VOLUME_DIMENSION*MAX_DEPTH;
@@ -154,9 +153,8 @@ const VERTEX_SHADER = `
   uniform sampler2D ${U_DEPTH_TEXTURE_SAMPLER};
   uniform sampler2D ${U_RENDER_TEXTURE_SAMPLER};
   uniform sampler2D ${U_STATUS_TEXTURE_SAMPLER};
-  uniform vec3 ${U_CAMERA_POSITION};
+  uniform vec4 ${U_CAMERA_POSITION};
 
-  uniform vec4 ${U_AMBIENT_LIGHT};
   uniform vec4 ${U_LIGHTS}[${C_MAX_NUM_LIGHTS}];
   uniform mat4 ${U_LIGHT_TRANSFORMS}[${C_MAX_NUM_LIGHTS}];
 
@@ -166,14 +164,14 @@ const VERTEX_SHADER = `
   varying vec4 ${V_WORLD_POSITION};
 
   void main() {
-    vec3 ${L_CAMERA_NORMAL} = normalize(${V_WORLD_POSITION}.xyz - ${U_CAMERA_POSITION});
+    vec3 ${L_CAMERA_NORMAL} = normalize(${V_WORLD_POSITION}.xyz - ${U_CAMERA_POSITION}.xyz);
     vec3 ${L_CAMERA_DIRECTION} = ${V_SURFACE_ROTATION} * ${L_CAMERA_NORMAL};
-    vec2 ${L_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD}+${C_MIN_DEPTH}*${L_CAMERA_DIRECTION}.xy/${L_CAMERA_DIRECTION}.z;
+    vec2 ${L_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD};
     // trick CC into maintaining the quote style here so our post-compilation regex don't munge everything
-    vec4 ${L_DEPTH_TEXTURE} = vec4(${FLAG_PRODUCTION_MINIMAL ? Mathrandom()/999 : '0.'});
+    vec4 ${L_DEPTH_TEXTURE} = vec4(${FLAG_PRODUCTION_MINIMAL ? Math.random()/999 : '0.'});
     
     float ${L_PIXEL_DEPTH}=0.;
-    float ${L_DEPTH}=${C_MIN_DEPTH};
+    float ${L_DEPTH}=0.;
     float ${L_STEP_DEPTH}=max(${BASE_STEP_DEPTH}*dot(vec3(0., 0., -1.), ${L_CAMERA_DIRECTION}), ${MIN_STEP_DEPTH});
     for (int i=0; i<${CONST_MAX_NUM_STEPS}; i++) {
       ${L_DEPTH}+=${L_STEP_DEPTH};
@@ -181,14 +179,14 @@ const VERTEX_SHADER = `
       if (all(lessThanEqual(${V_SURFACE_TEXTURE_BOUNDS}.xy, ${L_TEMP_SURFACE_POSITION})) && all(lessThan(${L_TEMP_SURFACE_POSITION}, ${V_SURFACE_TEXTURE_BOUNDS}.zw))) {
         vec4 ${L_TEMP_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, ${L_TEMP_SURFACE_POSITION});
 
-        if ((${L_TEMP_TEXTURE}.b-${VOLUME_DEPTH_PROPORTION})*${C_DEPTH_SCALE}<=${L_DEPTH} && ${L_TEMP_TEXTURE}.a>0. && ${L_TEMP_TEXTURE}.a*${C_DEPTH_SCALE}>${L_DEPTH}) {
+        if (${L_TEMP_TEXTURE}.b*${C_DEPTH_SCALE}<=${L_DEPTH} && ${L_TEMP_TEXTURE}.a>0. && ${L_TEMP_TEXTURE}.a*${C_DEPTH_SCALE}>${L_DEPTH}) {
           ${L_DEPTH_TEXTURE} = ${L_TEMP_TEXTURE};
           ${L_SURFACE_POSITION} = ${L_TEMP_SURFACE_POSITION};
           ${L_PIXEL_DEPTH}=${L_DEPTH};
           ${L_DEPTH}-=${L_STEP_DEPTH};
           ${L_STEP_DEPTH}/=2.;
         }
-      } else if (${L_DEPTH} > 0.) {
+      } else {
         ${L_DEPTH}-=${L_STEP_DEPTH};
         ${L_STEP_DEPTH}/=2.;
       }
@@ -196,7 +194,6 @@ const VERTEX_SHADER = `
     //${L_DEPTH_TEXTURE} = texture2D(${U_DEPTH_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD});
     //${L_SURFACE_POSITION} = ${V_SURFACE_TEXTURE_COORD};
     //${L_PIXEL_DEPTH} = 0.;
-
     //vec4 ${L_TEMP_TEXTURE} = all(equal(${V_SURFACE_TEXTURE_BOUNDS}.xy, vec2(0.))) ? texture2D(${U_STATUS_TEXTURE_SAMPLER}, ${V_SURFACE_TEXTURE_COORD}*${C_STATUS_SCALE}) : vec4(0.);
     vec4 ${L_TEMP_TEXTURE} = dot(${L_CAMERA_DIRECTION}, vec3(0.,0.,-1.))>.7 ? texture2D(${U_STATUS_TEXTURE_SAMPLER}, (${V_SURFACE_TEXTURE_COORD}-${V_SURFACE_TEXTURE_BOUNDS}.xy)*${C_STATUS_SCALE}) : vec4(0.);
     if (${L_DEPTH_TEXTURE}.a>0.) {
@@ -207,10 +204,9 @@ const VERTEX_SHADER = `
       ${L_SURFACE_NORMAL} = vec3(${L_SURFACE_NORMAL}.xy, sqrt(1. - pow(length(${L_SURFACE_NORMAL}), 2.)));
       //${L_SURFACE_NORMAL} = ${V_SURFACE_ROTATION} * vec3(0., 0., 1.);
       vec3 ${L_PIXEL_POSITION} = ${V_WORLD_POSITION}.xyz + ${L_PIXEL_DEPTH} * ${L_CAMERA_NORMAL};
-      float ${L_FOG} = 1.-min(pow(length(${L_PIXEL_POSITION}-${U_CAMERA_POSITION})/5., 2.), 1.);
-      vec3 ${L_LIGHTING} = ${U_AMBIENT_LIGHT}.xyz;
+      vec3 ${L_LIGHTING} = vec3(0.);
       for(int i=0;i<${C_MAX_NUM_LIGHTS};i++){
-        if (float(i)<${U_AMBIENT_LIGHT}.w) {
+        if (float(i)<${U_CAMERA_POSITION}.w) {
           vec4 ${L_LIGHT} = ${U_LIGHTS}[i];
           float ${L_BRIGHTNESS} = length(${L_LIGHT}.xyz)/2.;
           vec4 ${L_LIGHT_POSITION} = ${U_LIGHT_TRANSFORMS}[i]*vec4(0., 0., 0., 1.);
@@ -220,7 +216,7 @@ const VERTEX_SHADER = `
             if (${L_REACH} > length(${L_LIGHT_DELTA})) {
               ${L_LIGHTING} += ${L_LIGHT}.xyz
                   // distance 
-                  * (pow(1.-length(${L_LIGHT_DELTA})/${L_REACH}, 2.))*${L_REACH}
+                  * (pow(1.-length(${L_LIGHT_DELTA})/${L_REACH}, 4.))*${L_REACH}
                   // angle 
                   * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(normalize(${L_LIGHT_DELTA})-j*${L_CAMERA_NORMAL})), 0.),.1/${L_COLOR}.a) * (j>0.?1.-${L_COLOR}.a:${L_COLOR}.a)
                   // cone
@@ -229,7 +225,7 @@ const VERTEX_SHADER = `
           }
         }
       }
-      gl_FragColor = vec4(mix(mix(vec3(${L_FOG}), ${L_COLOR}.xyz, ${L_FOG})*(${L_COLOR}.a<1.?${L_LIGHTING}:vec3(1.)), ${L_TEMP_TEXTURE}.xyz, ${L_TEMP_TEXTURE}.w), 1.);
+      gl_FragColor = vec4(mix(${L_COLOR}.xyz*(${L_COLOR}.a<1.?${L_LIGHTING}:vec3(1.)), ${L_TEMP_TEXTURE}.xyz, ${L_TEMP_TEXTURE}.w), 1.);
     } else if (${L_TEMP_TEXTURE}.w > .1) {
       gl_FragColor = vec4(${L_TEMP_TEXTURE}.xyz * ${L_TEMP_TEXTURE}.w, 1.);
     } else {
@@ -282,10 +278,18 @@ onload = async () => {
 
   type LoadingEvent = [VolumetricDrawCommand[] | string, Matrix4, [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][], number?];
 
+  const surfaceColors: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [COLOR_DULLMETAL, COLOR_GOLD]
+      .map(wallMaterial => [COLOR_PURPLE_CARPET, COLOR_BLUE_CARPET, COLOR_DULLMETAL]
+          .map(carpetMaterial => [COLOR_BLUE_SHINY, COLOR_GREEN_SHINY, COLOR_RED_SHINY, COLOR_SILVER_SHINY]
+              .map<(Vector4 | string)[]>(pipeMaterial => 
+                  [wallMaterial, carpetMaterial, pipeMaterial]
+              ) as [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?]
+          )
+      ).flat(1);
+      // TODO randomise
   const SURFACE_COLORS: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
-    [[COLOR_WHITE_SHINY]],
-    [[COLOR_GUNMETAL, COLOR_GUNMETAL, COLOR_SILVER_SHINY]],
-    [[COLOR_DULLMETAL, COLOR_BLUE_CARPET, COLOR_SILVER_SHINY]],
+    [[COLOR_SILVER_SHINY]],
+    ...surfaceColors,
   ];
 
   // slightly scale up to hide wall-gaps
@@ -344,7 +348,7 @@ onload = async () => {
   const loadingEventQueue: EventQueue<LoadingEvent, EntityRenderables[]> = {
     handler: async (c, events) => {
       const [commands, staticTransform, variations, entityZPadding] = c;
-      P.style.width = `${(COMMANDS.length-events.length)/COMMANDS.length*100 | 0}%`
+      P.style.width = `${(COMMANDS.length-events.length)/COMMANDS.length*99 | 0}%`
       // allow rendering of progress
       await delay();
 
@@ -624,13 +628,15 @@ onload = async () => {
       //matrix4Perspective(CONST_DEFAULT_TAN_FOV_ON_2, aspect, .35, 10),
       matrix4Rotate(-CONST_PI_ON_2_1DP, 1, 0, 0),
       matrix4Rotate(CONST_PI_ON_2_2DP, 0, 0, 1),
-      matrix4Rotate(-CONST_PI_ON_9_1DP, 0, 1, 0),
+      matrix4Rotate(-CONST_PI_ON_6_1DP, 0, 1, 0),
   );
 
   const entityRenderables = await addEvents(loadingEventQueue, ...COMMANDS);
+  // add in poison
+  entityRenderables[ENTITY_TYPE_RESOURCE][ACTOR_ENTITY_RESOURCE_TYPE_POISON*2]=entityRenderables[ENTITY_TYPE_SYMBOL][ATTACK_POISON];
   
   X.innerHTML = new Array(4).fill(X.innerHTML).join('');
-  Y.hidden = true;
+  P.hidden = true;
 
   const equipmentSlots: Element[] = new Array(X.children.length).fill(0).map((_, i) => X.children.item(i));
   const gameEventQueueHandler = async (e: GameEvent) => {
@@ -664,6 +670,7 @@ onload = async () => {
     switch (e.eventType) {
       case GAME_EVENT_TYPE_MOVE:
         {
+          // assumes only the player ever moves
           const { unrotatedDeltaPosition } = e;
           const a = party.orientated * CONST_PI_ON_2_1DP;
 
@@ -672,35 +679,32 @@ onload = async () => {
           const to = from.map((v, i) => Mathround(v + deltaPosition[i])) as Vector2;
           const toTile = game.level[to[1]]?.[to[0]] as Tile;
           if (!toTile || toTile.parties.some(p => p.partyType == PARTY_TYPE_DOOR || p.partyType == PARTY_TYPE_OBSTACLE || p.partyType == PARTY_TYPE_HOSTILE)) {
-            if (party == playerParty) {
-              // just animate the camera in and out
-              const toCameraPosition = [...from.map((v, i) => v + deltaPosition[i]/6), 0] as Vector3;
-              const toAnimationFactory = createTweenAnimationFactory(party, party, 'cpos', toCameraPosition, easeInQuad, 99);
-              const returnAnimationFactory = createTweenAnimationFactory(party, party, 'cpos', party['cpos'], easeOutQuad, 99);
-              await addEvents(party.animationQueue, toAnimationFactory, returnAnimationFactory); 
-            }
+            // just animate the camera in and out
+            const toCameraPosition = [...from.map((v, i) => v + deltaPosition[i]/6), 0] as Vector3;
+            const toAnimationFactory = createTweenAnimationFactory(party, party, 'cpos', toCameraPosition, easeInQuad, 99);
+            const returnAnimationFactory = createTweenAnimationFactory(party, party, 'cpos', party['cpos'], easeOutQuad, 99);
+            await addEvents(party.animationQueue, toAnimationFactory, returnAnimationFactory); 
           } else {
             const fromTile = game.level[from[1]][from[0]] as Tile;
             fromTile.parties.splice(fromTile.parties.indexOf(party), 1);
             toTile.parties.push(party);
-            party.tile = to;
+            turnPassed = party.tile = to;
             let cameraMovePromise: Promise<any>;
-            if (turnPassed = 1) {
-              // move the camera too
-              const toCameraPosition = [...to, 0] as Vector3;
-              const animationFactory = createTweenAnimationFactory(party, party, 'cpos', toCameraPosition, easeInQuad, 299);
-              cameraMovePromise = addEvents(party.animationQueue, animationFactory); 
-            }
+            // move the camera too
+            const toCameraPosition = [...to, 0] as Vector3;
+            const animationFactory = createTweenAnimationFactory(party, party, 'cpos', toCameraPosition, easeInQuad, 299);
+            cameraMovePromise = addEvents(party.animationQueue, animationFactory); 
             // animate and update resources
             await Promise.all(party.members.map(async (partyMember, i) => {
               if (partyMember) {
-                if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
-                  // retain some power if we have the battery
-                  partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity = Mathmin(
-                      partyMember.entity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity,
-                      partyMember.secondary && partyMember.secondary.entityType == ENTITY_TYPE_BATTERY ? 1: 0,
-                  );
-                }                  
+                const actor = partyMember.entity as ActorEntity;
+                // retain some power if we have the battery
+                actor.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity = Mathmin(
+                    actor.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity,
+                    partyMember.secondary && partyMember.secondary.entityType == ENTITY_TYPE_BATTERY ? 1: 0,
+                );
+                // clear poison status
+                actor.res[ACTOR_ENTITY_RESOURCE_TYPE_POISON].quantity = 0;
                 return await moveNaturallyToSlotPosition(party, partyMember, i);
               }
             }).concat(cameraMovePromise));  
@@ -717,10 +721,10 @@ onload = async () => {
           const toOrientation = (party.orientated + deltaOrientation + 4)%4;
           party.orientated = toOrientation as Orientation;
           let cameraRotationPromise: Promise<any>;        
-          if(turnPassed = 1) {
-            const cameraAnimationFactory = createTweenAnimationFactory(party, party, 'czr', party['czr'] + deltaOrientation * CONST_PI_ON_2_2DP, easeInQuad, 299);
-            cameraRotationPromise = addEvents(party.animationQueue, cameraAnimationFactory);
-          }
+          turnPassed = 1;
+          // note: probably will produce a bunch of NaNs for non-player turning, but no big deal I guess
+          const cameraAnimationFactory = createTweenAnimationFactory(party, party, 'czr', party['czr'] + deltaOrientation * CONST_PI_ON_2_2DP, easeInQuad, 299);
+          cameraRotationPromise = addEvents(party.animationQueue, cameraAnimationFactory);
 
           await Promise.all(party.members.map(async (member, i) => {
             return member && moveNaturallyToSlotPosition(party, member, i);
@@ -755,8 +759,14 @@ onload = async () => {
               case ENTITY_PURPOSE_SECONDARY:
                 if (toSlotPurpose == ENTITY_PURPOSE_ACTOR) {
                   const actor = toSlot.entity as ActorEntity;
-                  if (e.entity.entityType == ENTITY_TYPE_FOOD && actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity < actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].max) {
-                    actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity++;
+                  const food = e.entity as SecondaryEntity;
+                  if (e.entity.entityType == ENTITY_TYPE_FOOD && (actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity < actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].max || food.variation)) {
+                    if (food.variation) {
+                      // increase max energy/health and set to maximum
+                      actor.res[food.variation-1].quantity = (actor.res[food.variation-1].max++) + 1;
+                    } else {
+                      actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity++;
+                    }
                     turnPassed = itemDestroyed = 1;
                   } else {
                     reciprocalMoveEntity = toSlot.secondary;
@@ -879,8 +889,7 @@ onload = async () => {
               const targetParty = targetsVictim
                   ? victimParty
                   : party;
-              const targetSlotIds = allSlotIds[(column + targetsVictim) % 2]
-              
+              const targetSlotIds = allSlotIds[(column + targetsVictim) % 2];              
               const targetPartyIndex = position % 4;
               // TODO party rotation
               const filledTargetPartyIndex = targetSlotIds.reduce(
@@ -1064,7 +1073,7 @@ onload = async () => {
                 };
                 tile.parties.push(items);  
               }
-              items.members.push(...[partyMember.weapon, partyMember.secondary]
+              items.members.push(...[partyMember.secondary, partyMember.weapon]
                   .filter(v => !!v)
                   .map<PartyMember>((item: Entity) => ({
                     ...BASE_PARTY_MEMBER,
@@ -1175,7 +1184,7 @@ onload = async () => {
     orientated: ORIENTATION_NORTH,
     partyType: PARTY_TYPE_PLAYER,
     tile: DEFAULT_PARTY_POSITION,
-    ['coff']: [.4, 0, -.6],
+    ['coff']: [.35, 0, -.7],
     ['czr']: CONST_PI_ON_2_2DP,
     anims: [],
     animationQueue: createAnimationEventQueue(game),
@@ -1250,7 +1259,7 @@ onload = async () => {
       let minParty: Party | undefined;
       let minSlot: number | undefined;
       let minEntity: Entity | undefined;
-      let minDistance: number = CONST_MAX_REACH;
+      let minDistance: number = 9;
       const sx = p.clientX*2/Z.clientWidth - 1;
       // flip y coordinates so screen coordinates = world coordinates
       const sy = 1 - p.clientY*2/Z.clientHeight;
@@ -1479,6 +1488,7 @@ onload = async () => {
           ? applyAttacks(party, slot)[0]
           : entity.res;
 
+      let h = 0;
       resources.forEach((v, i) => {
         let {
           quantity,
@@ -1499,13 +1509,16 @@ onload = async () => {
             x += symbolDimension;
           });
         });
-        y += symbolDimension;
+        if (quantity || maximum) {
+          y += symbolDimension;
+          h += symbolDimension;
+        }
       });
 
       stx.strokeStyle = stx.fillStyle = `hsl(${FLAG_ROTATE_COLORS || member != game.pendingMember ? 180 : 180 - Mathmin((game.timeMillis - member.activeAttackStartTime) | 0, 180)},50%,${50 + (member == game.pendingMember ? Mathsin((game.timeMillis - member.activeAttackStartTime)/99)*30 | 0 : 0)}%)`;
       stx.globalCompositeOperation = 'destination-over';
       stx.beginPath(); // required to prevent weirdness with clearRect
-      stx.rect(symbolDimension/3, startingY + symbolDimension/6, width - symbolDimension/3, entity.res.length * symbolDimension);
+      stx.rect(symbolDimension/3, startingY + symbolDimension/6, width - symbolDimension/3, h);
       //ctx.closePath();
       stx.stroke();
       stx.globalAlpha = .3;
@@ -1603,20 +1616,14 @@ onload = async () => {
     const lightTransforms = usableLights.map(l => l.lightTransform).flat();
     game.previousLights = [];
 
-    const ambientLight = [.2, .2, .2, usableLights.length];
-    
     gl.uniformMatrix4fv(
         uniforms[U_PROJECTION_MATRIX_INDEX],
         false,
         projectionMatrix,
     );
-    gl.uniform3fv(
-        uniforms[U_CAMERA_POSITIION_INDEX],
-        cameraPosition,
-    );
     gl.uniform4fv(
-        uniforms[U_AMBIENT_LIGHT_INDEX],
-        ambientLight,
+        uniforms[U_CAMERA_POSITIION_INDEX],
+        [...cameraPosition, usableLights.length],
     );
     gl.uniform4fv(
         uniforms[U_LIGHTS_INDEX],
@@ -1659,25 +1666,26 @@ onload = async () => {
         let light: Light | undefined;
         // torch
         if (partyMember.secondary && partyMember.secondary?.entityType == ENTITY_TYPE_TORCH) {
-          light = {
+          game.previousLights.push({
             ['pos']: partyMember['pos'],
-            light: [.75, .75, .7, 4],
+            light: [.9, .9, .8, 4],
             lightTransform: matrix4Multiply(
                 matrix4Translate(...partyMember['pos']),
                 matrix4Rotate(party['czr'] + CONST_PI_1DP, 0, 0, 1),
                 matrix4Translate(.2, 0, .5),
                 matrix4Rotate(-CONST_PI_ON_9_1DP, 0, 1, 0),
             )
-          };
-        } else if (party.partyType == PARTY_TYPE_PLAYER || party.partyType == PARTY_TYPE_HOSTILE || partyMember.entity.entityType == ENTITY_TYPE_MARINE) {
+          });
+        }
+        if (party.partyType == PARTY_TYPE_PLAYER || party.partyType == PARTY_TYPE_HOSTILE || partyMember.entity.entityType == ENTITY_TYPE_MARINE) {
           light = {
             ['pos']: partyMember['pos'],
-            light: party.partyType == PARTY_TYPE_HOSTILE ? [.5, 0, 0, 1] : [.5, .5, .5, 1],
+            light: party.partyType == PARTY_TYPE_HOSTILE ? [.6, .2, .2, 0] : [.6, .6, .6, 0],
             lightTransform: matrix4Multiply(
                 matrix4Translate(...partyMember['pos']),
                 matrix4Rotate((party['czr'] || partyMember['zr']) + CONST_PI_1DP, 0, 0, 1),
                 matrix4Translate(-.2, 0, .3),
-                matrix4Rotate(-CONST_PI_ON_4_1DP, 0, 1, 0),
+                //matrix4Rotate(-CONST_PI_ON_4_1DP, 0, 1, 0),
             )
           };
         }
@@ -1708,9 +1716,9 @@ onload = async () => {
         if (partyMember.entity.purpose == ENTITY_PURPOSE_ACTOR) {
           if (!partyMember.anims.length) {
             if (Mathrandom() > .1) {
-              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zs', partyMember.entity.side ? 1.05 : .97, easeSinBackToStart, 2999));
+              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zs', partyMember.entity.side ? 1.05 : .97, easeSinBackToStart, 3000));
             } else {
-              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr2', (partyMember['zr2'] || 0) + (Mathrandom() - .5) * CONST_PI_ON_3_1DP, easeSquareBackToStart, 1999, 0));
+              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr2', (partyMember['zr2'] || 0) + (Mathrandom() - .5) * CONST_PI_ON_3_1DP, easeSquareBackToStart, 2000, 0));
             }
           }
           const stx: CanvasRenderingContext2D = statusCanvas['stx'] || (statusCanvas['stx'] = shortenMethods(statusCanvas.getContext('2d')));
@@ -1737,7 +1745,7 @@ onload = async () => {
         }
         if (FLAG_ROTATING_ITEMS && (partyMember.entity.purpose == ENTITY_PURPOSE_WEAPON || partyMember.entity.purpose == ENTITY_PURPOSE_SECONDARY)) {
           if (!partyMember.anims.length) {
-            partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr', partyMember['zr'] + CONST_2_PI_0DP, easeLinear, 3999));
+            partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr', partyMember['zr'] + CONST_2_PI_0DP, easeLinear, 4000));
           }
         }
 

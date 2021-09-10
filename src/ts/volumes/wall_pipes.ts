@@ -133,7 +133,7 @@ const VOLUMETRIC_COMMANDS_WALL_PIPES: VolumetricDrawCommand[] = [
       {
         type: 'numeric',
         range: 'positive-integer',
-        value: 1,
+        value: 2,
       },
     ],
     [

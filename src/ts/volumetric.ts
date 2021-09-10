@@ -61,9 +61,6 @@ const NEGATIVE_VOLUME_MIDPOINT_VECTOR = vectorNDivide(VOLUME_MIDPOINT_VECTOR, -1
 const VOLUME_MIDPOINT_MATRIX = matrix4Translate(...VOLUME_MIDPOINT_VECTOR);
 const NEGATIVE_VOLUME_MIDPOINT_MATRIX = matrix4Translate(...NEGATIVE_VOLUME_MIDPOINT_VECTOR);
 
-const VOLUME_DEPTH_OFFSET = 4 * VOLUME_SCALE;
-const VOLUME_DEPTH_PROPORTION = VOLUME_DEPTH_OFFSET/256;
-
 type Rect3 = [Vector3, Vector3];
 
 const CARDINAL_PROJECTIONS: Matrix4[] = [
@@ -509,10 +506,11 @@ const processVolumetricDrawCommandString = (
       case TYPE_MATERIAL_ID:
         context.materialIndex = positiveIntegerFromBase64(nextCommand());
         break;
+      /* unused
       case TYPE_MATERIAL_OUT_OF_BOUNDS:
         context.materialIndex = -(context.materialIndex||1);
         break;
-  
+      */
     }
   }
 
@@ -631,7 +629,7 @@ const calculateVolumeBounds = <T>(volume: Volume<T>): Rect3 => {
   let max: Vector3 = [0, 0, 0];
   let min: Vector3 = [VOLUME_DIMENSION, VOLUME_DIMENSION, VOLUME_DIMENSION];
   volumeMap(volume, (t, position) => {
-    if (t && t[0]>=0) {
+    if (t) {
       max = max.map((v, i) => Mathmax(position[i], v)) as Vector3;
       min = min.map((v, i) => Mathmin(position[i], v)) as Vector3;
     }
@@ -649,7 +647,7 @@ const volumeToDepthTexture = (volume: Volume<Voxel>, bounds: Rect3) => {
     return [
       ((normal[0]+1)*127)|0,
       ((normal[1]+1)*127)|0,
-      Mathmin(minz + VOLUME_DEPTH_OFFSET, 255),
+      Mathmin(minz, 255),
       Mathmin(maxz + 1, 255),
     ];
   });
@@ -666,7 +664,7 @@ const volumeToRenderTexture = (volume: Volume<Voxel>, bounds: Rect3, packedRende
     });
   }
   return volumeToTexture(volume, bounds, (voxel) => {
-    const materialIndex = Mathabs(voxel[0]);
+    const materialIndex = voxel[0];
     const texture = renderTextures[materialIndex%renderTextures.length];
     return texture;
   });

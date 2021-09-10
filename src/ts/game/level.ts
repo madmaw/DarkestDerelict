@@ -36,12 +36,13 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     parties: [],
   })));
 
-  const food: Entity = {
-    renderables: entityRenderables[ENTITY_TYPE_FOOD][0],
+  const foods: Entity[] = entityRenderables[ENTITY_TYPE_FOOD].map((renderables, variation) => ({
+    renderables,
     entityType: ENTITY_TYPE_FOOD,
     purpose: ENTITY_PURPOSE_SECONDARY,
-    variation: 0,
-  };  
+    variation,
+  }));
+  
 
   iterateLevel(tiles, (t, position) => {
     const [x, y] = position;
@@ -145,7 +146,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     entityType: ENTITY_TYPE_KEY,
     purpose: ENTITY_PURPOSE_SECONDARY,
     variation: doorType,
-  }, food] as Entity[]).concat(
+  }, foods[0]] as Entity[]).concat(
       new Array(Mathmin(Mathrandom()*depth | 0, 3)).fill(0).map<Entity>(() => {
         const entityType = (ENTITY_TYPE_FOOD + Mathpow(Mathrandom(), Mathmax(depth - 5, 1)) * 4 | 0) as EntityType;
         const thingRenderables = entityRenderables[entityType];
@@ -272,6 +273,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
   );
 
   let enemyPartyCount = depth + 1;
+  let treasureCount = 0;
   flood(
       tile => !tile.parties.length,
       (tile, adjacentValid, inLevel, pos) => {
@@ -299,6 +301,9 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
                       quantity: 0,
                       max: 2,
                     },
+                    {
+                      quantity: 0,
+                    }
                   ],
                   purpose: ENTITY_PURPOSE_ACTOR,
                   side: 1,
@@ -389,8 +394,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
               partyMember.weapon = createPistol(entityRenderables[ENTITY_TYPE_PISTOL], ATTACK_PIERCING);
             }
             // maybe drop food
-            Mathrandom() < enemyId/5  && (partyMember.secondary = food);
-            // TODO maybe give something to drop on death (e.g. food)
+            Mathrandom() < enemyId/(treasureCount+2)  && (partyMember.secondary = {...foods[Mathmax(2 - treasureCount++, 0)]});
             partyMembers.push(partyMember);
           }
           if (partyMembers.length) {
@@ -561,6 +565,9 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
         quantity: 0,
         max: maxPower,
       },
+      {
+        quantity: 0,
+      }
     ],
     purpose: ENTITY_PURPOSE_ACTOR,
     side: 0,
@@ -599,7 +606,7 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
                 , // front row, opposide side
                 , // back row, same side
                 , // back row, opposite side
-                [ATTACK_PIERCING, ATTACK_MOVE_MEDIAL], // enemy front row, same side
+                [ATTACK_POWER_DRAIN, ATTACK_POWER_DRAIN, ATTACK_MOVE_MEDIAL], // enemy front row, same side
               ], 
               // attacker in back row
               [
@@ -608,7 +615,7 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
                 , // front row, opposide side
                 [ATTACK_MOVE_MEDIAL], // back row, same side
                 , // back row, opposite side
-                [ATTACK_PIERCING, ATTACK_MOVE_MEDIAL], // enemy front row, same side
+                [ATTACK_POWER_DRAIN, ATTACK_POWER_DRAIN, ATTACK_MOVE_MEDIAL], // enemy front row, same side
               ], 
             ],
           ]
@@ -617,7 +624,7 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
 }
 
 const createPistol = (renderables: EntityRenderables[], attackType: Attack): WeaponEntity => {
-  const bonusAttacks = attackType == ATTACK_ELECTRIC ? [attackType] : [];
+  const bonusAttacks = attackType == ATTACK_ELECTRIC ? [attackType] : attackType == ATTACK_POISON ? [ATTACK_POWER_DRAIN] : [];
   return {
     renderables: renderables[attackType],
     entityType: ENTITY_TYPE_PISTOL,
