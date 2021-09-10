@@ -343,7 +343,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
                               // web
                               , // front row, same side
                               , // front row, opposide side
-                              , // back row, same side
+                              [ATTACK_MOVE_MEDIAL], // back row, same side
                               , // back row, opposite side
                               [ATTACK_WEBBING], // enemy front row, same side
                               [ATTACK_WEBBING], // enemy front row, opposite side
@@ -366,7 +366,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
                               // web
                               , // front row, same side
                               , // front row, opposide side
-                              , // back row, same side
+                              [ATTACK_MOVE_MEDIAL], // back row, same side
                               , // back row, opposite side
                               [ATTACK_WEBBING], // enemy front row, same side
                               [ATTACK_WEBBING], // enemy front row, opposite side
@@ -618,13 +618,27 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
                 [ATTACK_POWER_DRAIN, ATTACK_POWER_DRAIN, ATTACK_MOVE_MEDIAL], // enemy front row, same side
               ], 
             ],
+            // power level 2
+            [
+              // attacker in front row
+              [
+                // crack heads together
+                , // front row, same side
+                , // front row, opposide side
+                , // back row, same side
+                , // back row, opposite side
+                [ATTACK_POWER_DRAIN, ATTACK_POWER_DRAIN, ATTACK_MOVE_LATERAL], // enemy front row, same side
+                [ATTACK_POWER_DRAIN, ATTACK_POWER_DRAIN], // enemy front row, opposite side
+              ], 
+            ],
+
           ]
         : arrayFromBase64<Attack[][][][]>([...('<<?;^:::;^=::<^_<?::::<Z^?::;^:<Z^')],4),
   };
 }
 
 const createPistol = (renderables: EntityRenderables[], attackType: Attack): WeaponEntity => {
-  const bonusAttacks = attackType == ATTACK_ELECTRIC ? [attackType] : attackType == ATTACK_POISON ? [ATTACK_POWER_DRAIN] : [];
+  const bonusAttacks = attackType == ATTACK_ELECTRIC ? [ATTACK_POWER_DRAIN] : attackType == ATTACK_POISON ? [ATTACK_POISON] : [];
   return {
     renderables: renderables[attackType],
     entityType: ENTITY_TYPE_PISTOL,
@@ -659,7 +673,7 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [attackType, ...bonusAttacks], // enemy front row, same side
+              [...bonusAttacks, attackType], // enemy front row, same side
             ], 
             // attacker in back row
             [
@@ -668,7 +682,7 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [attackType, ...bonusAttacks], // enemy front row, same side
+              [...bonusAttacks, attackType], // enemy front row, same side
             ],
           ],
           // power level 2
@@ -680,7 +694,7 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [attackType, attackType, ...bonusAttacks], // enemy front row, same side
+              [...bonusAttacks, attackType, attackType], // enemy front row, same side
             ], 
             // attacker in back row
             [
@@ -689,9 +703,9 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [attackType, ...bonusAttacks], // enemy front row, same side
+              [...bonusAttacks, attackType], // enemy front row, same side
               , // enemy front row, opposite side
-              [attackType, ...bonusAttacks], // enemy back row, same side
+              [...bonusAttacks, attackType], // enemy back row, same side
             ],
           ],
           // power level 3
@@ -703,7 +717,7 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [attackType, attackType, attackType, ...bonusAttacks], // enemy front row, same side
+              [...bonusAttacks, attackType, attackType, attackType], // enemy front row, same side
             ], 
             // attacker in back row
             [
@@ -712,9 +726,9 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [attackType, attackType, ...bonusAttacks], // enemy front row, same side
+              [...bonusAttacks, attackType, attackType], // enemy front row, same side
               , // enemy front row, opposite side
-              [attackType, attackType, ...bonusAttacks], // enemy back row, same side
+              [...bonusAttacks, attackType, attackType], // enemy back row, same side
             ],
           ],      
         ]

@@ -847,18 +847,18 @@ onload = async () => {
             
             // find best attack
             const power = attackerEntity.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity;
-            const row = (slot / 2) | 0;
-            const column = slot % 2;
+            const attackerRow = (slot / 2) | 0;
+            const attackerColumn = slot % 2;
             const allSlotIds: [[number, number, number, number], [number, number, number, number]] = [
               [0, 1, 2, 3],
               [1, 0 ,3, 2],
             ];
-            const slotIds = allSlotIds[column];
+            const slotIds = allSlotIds[attackerColumn];
 
             // find the best attack for the power level and position (higher is better)
             const attackIndex = allAttacks.slice(0, power+1).reduce<number>(
                 (a, v, i) => {
-                  if (v && v[row]) {
+                  if (v && v[attackerRow]) {
                     return i;
                   }
                   return a;
@@ -866,21 +866,21 @@ onload = async () => {
                 0,
             );
 
-            const attacks: Attack[][] = [...allAttacks[attackIndex][row]];
+            const attacks: Attack[][] = [...allAttacks[attackIndex][attackerRow]];
             // drain power from self equal to attackIndex
             attacks[slotIds[slot]] = (attacks[slotIds[slot]] || []).concat(new Array(attackIndex).fill(ATTACK_POWER_DRAIN));
             
             // add in stabbing attack if we have the bayonet and are in the front row
-            if (!row && attacker.secondary && attacker.secondary.entityType == ENTITY_TYPE_BAYONET) {
+            if (!attackerRow && attacker.secondary && attacker.secondary.entityType == ENTITY_TYPE_BAYONET) {
               attacks[4] = (attacks[4]||[]).concat(ATTACK_PIERCING);
             }
             if (FLAG_MARINE_DIMORPHISM && attacker.entity.entityType == ENTITY_TYPE_MARINE
-                  && (!row && (attacker.entity as ActorEntity).variation == MARINE_VARIATION_YELLOW
-                      || row && (attacker.entity as ActorEntity).variation == MARINE_VARIATION_RED
+                  && (!attackerRow && (attacker.entity as ActorEntity).variation == MARINE_VARIATION_YELLOW
+                      || attackerRow && (attacker.entity as ActorEntity).variation == MARINE_VARIATION_RED
                   )
-                  && !attacks[row * 2].some(attack => attack == ATTACK_MOVE_MEDIAL)
+                  && !attacks[attackerRow * 2].some(attack => attack == ATTACK_MOVE_MEDIAL)
             ) {
-              attacks[row * 2] = (attacks[row*2] || []).concat(ATTACK_MOVE_MEDIAL);
+              attacks[attackerRow * 2] = (attacks[attackerRow*2] || []).concat(ATTACK_MOVE_MEDIAL);
             }
             
             // add attacks
@@ -889,33 +889,64 @@ onload = async () => {
               const targetParty = targetsVictim
                   ? victimParty
                   : party;
-              const targetSlotIds = allSlotIds[(column + targetsVictim) % 2];              
+              const targetSlotIds = allSlotIds[(attackerColumn + targetsVictim) % 2];              
               const targetPartyIndex = position % 4;
+              const targetSlotId = targetSlotIds[targetPartyIndex]
+              const targetColumn = targetSlotId % 2;
+              const targetRow = targetSlotId/2 | 0;
+              let rowMask = 0;
+              let colMask = 0;
+
+              targetParty.members.forEach((m, i) => {
+                if(m) {
+                  const row = i / 2 | 0;
+                  const column = i % 2;
+                  rowMask |= 1 << row;
+                  colMask |= 1 << column;
+                }
+              });
+              
               // TODO party rotation
               const filledTargetPartyIndex = targetSlotIds.reduce(
-                  (bestIndex, slotId, index) => targetParty.members[slotId]
+                  (bestIndex, slotId, index) => {
+                    const row = slotId / 2 | 0;
+                    const column = slotId % 2;
+                    const dRow = row - targetRow;
+                    const dColumn = column - targetColumn;
+                    return targetParty.members[slotId]
+                      && dRow >= 0
+                      // is the target
+                      && (
+                          !targetsVictim ||
+                          // has enemies in both columns, or our attack is the first column attack
+                          (colMask == 3 || !(targetPartyIndex % 2))
+                              // and
+                              // has enemies in both rows, or our attack is the first row attack
+                              && (rowMask == 3 || targetPartyIndex < 2)
+                      )
                       && (bestIndex < 0
                           // it's closer
-                          || Mathabs(index - targetPartyIndex) < Mathabs(bestIndex - targetPartyIndex)
-                          // or it's in the same row
-                          || Mathabs(index - targetPartyIndex) == Mathabs(bestIndex - targetPartyIndex) && index % 2 == targetPartyIndex % 2
+                          || Mathabs(dColumn) * 2 + dRow < Mathabs((targetSlotIds[bestIndex]%2) - targetColumn) * 2 + ((targetSlotIds[bestIndex]/2 | 0) - targetRow)
                       )
                           ? index
-                          : bestIndex,
+                          : bestIndex
+                  },
                   -1,
               );
-              const targetPartySlot = targetSlotIds[filledTargetPartyIndex];
-              const targetPartyMember = targetParty.members[targetPartySlot] as PartyMember;
-              if (!targetPartyMember.activeAttackStartTime) {
-                targetPartyMember.activeAttackStartTime = game.timeMillis;
+              if (filledTargetPartyIndex >= 0) {
+                const targetPartySlot = targetSlotIds[filledTargetPartyIndex];
+                const targetPartyMember = targetParty.members[targetPartySlot] as PartyMember;
+                if (!targetPartyMember.activeAttackStartTime) {
+                  targetPartyMember.activeAttackStartTime = game.timeMillis;
+                }
+                const attackAnimations = (targetAttacks || []).map((attack) => {
+                  return {
+                    attackType: attack,
+                    ['s']: 0,
+                  };
+                });
+                targetPartyMember.attackAnimations.push(...attackAnimations);  
               }
-              const attackAnimations = (targetAttacks || []).map((attack) => {
-                return {
-                  attackType: attack,
-                  ['s']: 0,
-                };
-              });
-              targetPartyMember.attackAnimations.push(...attackAnimations);
             });
             // for all the parties involved, animate the attack animations
             const attackAnimationPromises: Promise<any>[] = [];
@@ -1465,10 +1496,12 @@ onload = async () => {
     }
   }
 
-  if (FLAG_MOBILE_SUPPORT) {
-    ontouchcancel = cleanUpDrag;
+  if (!FLAG_IGNORE_DRAG_CANCEL) {
+    if (FLAG_MOBILE_SUPPORT) {
+      ontouchcancel = cleanUpDrag;
+    }
+    onmouseleave = cleanUpDrag;  
   }
-  onmouseleave = cleanUpDrag;
 
   const renderEntityToContext = (entity: Entity, stx: CanvasRenderingContext2D, width: number, height: number, party?: Party, slot?: number) => {
     // render status
@@ -1741,7 +1774,7 @@ onload = async () => {
           }
           // update status texture
           gl.bindTexture(CONST_GL_TEXTURE_2D, statusTexture);
-          gl.texImage2D(gl.TEXTURE_2D, 0, CONST_GL_RGBA, CONST_GL_RGBA, CONST_GL_UNSIGNED_BYTE, statusCanvas);
+          gl.texImage2D(CONST_GL_TEXTURE_2D, 0, CONST_GL_RGBA, CONST_GL_RGBA, CONST_GL_UNSIGNED_BYTE, statusCanvas);
         }
         if (FLAG_ROTATING_ITEMS && (partyMember.entity.purpose == ENTITY_PURPOSE_WEAPON || partyMember.entity.purpose == ENTITY_PURPOSE_SECONDARY)) {
           if (!partyMember.anims.length) {
