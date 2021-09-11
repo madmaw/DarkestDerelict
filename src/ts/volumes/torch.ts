@@ -139,6 +139,6 @@ const VOLUMETRIC_TORCH = FLAG_USE_VOLUME_COMMANDS ? VOLUMETERIC_COMMANDS_TORCH :
 const VOLUMETRIC_PARAMS_TORCH: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
   // torch
   [
-    [COLOR_YELLOW_SHUNY, COLOR_WHITE_GLOWING, COLOR_BLACK], 
+    [COLOR_YELLOW_SHINY, COLOR_WHITE_GLOWING, COLOR_BLACK], 
   ],
 ];

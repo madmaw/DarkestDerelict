@@ -1,10 +1,10 @@
 const FLAG_PRODUCTION = true;
-const FLAG_PRODUCTION_MINIMAL = true && FLAG_PRODUCTION;
+const FLAG_PRODUCTION_MINIMAL = false && FLAG_PRODUCTION;
 
 const FLAG_SHOW_GL_ERRORS = false || !FLAG_PRODUCTION_MINIMAL;
 const FLAG_USE_GL_CONSTANTS = false || !FLAG_PRODUCTION_MINIMAL; 
 const FLAG_LONG_SHADER_NAMES = false || !FLAG_PRODUCTION_MINIMAL;
-const FLAG_DEBUG_TEXTURES = false;
+const FLAG_DEBUG_TEXTURES = true;
 const FLAG_CHECK_VOLUME_BOUNDS = true; // needed for padding out top of volumes for status display
 const FLAG_WARN_VOLUME_BOUNDS = false;
 const FLAG_DEBUG_LEVEL_GENERATION = false;

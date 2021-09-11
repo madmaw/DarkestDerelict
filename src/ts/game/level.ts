@@ -649,8 +649,8 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
           [
             // attacker in front row
             [
-              // pistol whip
-              [ATTACK_MOVE_MEDIAL], // front row, same side
+              // pistol whip (feels good)
+              [ATTACK_MOVE_MEDIAL, ATTACK_POWER_GAIN], // front row, same side
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
@@ -726,9 +726,10 @@ const createPistol = (renderables: EntityRenderables[], attackType: Attack): Wea
               , // front row, opposide side
               , // back row, same side
               , // back row, opposite side
-              [...bonusAttacks, attackType, attackType], // enemy front row, same side
-              , // enemy front row, opposite side
-              [...bonusAttacks, attackType, attackType], // enemy back row, same side
+              [...bonusAttacks, attackType], // enemy front row, same side
+              [...bonusAttacks, attackType], // enemy front row, opposite side
+              [...bonusAttacks, attackType], // enemy back row, same side
+              [...bonusAttacks, attackType], // enemy back row, opposite side
             ],
           ],      
         ]

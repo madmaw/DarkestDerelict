@@ -141,8 +141,8 @@ const VERTEX_SHADER = `
   const MIN_STEP_DEPTH = FLAG_USE_HAND_ROLLED_GLSL_CONSTANTS ? .0011 : MAX_DEPTH/CONST_MAX_NUM_STEPS;
   const DEPTH_SCALE = 256/VOLUME_DIMENSION*MAX_DEPTH;
   const C_DEPTH_SCALE = `${DEPTH_SCALE}`;
-  const C_MAX_NUM_LIGHTS = 4;
-  const C_MAX_LIGHT_REACH = `6.`;
+  const C_MAX_NUM_LIGHTS = 9;
+  const C_BASE_LIGHT_REACH = `3.`;
   // need to ensure that we will actually have enough space on the texture
   const STATUS_SCALE = TEXTURE_DIMENSION/(VOLUME_DIMENSION*2); 
   const C_STATUS_SCALE = `${STATUS_SCALE}.`;
@@ -208,19 +208,21 @@ const VERTEX_SHADER = `
       for(int i=0;i<${C_MAX_NUM_LIGHTS};i++){
         if (float(i)<${U_CAMERA_POSITION}.w) {
           vec4 ${L_LIGHT} = ${U_LIGHTS}[i];
-          float ${L_BRIGHTNESS} = length(${L_LIGHT}.xyz)/2.;
+          float ${L_BRIGHTNESS} = length(${L_LIGHT}.xyz)/1.8;
           vec4 ${L_LIGHT_POSITION} = ${U_LIGHT_TRANSFORMS}[i]*vec4(0., 0., 0., 1.);
-          float ${L_REACH} = ${L_BRIGHTNESS}*${C_MAX_LIGHT_REACH};
+          float ${L_REACH} = ${L_BRIGHTNESS}*(1.+sqrt(${L_LIGHT}.w))*${C_BASE_LIGHT_REACH};
           vec3 ${L_LIGHT_DELTA} = ${L_LIGHT_POSITION}.xyz - ${L_PIXEL_POSITION};
           for (float j=0.; j<2.; j++) {
             if (${L_REACH} > length(${L_LIGHT_DELTA})) {
+              // scale up light to 100% color
               ${L_LIGHTING} += ${L_LIGHT}.xyz
                   // distance 
-                  * (pow(1.-length(${L_LIGHT_DELTA})/${L_REACH}, 4.))*${L_REACH}
+                  * (1. - pow(length(${L_LIGHT_DELTA})/${L_REACH}, 3./(${L_LIGHT}.w + 1.)))*${L_REACH}
                   // angle 
                   * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(normalize(${L_LIGHT_DELTA})-j*${L_CAMERA_NORMAL})), 0.),.1/${L_COLOR}.a) * (j>0.?1.-${L_COLOR}.a:${L_COLOR}.a)
                   // cone
-                  * max(pow(max(dot(normalize((${U_LIGHT_TRANSFORMS}[i]*vec4(1., 0., 0., 1.)-${L_LIGHT_POSITION}).xyz), normalize(${L_LIGHT_DELTA})), 0.), ${L_LIGHT}.w), pow(clamp((${L_BRIGHTNESS}-length(${L_LIGHT_DELTA}))/${L_BRIGHTNESS}, 0., 1.), 2.));
+                  * max(0., (pow(dot(normalize((${U_LIGHT_TRANSFORMS}[i]*vec4(1., 0., 0., 1.)-${L_LIGHT_POSITION}).xyz), normalize(${L_LIGHT_DELTA})), ${L_LIGHT}.w) - .5)*2.);
+                  
             }
           }
         }
@@ -279,16 +281,16 @@ onload = async () => {
   type LoadingEvent = [VolumetricDrawCommand[] | string, Matrix4, [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][], number?];
 
   const surfaceColors: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [COLOR_DULLMETAL, COLOR_GOLD]
-      .map(wallMaterial => [COLOR_PURPLE_CARPET, COLOR_BLUE_CARPET, COLOR_DULLMETAL]
-          .map(carpetMaterial => [COLOR_BLUE_SHINY, COLOR_GREEN_SHINY, COLOR_RED_SHINY, COLOR_SILVER_SHINY]
-              .map<(Vector4 | string)[]>(pipeMaterial => 
-                  [wallMaterial, carpetMaterial, pipeMaterial]
-              ) as [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?]
+      .map(wallMaterial => [COLOR_BLUE_CARPET, COLOR_GREEN_CARPET, COLOR_DULLMETAL]
+          .map(carpetMaterial => [COLOR_CHITIN, COLOR_YELLOW_SHINY, COLOR_SILVER_SHINY]
+              .map<(Vector4 | string)[][]>(pipeMaterial => 
+                  [[wallMaterial, carpetMaterial, pipeMaterial]]
+              ) as [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][]
           )
-      ).flat(1);
+      ).flat(2) as [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][];
       // TODO randomise
   const SURFACE_COLORS: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
-    [[COLOR_SILVER_SHINY]],
+    [[COLOR_SILVER_SHINY, COLOR_DULLMETAL]],
     ...surfaceColors,
   ];
 
@@ -307,7 +309,7 @@ onload = async () => {
     [VOLUMETRIC_DOOR, MODEL_SCALE_MATRIX, [
       [[COLOR_BLUE_SHINY, COLOR_BLUE_GLOWING]],
       [[COLOR_GREEN_SHINY, COLOR_GREEN_GLOWING]],
-      [[COLOR_YELLOW_SHUNY, COLOR_YELLOW_GLOWING]],
+      [[COLOR_YELLOW_SHINY, COLOR_YELLOW_GLOWING]],
     ]],
     // symbols
     [VOLUMETRIC_SYMBOL, matrix4Identity(), VOLUMETRIC_PARAMS_SYMBOL],   
@@ -318,7 +320,7 @@ onload = async () => {
       [[COLOR_CHITIN, COLOR_RED_CARPET, COLOR_RED_GLOWING]],
       [[COLOR_GREEN_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
       [[COLOR_RED_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
-      [[COLOR_YELLOW_SHUNY, COLOR_BLACK, COLOR_WHITE_GLOWING]],
+      [[COLOR_YELLOW_SHINY, COLOR_BLACK, COLOR_WHITE_GLOWING]],
       [[COLOR_BLUE_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
     ], 8], 
     // spider
@@ -922,11 +924,11 @@ onload = async () => {
                           (colMask == 3 || !(targetPartyIndex % 2))
                               // and
                               // has enemies in both rows, or our attack is the first row attack
-                              && (rowMask == 3 || targetPartyIndex < 2)
+                              && (rowMask == 3 || targetPartyIndex < 2)                             
                       )
                       && (bestIndex < 0
                           // it's closer
-                          || Mathabs(dColumn) * 2 + dRow < Mathabs((targetSlotIds[bestIndex]%2) - targetColumn) * 2 + ((targetSlotIds[bestIndex]/2 | 0) - targetRow)
+                          || Mathabs(dColumn) + dRow * 2 < Mathabs((targetSlotIds[bestIndex]%2) - targetColumn) + ((targetSlotIds[bestIndex]/2 | 0) - targetRow) * 2
                       )
                           ? index
                           : bestIndex
@@ -1701,19 +1703,19 @@ onload = async () => {
         if (partyMember.secondary && partyMember.secondary?.entityType == ENTITY_TYPE_TORCH) {
           game.previousLights.push({
             ['pos']: partyMember['pos'],
-            light: [.9, .9, .8, 4],
+            light: [.6, .6, .5, 7],
             lightTransform: matrix4Multiply(
                 matrix4Translate(...partyMember['pos']),
                 matrix4Rotate(party['czr'] + CONST_PI_1DP, 0, 0, 1),
                 matrix4Translate(.2, 0, .5),
-                matrix4Rotate(-CONST_PI_ON_9_1DP, 0, 1, 0),
+                matrix4Rotate(-CONST_PI_ON_15_1DP, 0, 1, 0),
             )
           });
         }
         if (party.partyType == PARTY_TYPE_PLAYER || party.partyType == PARTY_TYPE_HOSTILE || partyMember.entity.entityType == ENTITY_TYPE_MARINE) {
           light = {
             ['pos']: partyMember['pos'],
-            light: party.partyType == PARTY_TYPE_HOSTILE ? [.6, .2, .2, 0] : [.6, .6, .6, 0],
+            light: party.partyType == PARTY_TYPE_HOSTILE ? [.6, .1, .1, 0] : party == playerParty ? [.6, .6, .6, 0] : [.4, .4, .4, 0],
             lightTransform: matrix4Multiply(
                 matrix4Translate(...partyMember['pos']),
                 matrix4Rotate((party['czr'] || partyMember['zr']) + CONST_PI_1DP, 0, 0, 1),
