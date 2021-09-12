@@ -127,7 +127,7 @@ type ActorEntityResourceType = ActorEntityResourceTypeHealth | ActorEntityResour
 
 type ActorEntityResourceValues = {
   quantity: number,
-  max?: number,
+  maxim?: number,
 }
 
 type WeaponEntity = {

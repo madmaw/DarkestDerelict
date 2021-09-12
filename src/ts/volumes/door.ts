@@ -52,7 +52,7 @@ const VOLUMETRIC_COMMANDS_DOOR: VolumetricDrawCommand[] = [
     {
       type: 'numeric',
       range: 'integer',
-      value: -10,
+      value: 10,
     }
   ],
   [
@@ -60,7 +60,7 @@ const VOLUMETRIC_COMMANDS_DOOR: VolumetricDrawCommand[] = [
     {
       type: 'numeric',
       range: 'integer',
-      value: -2,
+      value: 2,
     }
   ],
   // [TYPE_CONTEXT_START],

@@ -8,7 +8,7 @@ type GameEventMove = {
 
 type EntityLocation = {
   party: Party,
-  slot: number,
+  slotIndex: number,
 };
 
 type GameEventTypeTurn = 1;
@@ -49,14 +49,15 @@ type GameEventWait = {
 type GameEvent = GameEventMove | GameEventTurn | GameEventChangeLoadout | GameEventProposeAttack | GameEventConfirmAttack | GameEventWait;
 
 type Light = {
-  ['pos']: Vector3,
+  // lights aren't animated, so position doesn't need to be escaped
+  pos: Vector3,
   light: Vector4,
   lightTransform: Matrix4,
 };
 
 type Game = {
   timeMillis: number,
-  level?: Level,
+  currentLevel?: Level,
   pendingMember?: PartyMember | Falseish,
   previousLights?: Light[];
 };

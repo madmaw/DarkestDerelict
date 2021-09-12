@@ -29,7 +29,7 @@ type Party = {
   tile: Vector2,
   partyType: PartyType,
   // camera position
-  ['cpos']?: Vector3;
+  ['cp']?: Vector3;
   // [negated] camera offset 
   ['coff']?: Vector3,
   // camera z rotation
@@ -38,7 +38,7 @@ type Party = {
 } & AnimationHolder;
 
 type PartyMember = {
-  ['pos']?: Vector3,
+  ['p']?: Vector3,
   // y-rotation
   ['yr']?: number,
   // z-rotation
@@ -73,7 +73,7 @@ const moveNaturallyToSlotPosition = (timeHolder: TimeHolder , party: Party, memb
   let stepAnimationFactories: AnimationFactory[] = [];
   if (targetPosition) {
     const turnAnimationFactory1 = createTweenAnimationFactory(member, member, 'zr', walkAngle, easeLinear, 99);
-    const moveAnimationFactory = createTweenAnimationFactory(member, member, 'pos', targetPosition, easeLinear, 99);  
+    const moveAnimationFactory = createTweenAnimationFactory(member, member, 'p', targetPosition, easeLinear, 99);  
     stepAnimationFactories = [turnAnimationFactory1, moveAnimationFactory];
   }
   if (targetPosition || toAngle != member['zr']) {
@@ -110,12 +110,16 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
         targetPosition = [tile[0], tile[1], -FLOOR_DEPTH/WALL_DIMENSION];
       }
       break;
+    case PARTY_TYPE_DOOR:
+      toAngle = party.orientated * CONST_PI_ON_2_2DP;
+      targetPosition = [tile[0] + Mathcos(toAngle)/2, tile[1] + Mathsin(toAngle)/2, 0];
+      break;
   }
 
-  const sourcePosition = partyMember['pos'] || party.tile;
+  const sourcePosition = partyMember['p'] || party.tile;
   const diff = vectorNLength(vectorNSubtract(targetPosition, sourcePosition));
   let walkAngle: number;
-  if (!partyMember['pos'] || diff > .01) {
+  if (!partyMember['p'] || diff > .01) {
     walkAngle = Mathatan2(targetPosition[1] - sourcePosition[1], targetPosition[0] - sourcePosition[0])
   } else {
     walkAngle = partyMember['zr'] || 0;
@@ -138,8 +142,8 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
   return [targetPosition, toAngle, walkAngle] as const;
 }
 
-const applyAttacks = (party: Party, slot: number): [[ActorEntityResourceValues, ActorEntityResourceValues, ActorEntityResourceValues], number] => {
-  const partyMember = party.members[slot];
+const applyAttacks = (party: Party, slotIndex: number): [[ActorEntityResourceValues, ActorEntityResourceValues, ActorEntityResourceValues], number] => {
+  const partyMember = party.members[slotIndex];
   if (partyMember) {
     const entity = partyMember.entity as ActorEntity;
     const attacks = partyMember.attackAnimations;
@@ -182,11 +186,11 @@ const applyAttacks = (party: Party, slot: number): [[ActorEntityResourceValues, 
           }
           return [resources, slot];
         },
-        [resourcesAfterPoison, slot], 
+        [resourcesAfterPoison, slotIndex], 
     );
     return [
       resources.map(r => {
-        r.quantity = Mathmin(Mathmax(0, r.quantity), r.max || r.quantity);
+        r.quantity = Mathmin(Mathmax(0, r.quantity), r.maxim || r.quantity);
         return r;
       }) as [ActorEntityResourceValues, ActorEntityResourceValues, ActorEntityResourceValues],
       newSlot,

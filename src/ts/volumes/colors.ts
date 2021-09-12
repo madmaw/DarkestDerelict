@@ -13,10 +13,10 @@ const COLOR_GREEN_SHINY: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'QZQ=' : [9
 const COLOR_RED_CARPET: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'QFGR' : [92, 48, 52, 99];
 const COLOR_RED_SHINY: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'QFF=' : [92, 48, 48, 12];
 const COLOR_LEATHER: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'E@:l' : [44, 24, 0, 200];
+const COLOR_GREEN_CARPET: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'BFBR' : [44, 66, 44, 99];
 const COLOR_BLUE_CARPET: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'EEJR' : [44, 44, 66, 99];
 const COLOR_CYAN_GLOWING: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'Byyy' : [32, 255, 255, 255];
 const COLOR_GREEN_GLOWING: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'ByBy' : [32, 255, 32, 255];
-const COLOR_GREEN_CARPET: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'BFBR' : [32, 48, 32, 99];
 const COLOR_CHITIN: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'BBB<' : [32, 32, 32, 9];
 const COLOR_BLUE_SHINY: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'QQZ<' : [92, 92, 128, 9];
 const COLOR_BLUE_GLOWING: Vector4 | string = FLAG_USE_PACKED_COLORS ? 'EEyy' : [44, 44, 255, 255];

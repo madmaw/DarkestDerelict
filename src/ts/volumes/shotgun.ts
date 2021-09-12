@@ -226,8 +226,3 @@ const VOLUMETRIC_COMMANDS_SHOTGUN: VolumetricDrawCommand[] = [
 
 const VOLUMETRIC_TEMPLATE_SHOTGUN = 'D<@@B.y^D>DDB-Zjx`z^.y\\DN>>B.#;DN<<B%!+.yV^+#<xLzVYeB@>F';
 const VOLUMETRIC_SHOTGUN = FLAG_USE_VOLUME_COMMANDS ? VOLUMETRIC_COMMANDS_SHOTGUN : VOLUMETRIC_TEMPLATE_SHOTGUN;
-
-const VOLUMETRIC_PARAMS_SHOTGUN:  [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
-  // regular
-  [[COLOR_GUNMETAL, COLOR_BLACK, COLOR_LEATHER]],
-];
