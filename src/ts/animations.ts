@@ -1,7 +1,7 @@
 type EntityAnimation = (time?: number | undefined) => Booleanish;
 
 type AnimationHolder = {
-  anims: EntityAnimation[];
+  anims?: EntityAnimation[];
 };
 
 type TimeHolder = {
@@ -10,11 +10,19 @@ type TimeHolder = {
 
 type AnimationFactory = (startTime: number) => Promise<void>;
 
-const createAnimationEventQueue = (timeHolder: TimeHolder): EventQueue<AnimationFactory, void> => ({
-  handler: (animationFactory: AnimationFactory) => {
-    return animationFactory(timeHolder.timeMillis);
-  },
-});
+const addAnimationEvents = (timeHolder: TimeHolder, to: { animationQueue?: EventQueue<AnimationFactory, void>, anims?: EntityAnimation[] }, ...events: AnimationFactory[]) => {
+  if (!to.animationQueue) {
+    to.animationQueue = {
+      handler: (animationFactory: AnimationFactory) => {
+        return animationFactory(timeHolder.timeMillis);
+      },
+    };
+  }
+  if (!to.anims) {
+    to.anims = [];
+  }
+  return addEvents(to.animationQueue, ...events);
+}
 
 const createTweenAnimationFactory = <T, V extends keyof T>(
     a: AnimationHolder,

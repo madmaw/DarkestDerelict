@@ -1,7 +1,3 @@
-canvas {
-  image-rendering: pixelated;
-}
-
 body {
   padding: 0;
   margin: 0;
@@ -25,7 +21,7 @@ body {
 }
 
 #P {
-  background: #0ff;
+  background: #AFF;
   height: 2vh;
   margin: 1vh 0;
 }

@@ -34,7 +34,7 @@ type Party = {
   ['coff']?: Vector3,
   // camera z rotation
   ['czr']?: number;
-  animationQueue: EventQueue<AnimationFactory, void>,
+  animationQueue?: EventQueue<AnimationFactory, void>,
 } & AnimationHolder;
 
 type PartyMember = {
@@ -52,7 +52,7 @@ type PartyMember = {
   entity: Entity,
   weapon?: WeaponEntity | Falseish,
   secondary?: Entity | Falseish,
-  animationQueue: EventQueue<AnimationFactory, void>,
+  animationQueue?: EventQueue<AnimationFactory, void>,
   attackAnimations?: {
     attackType: Attack,
     ['x']?: number,
@@ -63,12 +63,11 @@ type PartyMember = {
 } & AnimationHolder;
 
 const BASE_PARTY_MEMBER: Pick<PartyMember, 'yr' | 'zr' | 'zs' | 'anims'> = {
-  anims: [],
   ['zs']: 1,
   ['zr']: 0,
 };
 
-const moveNaturallyToSlotPosition = (party: Party, member: PartyMember, toSlot: number) => {
+const moveNaturallyToSlotPosition = (timeHolder: TimeHolder , party: Party, member: PartyMember, toSlot: number) => {
   const [targetPosition, toAngle, walkAngle] = getTargetPositionAndRotations(party, toSlot);
   const turnAnimationFactory2 = createTweenAnimationFactory(member, member, 'zr', toAngle, easeLinear, 99);  
   let stepAnimationFactories: AnimationFactory[] = [];
@@ -78,7 +77,7 @@ const moveNaturallyToSlotPosition = (party: Party, member: PartyMember, toSlot: 
     stepAnimationFactories = [turnAnimationFactory1, moveAnimationFactory];
   }
   if (targetPosition || toAngle != member['zr']) {
-    return addEvents(member.animationQueue, ...stepAnimationFactories, turnAnimationFactory2);
+    return addAnimationEvents(timeHolder, member, ...stepAnimationFactories, turnAnimationFactory2);
   }
 }
 

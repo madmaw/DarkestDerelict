@@ -52,8 +52,6 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         orientated: ORIENTATION_EAST,
         partyType: PARTY_TYPE_OBSTACLE,
         tile: position,
-        anims: [],
-        animationQueue: createAnimationEventQueue(timeHolder),
         members: [],
       });  
     }
@@ -113,7 +111,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     });
   };
   // add in the walls
-  const decor = (depth % 2) + 1;
+  const decor = depth % entityRenderables[ENTITY_TYPE_WALL_INSET].length;
   flood(
       tile => tile.parties.some(p => p.partyType == PARTY_TYPE_OBSTACLE),
       (tile, adjacentValid, inLevel) => {
@@ -125,7 +123,6 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         const party = tile.parties[0];
         party.members.push({
           ...BASE_PARTY_MEMBER,
-          animationQueue: createAnimationEventQueue(timeHolder),
           ['zr']: orientated * CONST_3_PI_ON_2_3DP,          
           entity: {
             renderables: entityRenderables[entityType][inLevel ? decor : 0],
@@ -136,7 +133,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
       },
   );
 
-  const previousDoorType = (depth) % entityRenderables[ENTITY_TYPE_DOOR].length
+  const previousDoorType = (depth) % entityRenderables[ENTITY_TYPE_DOOR].length;
   const doorType = (depth + 1) % entityRenderables[ENTITY_TYPE_DOOR].length;
 
   // add in weapons/secondary/marines/keys
@@ -257,14 +254,10 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         if (Mathpow(Mathrandom(), depth)*items.length > c && inLevel) {
           const item = items.shift();
           tile.parties.push({
-            animationQueue: createAnimationEventQueue(timeHolder),
-            anims: [],
             partyType: PARTY_TYPE_ITEM,
             tile: pos,
             members: [{
               ...BASE_PARTY_MEMBER,
-              animationQueue: createAnimationEventQueue(timeHolder),
-              anims: [],
               entity: item,
             }],
           });
@@ -282,10 +275,10 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
         // preference open areas, 
         if (Mathrandom() < c * enemyPartyCount && inLevel && !(y % 3) && (x + y)%2) {
           enemyPartyCount--;
-          let partyStrength = depth + Mathrandom() * depth - depth/2 | 0;
+          let partyStrength = Mathsqrt(depth) + Mathrandom() * depth - depth/2 | 0;
           const partyMembers: PartyMember[] = [];
           while (partyStrength && partyMembers.length < 4) {
-            let enemyId = Mathmin(Mathrandom() * depth + 1 | 0, partyStrength, 2);
+            let enemyId = Mathmin(Mathrandom() * Mathsqrt(depth) + 1 | 0, partyStrength, 2);
             //let enemyId = 1;
             let entity: Entity;
             partyStrength -= enemyId;
@@ -385,9 +378,7 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
             const partyMember: PartyMember = {
               ...BASE_PARTY_MEMBER,
               pos: [...pos, 0],
-              animationQueue: createAnimationEventQueue(timeHolder),
               entity,
-              anims: [],
             };
             if (entity.entityType == ENTITY_TYPE_MARINE) {
               // give it a gun too
@@ -399,8 +390,6 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
           }
           if (partyMembers.length) {
             tile.parties.push({
-              animationQueue: createAnimationEventQueue(timeHolder),
-              anims: [],
               members: partyMembers,
               partyType: PARTY_TYPE_HOSTILE,
               tile: pos,
@@ -420,10 +409,8 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
           partyType: PARTY_TYPE_FLOOR,
           tile: pos,
           anims: [],
-          animationQueue: createAnimationEventQueue(timeHolder),
           members: [{
             ...BASE_PARTY_MEMBER,
-            animationQueue: createAnimationEventQueue(timeHolder),
             entity: {
               renderables: floors[inLevel ? decor: 0],
               entityType: ENTITY_TYPE_FLOOR,
@@ -431,7 +418,6 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
             }
           }, {
             ...BASE_PARTY_MEMBER,
-            animationQueue: createAnimationEventQueue(timeHolder),
             entity: {
               renderables: floors[inLevel ? decor : 0],
               entityType: ENTITY_TYPE_CEILING,
@@ -458,13 +444,11 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
 
   // doors
   tiles[0][LEVEL_MIDDLE_X].parties.push({
-    animationQueue: createAnimationEventQueue(timeHolder),
     anims: [],
     partyType: PARTY_TYPE_FLOOR,
     tile: [LEVEL_MIDDLE_X, 0],
     members: [{
       ...BASE_PARTY_MEMBER,
-      animationQueue: createAnimationEventQueue(timeHolder),
       anims: [],
       ['pos']: [LEVEL_MIDDLE_X, -.4, 0],
       ['zr']: CONST_PI_ON_2_2DP,
@@ -476,13 +460,11 @@ const generateLevel = (timeHolder: TimeHolder, entityRenderables: EntityRenderab
     }],
   });
   tiles[LEVEL_DIMENSION + LEVEL_SPACING - 1][LEVEL_MIDDLE_X].parties.push({
-    animationQueue: createAnimationEventQueue(timeHolder),
     anims: [],
     partyType: PARTY_TYPE_DOOR,
     tile: [LEVEL_MIDDLE_X, LEVEL_DIMENSION + LEVEL_SPACING - 1],
     members: [{
       ...BASE_PARTY_MEMBER,
-      animationQueue: createAnimationEventQueue(timeHolder),
       anims: [],
       ['pos']: [LEVEL_MIDDLE_X, LEVEL_DIMENSION + LEVEL_SPACING - 1.4, 0],
       ['zr']: CONST_PI_ON_2_2DP,
