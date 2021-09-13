@@ -110,7 +110,6 @@ type EntityBase = {
 
 type ActorEntity = {
   purpose: EntityPurposeActor,
-  side: number,
   // health, power, poison
   res: [ActorEntityResourceValues, ActorEntityResourceValues, ActorEntityResourceValues],
   variation?: number,

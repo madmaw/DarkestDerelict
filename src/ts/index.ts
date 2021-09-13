@@ -334,7 +334,7 @@ onload = async () => {
       [[COLOR_CHITIN, COLOR_RED_GLOWING, COLOR_RED_GLOWING]],
       [[COLOR_GREEN_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
       [[COLOR_RED_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
-      [[COLOR_YELLOW_SHINY, COLOR_BLACK, COLOR_WHITE_GLOWING]],
+      [[COLOR_YELLOW_SHINY, COLOR_CHITIN, COLOR_WHITE_GLOWING]],
       [[COLOR_BLUE_SHINY, COLOR_WHITE_SHINY, COLOR_WHITE_GLOWING]],
     ], 8], 
     // spider
@@ -664,7 +664,7 @@ onload = async () => {
     if (e.eventType != GAME_EVENT_TYPE_CONFIRM_ATTACK) {
       // clear all outstanding attacks
       iterateLevelMembers(game.currentLevel, m => {
-        m.attackAnimations = [];
+        m.attackAnimations = null;
       });
     }
 
@@ -721,8 +721,12 @@ onload = async () => {
                     actor.res[ACTOR_ENTITY_RESOURCE_TYPE_POWER].quantity,
                     partyMember.secondary && partyMember.secondary.entityType == ENTITY_TYPE_BATTERY ? 1: 0,
                 );
-                // clear poison status
-                actor.res[ACTOR_ENTITY_RESOURCE_TYPE_POISON].quantity = 0;
+                // clear (most of) poison status
+                if (actor.res[ACTOR_ENTITY_RESOURCE_TYPE_POISON].quantity) {
+                  actor.res[ACTOR_ENTITY_RESOURCE_TYPE_POISON].quantity = 1;
+                  // needed so poison will trigger
+                  partyMember.attackAnimations = [];
+                }
                 return await moveNaturallyToSlotPosition(game, party, partyMember, i);
               }
             }).concat(cameraMovePromise));  
@@ -740,7 +744,7 @@ onload = async () => {
           party.orientated = toOrientation as Orientation;
           turnPassed = 1;
           // note: probably will produce a bunch of NaNs for non-player turning, but no big deal I guess
-          const cameraAnimationFactory = createTweenAnimationFactory(party, party, 'czr', party['czr'] + deltaOrientation * CONST_PI_ON_2_2DP, easeInQuad, 299);
+          const cameraAnimationFactory = createTweenAnimationFactory(party, party, 'z', party['z'] + deltaOrientation * CONST_PI_ON_2_2DP, easeInQuad, 299);
           const cameraRotationPromise = addAnimationEvents(game, party, cameraAnimationFactory);
 
           await Promise.all(party.members.map(async (member, i) => {
@@ -809,7 +813,7 @@ onload = async () => {
                     ...BASE_PARTY_MEMBER,
                     entity: e.entity,
                     ['p']: fromSlot['p'],
-                    ['zr']: party.orientated * CONST_PI_ON_2_2DP,
+                    ['z']: party.orientated * CONST_PI_ON_2_2DP,
                   };  
             }
           }
@@ -901,7 +905,7 @@ onload = async () => {
                 attacks[4] = (attacks[4]||[]).concat(ATTACK_PIERCING);
               }
               // scare monsters if we have the torch
-              if(FLAG_TORCH_SCARES_ENEMIES && attacker.secondary.entityType == ENTITY_TYPE_TORCH && !attacks[4]?.some(attack => attack == ATTACK_MOVE_MEDIAL)) {
+              if(FLAG_TORCH_SCARES_ENEMIES && attacker.secondary.entityType == ENTITY_TYPE_TORCH && !(attacks[4]||[]).includes(ATTACK_MOVE_MEDIAL)) {
                 attacks[4] = (attacks[4]||[]).concat(ATTACK_MOVE_MEDIAL);
               }
             }
@@ -910,9 +914,10 @@ onload = async () => {
                   && (!attackerRow && (attacker.entity as ActorEntity).variation == MARINE_VARIATION_YELLOW
                       || attackerRow && (attacker.entity as ActorEntity).variation == MARINE_VARIATION_RED
                   )
-                  && !attacks[attackerRow * 2].some(attack => attack == ATTACK_MOVE_MEDIAL)
+                  && !attacks[attackerRow * 2].includes(ATTACK_MOVE_MEDIAL)
             ) {
-              attacks[attackerRow * 2] = (attacks[attackerRow*2] || []).concat(ATTACK_MOVE_MEDIAL);
+              // no null check because our current slot always happens to be populated
+              attacks[attackerRow * 2] = attacks[attackerRow*2].concat(ATTACK_MOVE_MEDIAL);
             }
             
 
@@ -958,7 +963,7 @@ onload = async () => {
             const attackAnimationPromises: Promise<any>[] = [];
             iterateLevelMembers(game.currentLevel, (partyMember) => {
               const attackAnimations = partyMember.attackAnimations;
-              partyMember.attackAnimations?.forEach((attackAnimation, i) => {
+              attackAnimations && attackAnimations.forEach((attackAnimation, i) => {
                 const a = Mathrandom() * CONST_PI_0DP;
                 const r = i * .5/attackAnimations.length;
                 attackAnimation.x = .5 + Mathcos(a) * r;
@@ -1009,7 +1014,8 @@ onload = async () => {
     if (turnPassed) {
       const promises: Promise<any>[] = [];
       iterateLevelMembers(game.currentLevel, (partyMember, party, slot) => {
-        if(partyMember.attackAnimations?.length) {
+        if(partyMember.attackAnimations) {
+          const attackAnimations = partyMember.attackAnimations;
           const [resources, toSlot] = applyAttacks(party, slot);
           
           const actor = partyMember.entity as ActorEntity;
@@ -1050,7 +1056,7 @@ onload = async () => {
                           playerParty,
                           playerParty,
                           'cp',
-                          playerParty['cp'].map(v => v + (Mathrandom()-.5)*partyMember.attackAnimations.length/9) as Vector3,
+                          playerParty['cp'].map(v => v + (Mathrandom()-.5)*attackAnimations.length/9) as Vector3,
                           easeInOutExp4BackToStart,
                           99,
                       )
@@ -1059,7 +1065,7 @@ onload = async () => {
             }
             // clear attacks and move
             partyMember.activeAttackStartTime = 0;
-            partyMember.attackAnimations = [];
+            partyMember.attackAnimations = null;
             actor.res = resources;
             if (toSlot != slot) {
               const replacedPartyMember = party.members[toSlot];
@@ -1092,7 +1098,7 @@ onload = async () => {
                     createTweenAnimationFactory(
                         partyMember,
                         partyMember,
-                        'sds',
+                        'q',
                         0,
                         easeInQuad,
                         99,
@@ -1108,8 +1114,8 @@ onload = async () => {
                     createTweenAnimationFactory(
                         partyMember,
                         partyMember,
-                        'zr',
-                        partyMember['zr'] + 9,
+                        'z',
+                        partyMember['z'] + 9,
                         easeOutQuad,
                         CONST_DEATH_DURATION,
                     ),
@@ -1132,7 +1138,7 @@ onload = async () => {
                 .filter(v => !!v)
                 .map<PartyMember>((item: Entity, i, arr) => {
                   const r = Mathsqrt(arr.length-1)/9;
-                  const a = i * CONST_2_PI_0DP/arr.length + partyMember['zr'];                  
+                  const a = i * CONST_2_PI_0DP/arr.length + partyMember['z'];                  
                   return {
                     ...BASE_PARTY_MEMBER,
                     entity: item,
@@ -1188,11 +1194,11 @@ onload = async () => {
           await Promise.all(party.members.map(async m => {
             if (m) {
               if (isLookingAt(playerParty, party)) {
-                if (!m['sds']) {
-                  await addAnimationEvents(game, m, createTweenAnimationFactory(m, m, 'sds', 1, easeInQuad, 99, 0));
+                if (!m['q']) {
+                  await addAnimationEvents(game, m, createTweenAnimationFactory(m, m, 'q', 1, easeInQuad, 99, 0));
                 }
-              } else if (m['sds']) {
-                await addAnimationEvents(game, party, createTweenAnimationFactory(m, m, 'sds', 0, easeInQuad, 99));
+              } else if (m['q']) {
+                await addAnimationEvents(game, party, createTweenAnimationFactory(m, m, 'q', 0, easeInQuad, 99));
               }  
             }
           }));
@@ -1236,18 +1242,18 @@ onload = async () => {
   };
   let depth = 0;
   const DEFAULT_PARTY_POSITION: Vector2 = [LEVEL_DIMENSION/2 | 0, 0];
-  const NEGATED_CAMERA_OFFSET: Vector3 = [.35, 0, -.7];
+  const NEGATED_CAMERA_OFFSET: Vector3 = [.3, 0, -.7];
   const playerParty: Party = {
     members: new Array(4).fill(0),
     orientated: ORIENTATION_NORTH,
     partyType: PARTY_TYPE_PLAYER,
     tile: DEFAULT_PARTY_POSITION,
     ///negatedCameraOffset: [.35, 0, -.7],
-    ['czr']: CONST_PI_ON_2_2DP,
+    ['z']: CONST_PI_ON_2_2DP,
   };
   playerParty.members[0] = {
     ...BASE_PARTY_MEMBER,
-    ['zr']: CONST_PI_ON_2_1DP,
+    ['z']: CONST_PI_ON_2_1DP,
     entity: createMarine(entityRenderables[ENTITY_TYPE_MARINE], 1),
     weapon: createGun(entityRenderables, ENTITY_TYPE_PISTOL, ATTACK_PIERCING),
     secondary: {
@@ -1294,7 +1300,7 @@ onload = async () => {
 
   const getLocationAndMaybeEntity = (target: EventTarget, p: { clientX: number, clientY: number }): [EntityLocation, Entity?] | undefined => {
     const entity = slotsToEntities?.get(target);
-    const equipmentIndex = equipmentSlots.findIndex(v => v == target || v == (target as HTMLElement)?.parentElement);
+    const equipmentIndex = equipmentSlots.findIndex(v => v == target || v == (target as HTMLElement)?.parentNode);
     const targetsWorld = target == Z;
     if (equipmentIndex >= 0) {
       return [{
@@ -1307,7 +1313,7 @@ onload = async () => {
       const projectionMatrix = matrix4Multiply(
           perspectiveMatrix,
           matrix4Translate(...NEGATED_CAMERA_OFFSET),
-          matrix4Rotate(-playerParty['czr'], 0, 0, 1),
+          matrix4Rotate(-playerParty['z'], 0, 0, 1),
           // NOTE: the shader usually does this for us
           matrix4Translate(...vectorNDivide(playerParty['cp'], -1)),
       );
@@ -1336,8 +1342,8 @@ onload = async () => {
           const averageExtent = midpoints.reduce((a, v) => a + v/3, 0);
           const v = vector4TransformMatrix4(projectionMatrix, position[0], position[1], position[2]+midz/2);
           const [px, py, pz, pw] = v;
-          // 1.05 because dropped items center points sit beneath the screen
-          if (Mathabs(px) < 1 && Mathabs(py) < 1.05 && pz/pw > 0 && pw < minDistance) {
+          // 1.1 because dropped items center points sit beneath the screen
+          if (Mathabs(px) < 1 && Mathabs(py) < 1.1 && pz/pw > 0 && pw < minDistance) {
             const r = averageExtent/pw;
             if (vectorNLength(vectorNSubtract([sx, sy], v)) < r) {
               minParty = party;
@@ -1581,7 +1587,7 @@ onload = async () => {
 
       renderBody?.();
 
-      member.attackAnimations?.forEach(({ attackType: attack, x, y, ['s']: scale }) => {
+      member.attackAnimations && member.attackAnimations.forEach(({ attackType: attack, x, y, ['s']: scale }) => {
         if (scale) {
           const thumbnail = entityRenderables[ENTITY_TYPE_SYMBOL][attack].thumbnail;
           stx.save();
@@ -1659,8 +1665,8 @@ onload = async () => {
     game.timeMillis = now;
     
 
-    const cameraRotationMatrix = matrix4Rotate(playerParty['czr'], 0, 0, 1);
-    const negatedCameraRotationMatrix = matrix4Rotate(-playerParty['czr'], 0, 0, 1);
+    const cameraRotationMatrix = matrix4Rotate(playerParty['z'], 0, 0, 1);
+    const negatedCameraRotationMatrix = matrix4Rotate(-playerParty['z'], 0, 0, 1);
     const rotatedNegatedOffsetMatrix = vector3TransformMatrix4(cameraRotationMatrix, ...NEGATED_CAMERA_OFFSET);
     
     const cameraPosition = vectorNSubtract(playerParty['cp'], rotatedNegatedOffsetMatrix);
@@ -1732,7 +1738,7 @@ onload = async () => {
             light: [.6, .6, .5, 7],
             lightTransform: matrix4Multiply(
                 matrix4Translate(...partyMember['p']),
-                matrix4Rotate(party['czr'] + CONST_PI_1DP, 0, 0, 1),
+                matrix4Rotate(party['z'] + CONST_PI_1DP, 0, 0, 1),
                 matrix4Translate(.4, 0, .5),
                 matrix4Rotate(-CONST_PI_ON_15_1DP, 0, 1, 0),
             )
@@ -1744,7 +1750,7 @@ onload = async () => {
             light: party.partyType == PARTY_TYPE_HOSTILE ? [.6, .2, .2, 0] : party == playerParty ? [.6, .6, .6, 0] : [.4, .4, .5, 0],
             lightTransform: matrix4Multiply(
                 matrix4Translate(...partyMember['p']),
-                matrix4Rotate((party['czr'] || partyMember['zr']) + CONST_PI_1DP, 0, 0, 1),
+                matrix4Rotate((party['z'] || partyMember['z']) + CONST_PI_1DP, 0, 0, 1),
                 matrix4Translate(-.2, 0, .3),
                 //matrix4Rotate(-CONST_PI_ON_4_1DP, 0, 1, 0),
             )
@@ -1778,9 +1784,9 @@ onload = async () => {
           if (!partyMember.anims?.length) {
             partyMember.anims = partyMember.anims || [];
             if (Mathrandom() > .1) {
-              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zs', partyMember.entity.side ? 1.05 : .97, easeSinBackToStart, 3000));
+              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zs', .97, easeSinBackToStart, 3000));
             } else {
-              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr2', (partyMember['zr2'] || 0) + (Mathrandom() - .5) * CONST_PI_ON_3_1DP, easeSquareBackToStart, 2000, 0));
+              partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'z2', (partyMember['z2'] || 0) + (Mathrandom() - .5) * CONST_PI_ON_3_1DP, easeSquareBackToStart, 2000, 0));
             }
           }
           const stx: CanvasRenderingContext2D = statusCanvas['sc'] || (statusCanvas['sc'] = shortenMethods(statusCanvas.getContext('2d'), 'stx'));
@@ -1788,7 +1794,7 @@ onload = async () => {
           const w = (bounds[1][1] - bounds[0][1] + 1) * STATUS_SCALE;
           const h = (bounds[1][2] - bounds[0][2] + 1) * STATUS_SCALE;
           stx.clearRect(0, 0, w, h);
-          if (partyMember['sds'] > 0) {
+          if (partyMember['q'] > 0) {
             // const g = ctx.createLinearGradient(0, 0, w, h);
             // g.addColorStop(0, '#f00');
             // g.addColorStop(1, '#00f');
@@ -1796,7 +1802,7 @@ onload = async () => {
             //ctx.fillRect(0, 0, w, h);
             stx.save();
             stx.translate(w/2, 0);
-            stx.scale(-partyMember['sds'], partyMember['sds']/partyMember['zs']);
+            stx.scale(-partyMember['q'], partyMember['q']/partyMember['zs']);
             stx.translate(-w/2, 0);
             renderEntityToContext(partyMember.entity, stx, w, h, party, i);
             stx.restore();
@@ -1808,14 +1814,14 @@ onload = async () => {
         if (FLAG_ROTATING_ITEMS && (partyMember.entity.purpose == ENTITY_PURPOSE_WEAPON || partyMember.entity.purpose == ENTITY_PURPOSE_SECONDARY)) {
           if (!partyMember.anims?.length) {
             partyMember.anims = partyMember.anims || [];
-            partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr', partyMember['zr'] + CONST_2_PI_0DP, easeLinear, 4000));
+            partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'z', partyMember['z'] + CONST_2_PI_0DP, easeLinear, 4000));
           }
         }
 
         const position = partyMember['p'];
         const modelPositionMatrix = matrix4Translate(...position);
         const yRotation = partyMember['yr'] || 0;
-        const zRotation = (partyMember['zr'] || 0) + (partyMember['zr2'] || 0);
+        const zRotation = (partyMember['z'] || 0) + (partyMember['z2'] || 0);
         const modelZRotationMatrix = matrix4Rotate(zRotation, 0, 0, 1);
         const modelYRotationMatrix = matrix4Rotate(yRotation, 0, 1, 0);
         const modelRotationMatrix = matrix4Multiply(

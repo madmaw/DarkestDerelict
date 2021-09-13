@@ -43,12 +43,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
     entityType: ENTITY_TYPE_FOOD,
     purpose: ENTITY_PURPOSE_SECONDARY,
     variation,
-  }))/*.concat([{
-    renderables: entityRenderables[ENTITY_TYPE_KEY][TREASURE_DOOR_VARIANT],
-    entityType: ENTITY_TYPE_KEY,
-    purpose: ENTITY_PURPOSE_SECONDARY,
-    variation: TREASURE_DOOR_VARIANT,
-  }])*/;
+  }));
   
 
   iterateLevel(tiles, (t, position) => {
@@ -137,7 +132,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
         const party = tile.parties[0];
         party.members.push({
           ...BASE_PARTY_MEMBER,
-          ['zr']: orientated * CONST_3_PI_ON_2_3DP,          
+          ['z']: orientated * CONST_3_PI_ON_2_3DP,          
           entity: {
             renderables: entityRenderables[entityType][band > 0 ? nextDecor : decor],
             entityType,
@@ -147,22 +142,26 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
       },
   );
 
+  let treasureRooms = 1;
   if (FLAG_TREASURE_ROOMS) {
-    let treasureRooms = 1;
     flood(
         tile => !tile.parties.length,
         (tile, adjacentValid, band, pos) => {
           // all sides except one surrounded by walls, hole facing east
           if (!band && adjacentValid == 1 && treasureRooms) {
             treasureRooms--;
+            const shotgun = createGun(entityRenderables, ENTITY_TYPE_SHOTGUN, (Mathrandom() * 3 | 0) as Attack);
             // special shotgun
             // TODO food cache
             tile.parties.push({
               partyType: PARTY_TYPE_ITEM,
               tile: pos,
-              members: [{
+              members: FLAG_FOOD_IN_TREASURE_ROOMS ? new Array(Mathrandom()*4|1).fill(staples[0]).concat(shotgun).map(entity => ({
                 ...BASE_PARTY_MEMBER,
-                entity: createGun(entityRenderables, ENTITY_TYPE_SHOTGUN, (Mathrandom() * 3 | 0) as Attack)
+                entity: {...entity},
+              })) : [{
+                ...BASE_PARTY_MEMBER,
+                entity: shotgun,
               }],
             });
             // door facing east
@@ -184,6 +183,15 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
           }
         }
     );
+    if (treasureRooms) {
+      // if no room, maybe the enemies will have a key
+      staples.splice(1, 0, {
+        renderables: entityRenderables[ENTITY_TYPE_KEY][TREASURE_DOOR_VARIANT],
+        entityType: ENTITY_TYPE_KEY,
+        purpose: ENTITY_PURPOSE_SECONDARY,
+        variation: TREASURE_DOOR_VARIANT,
+      });
+    }
   }
 
 
@@ -197,7 +205,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
   }, staples[0]] as Entity[]).concat(
       new Array(Mathsqrt(depth - 1) | 0).fill(0).map<Entity>(() => {
         // only spawn extra keys if there are treasure rooms
-        const entityType = (ENTITY_TYPE_FOOD + Mathpow(Mathrandom(), Mathmax(depth - 5, 1)) * (FLAG_TREASURE_ROOMS ? 5 : 4) | 0) as EntityType;
+        const entityType = (ENTITY_TYPE_FOOD + Mathpow(Mathrandom(), Mathmax(depth - 5, 1)) * 4 | 0) as EntityType;
         const thingRenderables = entityRenderables[entityType];
         const variation = thingRenderables.length * (Mathpow(Mathrandom(), Mathmax(depth - 5, 1)) | 0);
         return {
@@ -246,7 +254,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
       }
   );
 
-  let enemyPartyCount = depth + 1;
+  let enemyPartyCount = Mathsqrt(depth * 2 - treasureRooms) + 1 | 0;
   let treasureCount = 0;
   flood(
       tile => !tile.parties.length,
@@ -254,12 +262,12 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
         const c = ((adjacentValid & 1) + (adjacentValid & 2)/2 + (adjacentValid & 4)/4 + (adjacentValid & 8)/8)/4;
         const [x, y] = pos;
         // preference open areas, 
-        if (Mathrandom() < c * enemyPartyCount && !band && !(y % 3) && (x + y)%2) {
-          let partyStrength = Mathmin(Mathsqrt(depth) + Mathrandom() * enemyPartyCount | 0, depth);
+        if (Mathrandom() < c * enemyPartyCount && !band && (x % 2) && (x/2 + y - .5)%2) {
+          let partyStrength = depth;
           enemyPartyCount--;
           const partyMembers: PartyMember[] = [];
           while (partyStrength && partyMembers.length < 4) {
-            const enemyId = Mathmin(Mathrandom() * Mathsqrt(depth) + 1 | 0, partyStrength, 4);
+            const enemyId = Mathmin(Mathrandom() * Mathsqrt(depth + partyStrength) + 1 | 0, partyStrength, 4);
 
             //let enemyId = 1;
             let entity: Entity;
@@ -286,8 +294,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
                     }
                   ],
                   purpose: ENTITY_PURPOSE_ACTOR,
-                  side: 1,
-                  renderables: enemyId - 1 ? {...renderables, staticTransform: matrix4Scale(Mathsqrt(enemyId)/(3*VOLUME_SCALE*WALL_DIMENSION))} : renderables,
+                  renderables: enemyId - 1 ? {...renderables, staticTransform: matrix4Scale(Mathsqrt(enemyId)/(2.5*VOLUME_SCALE*WALL_DIMENSION))} : renderables,
                   entityType: ENTITY_TYPE_SPIDER,
                   attacks: FLAG_USE_ATTACK_MATRICES
                     ? 
@@ -436,7 +443,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
     party.members.forEach((partyMember, i) => {
       if (partyMember) {
         const [position, rotation] = getTargetPositionAndRotations(party, i);
-        partyMember['zr'] = rotation;
+        partyMember['z'] = rotation;
         partyMember['p'] = position as Vector3;
       }
     })
@@ -449,7 +456,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
     members: [{
       ...BASE_PARTY_MEMBER,
       ['p']: [LEVEL_MIDDLE_X, -.4, 0],
-      ['zr']: -CONST_PI_ON_2_2DP,
+      ['z']: -CONST_PI_ON_2_2DP,
       entity: {
         entityType: ENTITY_TYPE_DOOR,
         purpose: ENTITY_PURPOSE_USELESS,
@@ -533,7 +540,6 @@ const createMarine = (renderables: EntityRenderables[], color: number): ActorEnt
       }
     ],
     purpose: ENTITY_PURPOSE_ACTOR,
-    side: 0,
     renderables: renderables[color],
     entityType: ENTITY_TYPE_MARINE,
     variation: color,
