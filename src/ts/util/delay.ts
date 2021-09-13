@@ -1,1 +1,1 @@
-const delay = (v?: number) => new Promise(r => setTimeout(r, v));
+const delay = (v?: number) => new Promise(r => window.setTimeout(r, v));

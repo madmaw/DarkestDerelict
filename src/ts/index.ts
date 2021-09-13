@@ -235,6 +235,9 @@ const VERTEX_SHADER = `
   }
   `;
 
+FLAG_SHORTEN_DOCUMENT && shortenMethods(document, 'document');
+FLAG_SHORTEN_WINDOW && shortenMethods(window, 'window');
+
 onload = async () => {
   const canvas = Z;
   canvas.width = canvas.clientWidth;
@@ -361,10 +364,8 @@ onload = async () => {
     handler: async (c, events) => {
       const [commands, staticTransform, variations, entityZPadding] = c;
       P.style.width = `${(COMMANDS.length-events.length)/COMMANDS.length*99 | 0}%`
-      // allow rendering of progress
-      await delay();
 
-      return variations.map(([renderColors, params], i) => {
+      return Promise.all(variations.map(async ([renderColors, params], i) => {
         let volumeAndCanvas: {
           volum: Volume<Voxel>,
         };
@@ -589,6 +590,9 @@ onload = async () => {
             CONST_GL_STATIC_DRAW,
         );
 
+        // allow rendering of progress (delay here so slower machines don't kill the process when it runs too long)
+        await delay();
+
         return {
           depthTexture,
           renderTexture,
@@ -603,7 +607,7 @@ onload = async () => {
           textureCoordinatesBuffer,
           staticTransform,
         };
-      });
+      }));
     },
   }
 
@@ -1230,12 +1234,13 @@ onload = async () => {
   };
   let depth = 0;
   const DEFAULT_PARTY_POSITION: Vector2 = [LEVEL_DIMENSION/2 | 0, 0];
+  const NEGATED_CAMERA_OFFSET: Vector3 = [.35, 0, -.7];
   const playerParty: Party = {
     members: new Array(4).fill(0),
     orientated: ORIENTATION_NORTH,
     partyType: PARTY_TYPE_PLAYER,
     tile: DEFAULT_PARTY_POSITION,
-    ['coff']: [.35, 0, -.7],
+    ///negatedCameraOffset: [.35, 0, -.7],
     ['czr']: CONST_PI_ON_2_2DP,
   };
   playerParty.members[0] = {
@@ -1299,7 +1304,7 @@ onload = async () => {
       // attempt to find the entity in the world
       const projectionMatrix = matrix4Multiply(
           perspectiveMatrix,
-          matrix4Translate(...playerParty['coff']),
+          matrix4Translate(...NEGATED_CAMERA_OFFSET),
           matrix4Rotate(-playerParty['czr'], 0, 0, 1),
           // NOTE: the shader usually does this for us
           matrix4Translate(...vectorNDivide(playerParty['cp'], -1)),
@@ -1394,11 +1399,11 @@ onload = async () => {
       onDrag(p);  
     }
 };
-  onmousedown = (e: MouseEvent) => {
+  window.onmousedown = (e: MouseEvent) => {
     onStartDrag(e.target, e);
   };
   if (FLAG_MOBILE_SUPPORT) {
-    ontouchstart = (e: TouchEvent) => {
+    window.ontouchstart = (e: TouchEvent) => {
       onStartDrag(e.target, e.targetTouches[0]);
     }  
   }
@@ -1420,11 +1425,11 @@ onload = async () => {
     }
     return target;
   };
-  onmousemove = (e: MouseEvent) => {
+  window.onmousemove = (e: MouseEvent) => {
     onDrag(e, 1);
   }
   if (FLAG_MOBILE_SUPPORT) {
-    ontouchmove = (e: TouchEvent) => {
+    window.ontouchmove = (e: TouchEvent) => {
       onDrag(e.targetTouches[0], 1);
     }  
   }
@@ -1490,13 +1495,13 @@ onload = async () => {
     }
     cleanUpDrag();
   }
-  onmouseup = (e: MouseEvent) => {
+  window.onmouseup = (e: MouseEvent) => {
     if (dragContext) {
       onDragEnd(e);
     }
   }
   if (FLAG_MOBILE_SUPPORT) {
-    ontouchend = (e: TouchEvent) => {
+    window.ontouchend = (e: TouchEvent) => {
       onDragEnd(e.targetTouches[0] || dragContext && dragContext.lastPosition);
     }  
   }
@@ -1513,9 +1518,9 @@ onload = async () => {
 
   if (!FLAG_IGNORE_DRAG_CANCEL) {
     if (FLAG_MOBILE_SUPPORT) {
-      ontouchcancel = cleanUpDrag;
+      window.ontouchcancel = cleanUpDrag;
     }
-    onmouseleave = cleanUpDrag;  
+    window.onmouseleave = cleanUpDrag;  
   }
 
   const renderEntityToContext = (entity: Entity, stx: CanvasRenderingContext2D, width: number, height: number, party?: Party, slot?: number) => {
@@ -1593,7 +1598,8 @@ onload = async () => {
   const renderEntityToCanvas = (entity: Entity | Falseish, canvas: HTMLCanvasElement, party?: Party, slot?: number) => {
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;  
-    const stx = canvas['stx'] || (canvas['stx'] = shortenMethods(canvas.getContext('2d')));
+    // sc == shortened context
+    const stx = canvas['sc'] || (canvas['sc'] = shortenMethods(canvas.getContext('2d'), 'stx'));
     
     stx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1639,7 +1645,7 @@ onload = async () => {
   }
 
   const f = (now: number) => {
-    requestAnimationFrame(f);
+    window.requestAnimationFrame(f);
 
     gl.clear(CONST_GL_COLOR_BUFFER_BIT | CONST_GL_DEPTH_BUFFER_BIT);
     
@@ -1648,7 +1654,7 @@ onload = async () => {
 
     const cameraRotationMatrix = matrix4Rotate(playerParty['czr'], 0, 0, 1);
     const negatedCameraRotationMatrix = matrix4Rotate(-playerParty['czr'], 0, 0, 1);
-    const rotatedNegatedOffsetMatrix = vector3TransformMatrix4(cameraRotationMatrix, ...playerParty['coff']);
+    const rotatedNegatedOffsetMatrix = vector3TransformMatrix4(cameraRotationMatrix, ...NEGATED_CAMERA_OFFSET);
     
     const cameraPosition = vectorNSubtract(playerParty['cp'], rotatedNegatedOffsetMatrix);
 
@@ -1770,7 +1776,7 @@ onload = async () => {
               partyMember.anims.push(createTweenEntityAnimation(now, partyMember, 'zr2', (partyMember['zr2'] || 0) + (Mathrandom() - .5) * CONST_PI_ON_3_1DP, easeSquareBackToStart, 2000, 0));
             }
           }
-          const stx: CanvasRenderingContext2D = statusCanvas['stx'] || (statusCanvas['stx'] = shortenMethods(statusCanvas.getContext('2d')));
+          const stx: CanvasRenderingContext2D = statusCanvas['sc'] || (statusCanvas['sc'] = shortenMethods(statusCanvas.getContext('2d'), 'stx'));
           // note reversed because we actually are facing to the right
           const w = (bounds[1][1] - bounds[0][1] + 1) * STATUS_SCALE;
           const h = (bounds[1][2] - bounds[0][2] + 1) * STATUS_SCALE;

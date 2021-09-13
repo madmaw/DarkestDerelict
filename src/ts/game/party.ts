@@ -31,7 +31,7 @@ type Party = {
   // camera position
   ['cp']?: Vector3;
   // [negated] camera offset 
-  ['coff']?: Vector3,
+  //negatedCameraOffset?: Vector3,
   // camera z rotation
   ['czr']?: number;
   animationQueue?: EventQueue<AnimationFactory, void>,
@@ -112,7 +112,7 @@ const getTargetPositionAndRotations = (party: Party, memberSlot: number) => {
       break;
     case PARTY_TYPE_DOOR:
       toAngle = party.orientated * CONST_PI_ON_2_2DP;
-      targetPosition = [tile[0] + Mathcos(toAngle)/2, tile[1] + Mathsin(toAngle)/2, 0];
+      targetPosition = [tile[0] + Mathcos(toAngle)*.4, tile[1] + Mathsin(toAngle)*.4, 0];
       break;
   }
 

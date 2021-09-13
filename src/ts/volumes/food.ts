@@ -169,7 +169,7 @@ const VOLUMETRIC_PARAMS_FOOD: [(Vector4 | string)[], ((NumericValue<ValueRange> 
           type: 'numeric',
           range: 'positive-integer',
           value: 8,
-        }] : ''     
+        }] : 'B'
   ],
   [
     [COLOR_GUNMETAL, COLOR_BLUE_SHINY, COLOR_WHITE_SHINY],
@@ -178,7 +178,7 @@ const VOLUMETRIC_PARAMS_FOOD: [(Vector4 | string)[], ((NumericValue<ValueRange> 
           type: 'numeric',
           range: 'positive-integer',
           value: 4,
-        }] : ''     
+        }] : '>'
   ],
   [
     [COLOR_GUNMETAL, COLOR_GREEN_SHINY, COLOR_WHITE_SHINY], 
@@ -187,6 +187,6 @@ const VOLUMETRIC_PARAMS_FOOD: [(Vector4 | string)[], ((NumericValue<ValueRange> 
           type: 'numeric',
           range: 'positive-integer',
           value: 3,
-        }] : ''     
+        }] : '='
   ],
 ];

@@ -45,7 +45,7 @@ const TYPE_MATERIAL_OUT_OF_BOUNDS = '?';
 const UNSCALED_VOLUME_DIMENSION = 32;
 const UNSCALED_VOLUME_MIDPOINT = UNSCALED_VOLUME_DIMENSION/2;
 
-const VOLUME_DIMENSION = FLAG_CONFIGURABLE_QUALITY ? parseInt(window.location.hash?.substr(1) || '64') : 32;
+const VOLUME_DIMENSION = FLAG_CONFIGURABLE_QUALITY ? parseInt(window.location.hash?.substr(1) || '64') : 64;
 const VOLUME_MIDPOINT = VOLUME_DIMENSION/2;
 const OFFSET_VOLUME_MIDPOINT = (VOLUME_DIMENSION-1)/2;
 
@@ -365,7 +365,7 @@ const processVolumetricDrawCommandString = (
         const canvas = document.createElement('canvas');
         const canvasDimension = VOLUME_DIMENSION;
         canvas.width = canvas.height = canvasDimension;
-        const stx = shortenMethods(canvas.getContext('2d'));
+        const stx = shortenMethods(canvas.getContext('2d'), 'stx');
         // center to maximise chance of not overflowing
         const baseline = (VOLUME_DIMENSION + letterHeight)/2;
         stx.font = `${letterHeight}px serif`;

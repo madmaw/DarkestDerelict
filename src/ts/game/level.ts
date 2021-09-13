@@ -195,7 +195,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
     purpose: ENTITY_PURPOSE_SECONDARY,
     variation: REGULAR_DOOR_VARIANT,
   }, staples[0]] as Entity[]).concat(
-      new Array(Mathmin(Mathrandom()*depth | 0, 3)).fill(0).map<Entity>(() => {
+      new Array(Mathsqrt(depth - 1) | 0).fill(0).map<Entity>(() => {
         // only spawn extra keys if there are treasure rooms
         const entityType = (ENTITY_TYPE_FOOD + Mathpow(Mathrandom(), Mathmax(depth - 5, 1)) * (FLAG_TREASURE_ROOMS ? 5 : 4) | 0) as EntityType;
         const thingRenderables = entityRenderables[entityType];
@@ -209,7 +209,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
       })
   ).concat(
       // marines
-      new Array(Mathmax(1 - (Mathrandom() * depth | 0), 0)).fill(0).map<Entity>(() => {
+      new Array(Mathmax(2 - Mathrandom() * depth | 0, 0)).fill(0).map<Entity>(() => {
         return createMarine(
             entityRenderables[ENTITY_TYPE_MARINE],
             Mathrandom() * (entityRenderables[ENTITY_TYPE_MARINE].length - 1) + 1 | 0,
@@ -259,7 +259,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
           enemyPartyCount--;
           const partyMembers: PartyMember[] = [];
           while (partyStrength && partyMembers.length < 4) {
-            const enemyId = Mathmin(Mathrandom() * Mathsqrt(depth) + 1 | 0, partyStrength, 3);
+            const enemyId = Mathmin(Mathrandom() * Mathsqrt(depth) + 1 | 0, partyStrength, 4);
 
             //let enemyId = 1;
             let entity: Entity;
@@ -267,6 +267,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
             switch (enemyId) {
               case 1: 
               case 3:
+              case 4:
                 // variants (large spider)
                 const poisonAttack = enemyId - 1 ? [ATTACK_POISON, ATTACK_POISON] : [ATTACK_POISON];
                 const webbingAttack = enemyId - 1 ? [ATTACK_WEBBING, ATTACK_WEBBING] : [ATTACK_WEBBING];
@@ -286,7 +287,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
                   ],
                   purpose: ENTITY_PURPOSE_ACTOR,
                   side: 1,
-                  renderables: enemyId - 1 ? {...renderables, staticTransform: matrix4Multiply(renderables.staticTransform, matrix4Scale(1.5))} : renderables,
+                  renderables: enemyId - 1 ? {...renderables, staticTransform: matrix4Scale(Mathsqrt(enemyId)/(3*VOLUME_SCALE*WALL_DIMENSION))} : renderables,
                   entityType: ENTITY_TYPE_SPIDER,
                   attacks: FLAG_USE_ATTACK_MATRICES
                     ? 
@@ -371,7 +372,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
               partyMember.weapon = createGun(entityRenderables, ENTITY_TYPE_PISTOL, ATTACK_PIERCING);
             }
             // maybe drop food
-            Mathrandom() < enemyId/(treasureCount+2)  && (partyMember.secondary = {...staples[Mathmax(3 - treasureCount++, 0)]});
+            Mathrandom() < enemyId/(treasureCount+1)  && (partyMember.secondary = {...staples[Mathmax(staples.length - 1 - treasureCount++, 0)]});
             partyMembers.push(partyMember);
           }
           if (partyMembers.length) {
@@ -391,7 +392,6 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
       (tile, _, band, pos) => {
         const floors = entityRenderables[ENTITY_TYPE_FLOOR];
         tile.parties.push({
-          orientated: ORIENTATION_EAST,
           partyType: PARTY_TYPE_FLOOR,
           tile: pos,
           members: [{

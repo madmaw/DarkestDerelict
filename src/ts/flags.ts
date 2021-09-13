@@ -1,4 +1,4 @@
-const FLAG_PRODUCTION = true;
+const FLAG_PRODUCTION = false;
 const FLAG_PRODUCTION_MINIMAL = true && FLAG_PRODUCTION;
 
 const FLAG_SHOW_GL_ERRORS = false || !FLAG_PRODUCTION_MINIMAL;
@@ -23,10 +23,12 @@ const FLAG_DEATH_ANIMATION = true; // die
 const FLAG_MOBILE_SUPPORT = true; // touch controls
 const FLAG_ROTATE_COLORS = false; // doesn't work on iOS
 const FLAG_MARINE_DIMORPHISM = true;
-const FLAG_DBEUG_SHORTENED_METHODS = false;
+const FLAG_DEBUG_SHORTENED_METHODS = false; // print out all the shortened methods
 const FLAG_USE_ATTACK_MATRICES = true; // always smaller and easier to maintain
 const FLAG_USE_HAND_ROLLED_GLSL_CONSTANTS = false || FLAG_PRODUCTION_MINIMAL;
 const FLAG_IGNORE_DRAG_CANCEL = false || FLAG_PRODUCTION_MINIMAL;
 const FLAG_TORCH_SCARES_ENEMIES = true;
 const FLAG_OFFSET_LOOT = true;
 const FLAG_TREASURE_ROOMS = true;
+const FLAG_SHORTEN_WINDOW = false || FLAG_PRODUCTION_MINIMAL || FLAG_DEBUG_SHORTENED_METHODS;
+const FLAG_SHORTEN_DOCUMENT = false;// || FLAG_PRODUCTION_MINIMAL || FLAG_DEBUG_SHORTENED_METHODS;
