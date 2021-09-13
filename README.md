@@ -1,7 +1,7 @@
 # DarkestDerelict
 2021 JS13K entry
 
-Ah, the life of a space marine. You got yer-self some sweet power armour, a nice little sidearm, and all the cans of ground beef you could ever want. Only one thing that ruins it, and that's the BUGS!
+Ah, the life of a space marine. You got yer-self some sweet power armour, a nice little sidearm, and all the cans of ground beef you could ever want. Only one thing that ruins it. And that's the BUGS!
 
 Damn things. Appear from nowhere. Eat yer crew. Lay eggs in their brains. The whole lot. Disgusting! Hopefully this will just be a routine mission. I'm sure this derelict space ship will be as empty as my last can of space beef...
 
@@ -27,7 +27,7 @@ If a marine runs out of health they immediately die. This should be avoided wher
 
 ▲ energy
 
-Your power armour is a wonderful piece of technology and is your first, last, and only line of defence in combat. Power armour requires time to charge after moving, so your weapons will be temporary offline while walking, but will power up quickly provided you remain stationary. Maximizing your energy supply, while minimizing the enemy's, is the key to being victorious in combat.
+Your power armour is a wonderful piece of technology and is your first, last, and only, line of defence in combat. Power armour requires time to charge after moving, so your weapons will be temporary offline while walking, but will power up quickly provided you remain stationary. Maximizing your energy supply, while minimizing the enemy's, is the key to being victorious in combat.
 
 Space Tips
 
