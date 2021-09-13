@@ -129,6 +129,16 @@ const VOLUMETERIC_COMMANDS_FOOD: VolumetricDrawCommand[] = [
           value: 1,
         },
       ],
+      /*
+      [
+        TYPE_ROTATE_X,
+        {
+          type: 'numeric',
+          range: 'angle',
+          value: Math.PI/4,
+        }
+      ],
+      */
       [
         TYPE_SHAPE_CYLINDER,
         {
@@ -159,7 +169,7 @@ const VOLUMETERIC_COMMANDS_FOOD: VolumetricDrawCommand[] = [
   ],
 ];
 
-const VOLUMETRIC_FOOD = FLAG_USE_VOLUME_COMMANDS ? VOLUMETERIC_COMMANDS_FOOD : 'ZJDVLLN.#;BRLL#<BBLLZJDNHHJ.#;DNBBB%%';
+const VOLUMETRIC_FOOD = FLAG_USE_VOLUME_COMMANDS ? VOLUMETERIC_COMMANDS_FOOD : 'ZJDVLLN.#;BRLL#<BBLLZJDNHHJ.#;DNBB0%%';
 
 const VOLUMETRIC_PARAMS_FOOD: [(Vector4 | string)[], ((NumericValue<ValueRange> | CharValue)[] | string)?][] = [
   [
@@ -169,6 +179,10 @@ const VOLUMETRIC_PARAMS_FOOD: [(Vector4 | string)[], ((NumericValue<ValueRange> 
           type: 'numeric',
           range: 'positive-integer',
           value: 8,
+        }, {
+          type: 'numeric',
+          range: 'angle',
+          value: 0,
         }] : 'B'
   ],
   [
@@ -178,6 +192,10 @@ const VOLUMETRIC_PARAMS_FOOD: [(Vector4 | string)[], ((NumericValue<ValueRange> 
           type: 'numeric',
           range: 'positive-integer',
           value: 4,
+        }, {
+          type: 'numeric',
+          range: 'angle',
+          value: Math.PI/4,
         }] : '>'
   ],
   [
@@ -187,6 +205,10 @@ const VOLUMETRIC_PARAMS_FOOD: [(Vector4 | string)[], ((NumericValue<ValueRange> 
           type: 'numeric',
           range: 'positive-integer',
           value: 3,
+        }, {
+          type: 'numeric',
+          range: 'angle',
+          value: 0,
         }] : '='
   ],
 ];

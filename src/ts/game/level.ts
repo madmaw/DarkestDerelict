@@ -148,7 +148,7 @@ const generateLevel = (entityRenderables: EntityRenderables[][], depth: number):
         tile => !tile.parties.length,
         (tile, adjacentValid, band, pos) => {
           // all sides except one surrounded by walls, hole facing east
-          if (!band && adjacentValid == 1 && treasureRooms && depth > 2) {
+          if (!band && adjacentValid == 1 && treasureRooms) {
             treasureRooms--;
             const shotgun = createGun(entityRenderables, ENTITY_TYPE_SHOTGUN, (Mathrandom() * 3 | 0) as Attack);
             // special shotgun
