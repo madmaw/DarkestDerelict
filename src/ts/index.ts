@@ -788,6 +788,8 @@ onload = async () => {
                     } else {
                       actor.res[ACTOR_ENTITY_RESOURCE_TYPE_HEALTH].quantity++;
                     }
+                    // clear poisoned
+                    actor.res[ACTOR_ENTITY_RESOURCE_TYPE_POISON].quantity = 0;
                     turnPassed = itemDestroyed = 1;
                   } else {
                     reciprocalMoveEntity = toSlot.secondary;
