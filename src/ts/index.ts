@@ -130,15 +130,15 @@ const VERTEX_SHADER = `
   const L_BRIGHTNESS = FLAG_LONG_SHADER_NAMES ? 'lBrightness' : 'k';
   // i, j reserved for loops
   const L_LIGHT_POSITION = FLAG_LONG_SHADER_NAMES ? 'lLightPosition' : 'h';
-  const L_REACH = FLAG_LONG_SHADER_NAMES ? 'lReach' : 'g';
+  //const L_REACH = FLAG_LONG_SHADER_NAMES ? 'lReach' : 'g'; - reuse lDepth
   const L_LIGHT_DELTA = FLAG_LONG_SHADER_NAMES ? 'lLightDelta' : 'f';
   
   const CONST_MAX_NUM_STEPS = 64;
   const CONST_TARGET_NUM_STEPS = 32;
   const MAX_DEPTH = VOLUME_DIMENSION/TEXTURE_DIMENSION;
   const C_MAX_DEPTH = `${MAX_DEPTH}`;
-  const BASE_STEP_DEPTH = FLAG_USE_HAND_ROLLED_GLSL_CONSTANTS ? .0022 : MAX_DEPTH/CONST_TARGET_NUM_STEPS;
-  const MIN_STEP_DEPTH = FLAG_USE_HAND_ROLLED_GLSL_CONSTANTS ? .0011 : MAX_DEPTH/CONST_MAX_NUM_STEPS;
+  const BASE_STEP_DEPTH = FLAG_USE_HAND_ROLLED_GLSL_CONSTANTS ? .002 : MAX_DEPTH/CONST_TARGET_NUM_STEPS;
+  const MIN_STEP_DEPTH = FLAG_USE_HAND_ROLLED_GLSL_CONSTANTS ? .001 : MAX_DEPTH/CONST_MAX_NUM_STEPS;
   const DEPTH_SCALE = 256/VOLUME_DIMENSION*MAX_DEPTH;
   const C_DEPTH_SCALE = `${DEPTH_SCALE}`;
   const C_MAX_NUM_LIGHTS = 9;
@@ -209,14 +209,14 @@ const VERTEX_SHADER = `
         if (float(i)<${U_CAMERA_POSITION}.w) {
           vec4 ${L_LIGHT} = ${U_LIGHTS}[i],
                ${L_LIGHT_POSITION} = ${U_LIGHT_TRANSFORMS}[i]*vec4(0., 0., 0., 1.);
-          float ${L_REACH} = length(${L_LIGHT}.xyz)/1.8*(1.+sqrt(${L_LIGHT}.w))*${C_BASE_LIGHT_REACH};
+          ${L_DEPTH} = length(${L_LIGHT}.xyz)/1.8*(1.+sqrt(${L_LIGHT}.w))*${C_BASE_LIGHT_REACH};
           vec3 ${L_LIGHT_DELTA} = ${L_LIGHT_POSITION}.xyz - ${L_PIXEL_POSITION};
           for (float j=0.; j<2.; j++) {
-            if (${L_REACH} > length(${L_LIGHT_DELTA})) {
+            if (${L_DEPTH} > length(${L_LIGHT_DELTA})) {
               // scale up light to 100% color
               ${L_LIGHTING} += ${L_LIGHT}.xyz
                   // distance 
-                  * (1. - pow(length(${L_LIGHT_DELTA})/${L_REACH}, 3./(${L_LIGHT}.w + 1.)))*${L_REACH}
+                  * (1. - pow(length(${L_LIGHT_DELTA})/${L_DEPTH}, 3./(${L_LIGHT}.w + 1.)))*${L_DEPTH}
                   // angle 
                   * pow(max(dot(${L_SURFACE_NORMAL}, ${V_SURFACE_ROTATION} * normalize(normalize(${L_LIGHT_DELTA})-j*${L_CAMERA_NORMAL})), 0.),.1/${L_COLOR}.a) * (j>0.?1.-${L_COLOR}.a:${L_COLOR}.a)
                   // cone (iOS doesn't calculate pow(x, 0) as 1 for some reason)
@@ -364,6 +364,8 @@ onload = async () => {
     handler: async (c, events) => {
       const [commands, staticTransform, variations, entityZPadding] = c;
       P.style.width = `${(COMMANDS.length-events.length)/COMMANDS.length*99 | 0}%`
+
+      FLAG_INITIAL_DELAY && await delay();
 
       return Promise.all(variations.map(async ([renderColors, params], i) => {
         let volumeAndCanvas: {
@@ -1523,7 +1525,7 @@ onload = async () => {
     window.onmouseleave = cleanUpDrag;  
   }
 
-  const renderEntityToContext = (entity: Entity, stx: CanvasRenderingContext2D, width: number, height: number, party?: Party, slot?: number) => {
+  const renderEntityToContext = (entity: Entity, stx: CanvasRenderingContext2D, width: number, height: number, party?: Party, slot?: number, renderBody?: () => void) => {
     // render status
     if (entity.purpose == ENTITY_PURPOSE_ACTOR && party) {
       const member = party.members[slot] as PartyMember;
@@ -1569,7 +1571,6 @@ onload = async () => {
       });
 
       stx.strokeStyle = stx.fillStyle = `hsl(${FLAG_ROTATE_COLORS || member != game.pendingMember ? 180 : 180 - Mathmin((game.timeMillis - member.activeAttackStartTime) | 0, 180)},50%,${50 + (member == game.pendingMember ? Mathsin((game.timeMillis - member.activeAttackStartTime)/99)*30 | 0 : 0)}%)`;
-      stx.globalCompositeOperation = 'destination-over';
       stx.beginPath(); // required to prevent weirdness with clearRect
       stx.rect(symbolDimension/3, startingY + symbolDimension/6, width - symbolDimension/3, h);
       //ctx.closePath();
@@ -1577,6 +1578,8 @@ onload = async () => {
       stx.globalAlpha = .3;
       stx.fill();
       stx.restore();
+
+      renderBody?.();
 
       member.attackAnimations?.forEach(({ attackType: attack, x, y, ['s']: scale }) => {
         if (scale) {
@@ -1592,6 +1595,8 @@ onload = async () => {
           stx.restore();  
         }
       });
+    } else {
+      renderBody?.();
     }
   }
 
@@ -1604,20 +1609,22 @@ onload = async () => {
     stx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (entity) {
-      if ((!dragContext || dragContext.startPosition == dragContext.lastPosition || entity != dragContext?.entity)) {
-        slotsToEntities.set(canvas, entity);
-        const thumbnail = entity.renderables.thumbnail;
-        const scale = Mathmin(canvas.width*.9/thumbnail.width, canvas.height*.8/thumbnail.height);
-        stx.drawImage(
-            thumbnail,
-            (canvas.width - thumbnail.width*scale)/2,
-            (canvas.height - thumbnail.height*scale),
-            thumbnail.width*scale,
-            thumbnail.height*scale,
-        );
+      const cb = () => {
+        if ((!dragContext || dragContext.startPosition == dragContext.lastPosition || entity != dragContext?.entity)) {
+          slotsToEntities.set(canvas, entity);
+          const thumbnail = entity.renderables.thumbnail;
+          const scale = Mathmin(canvas.width*.9/thumbnail.width, canvas.height*.8/thumbnail.height);
+          stx.drawImage(
+              thumbnail,
+              (canvas.width - thumbnail.width*scale)/2,
+              (canvas.height - thumbnail.height*scale),
+              thumbnail.width*scale,
+              thumbnail.height*scale,
+          );
+        }  
       }
 
-      renderEntityToContext(entity, stx, canvas.width, canvas.height, party, slot);
+      renderEntityToContext(entity, stx, canvas.width, canvas.height, party, slot, cb);
     }
   }
 
@@ -1734,7 +1741,7 @@ onload = async () => {
         if (party.partyType == PARTY_TYPE_PLAYER || party.partyType == PARTY_TYPE_HOSTILE || partyMember.entity.entityType == ENTITY_TYPE_MARINE) {
           light = {
             pos: partyMember['p'],
-            light: party.partyType == PARTY_TYPE_HOSTILE ? [.6, .1, .1, 0] : party == playerParty ? [.6, .6, .6, 0] : [.4, .4, .4, 0],
+            light: party.partyType == PARTY_TYPE_HOSTILE ? [.6, .2, .2, 0] : party == playerParty ? [.6, .6, .6, 0] : [.4, .4, .5, 0],
             lightTransform: matrix4Multiply(
                 matrix4Translate(...partyMember['p']),
                 matrix4Rotate((party['czr'] || partyMember['zr']) + CONST_PI_1DP, 0, 0, 1),
